@@ -923,7 +923,7 @@ function renderCheckoutStep() {
   const summaryCard = el('div', {
     cls: 'glass-card checkout-summary-card',
     children: [
-      el('span', { cls: 'pricing-title', text: 'ESCROW AGREEMENT' }),
+      el('span', { cls: 'pricing-title', text: 'PAYPAL SANDBOX PAYMENT SUMMARY' }),
       el('h3', { cls: 'proposal-project-title', text: title, attr: { style: 'font-size: 22px; margin-top: 6px;' } }),
       el('div', {
         cls: 'order-breakdown-table',
@@ -960,8 +960,8 @@ function renderCheckoutStep() {
           }),
           el('div', {
             children: [
-              el('strong', { text: 'PayPal Sandbox Protected Escrow', attr: { style: 'font-size: 12px; display: block;' } }),
-              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--label-tertiary);' } })
+              el('strong', { text: 'PayPal Sandbox Authorized Milestone Payment', attr: { style: 'font-size: 12px; display: block;' } }),
+              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--text-tertiary);' } })
             ]
           })
         ]
