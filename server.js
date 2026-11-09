@@ -450,17 +450,30 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
 
   // ── Confirm quote (server-side amount validation + lock) ──────────────────
   if (req.method === 'POST' && route === '/api/confirm-quote') {
-    const { quoteId, amountUSD } = await readBody(req);
+    const { quoteId, amountUSD, milestones } = await readBody(req);
     const quote  = quotes.get(quoteId);
     if (!quote) return send(res, 404, { error: 'Quote expired or not found. Generate a new one.' });
     if (quote.paid) return send(res, 400, { error: 'This quote has already been paid.' });
     if (quote.locked) return send(res, 400, { error: 'This quote is already in checkout. Refresh and start a new one.' });
     const amount = validateAmount(amountUSD);
     if (!amount) return send(res, 400, { error: 'Enter a valid USD amount between $1.00 and $10,000.00 (up to 2 decimal places).' });
+
+    if (Array.isArray(milestones) && milestones.length > 0) {
+      const sum = milestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
+      if (Math.abs(sum - 100) > 0.5) {
+        return send(res, 400, { error: `Milestone percentages must total exactly 100% (currently ${sum}%).` });
+      }
+      quote.milestones = milestones.map(m => ({
+        name: String(m.name || 'Deliverable').slice(0, 90),
+        percent: Math.max(1, Math.round(Number(m.percent || 0))),
+        description: String(m.description || '').slice(0, 200),
+      }));
+    }
+
     quote.amountUSD = amount;
     quote.locked    = true;
-    await saveProject({ quoteId, title: quote.title, amountUSD: amount, status: 'approved', createdAt: new Date().toISOString() });
-    return send(res, 200, { quoteId, amountUSD: amount });
+    await saveProject({ quoteId, title: quote.title, amountUSD: amount, milestones: quote.milestones, status: 'approved', createdAt: new Date().toISOString() });
+    return send(res, 200, { quoteId, amountUSD: amount, milestones: quote.milestones });
   }
 
   // ── Scope-change analysis ─────────────────────────────────────────────────

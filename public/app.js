@@ -96,16 +96,39 @@ function showView(viewName) {
 
 // ─── STEP ROUTING (WIZARD) ───
 const STEPS = ['brief', 'proposal', 'scope', 'checkout', 'receipt'];
+let previousStepIdx = 0;
+
+function haptic(type = 'light') {
+  try {
+    if (window.navigator?.vibrate) {
+      if (type === 'light') window.navigator.vibrate(10);
+      else if (type === 'medium') window.navigator.vibrate(25);
+      else if (type === 'success') window.navigator.vibrate([15, 50, 20]);
+    }
+  } catch {}
+}
 
 function showStep(stepName) {
   state.currentStep = stepName;
+  const activeIdx = STEPS.indexOf(stepName);
+  const isBackward = activeIdx < previousStepIdx;
+  previousStepIdx = activeIdx;
+
   STEPS.forEach(s => {
     const stepEl = $(`step-${s}`);
-    if (stepEl) stepEl.classList.toggle('hidden-step', s !== stepName);
+    if (stepEl) {
+      const isCurrent = s === stepName;
+      stepEl.classList.toggle('hidden-step', !isCurrent);
+      if (isCurrent) {
+        stepEl.classList.remove('slide-backward');
+        if (isBackward) {
+          stepEl.classList.add('slide-backward');
+        }
+      }
+    }
   });
 
   // Update Stepper Progress Bar
-  const activeIdx = STEPS.indexOf(stepName);
   STEPS.forEach((s, idx) => {
     const item = $(`stepper-step-${idx + 1}`);
     const line = $(`stepper-line-${idx + 1}`);
@@ -326,6 +349,70 @@ qsa('[data-scope-template]').forEach(btn => {
   });
 });
 
+// ─── SHIMMER SKELETONS (§11 Perceived Performance) ───
+function renderProposalSkeleton() {
+  const container = $('proposal-container');
+  container.innerHTML = `
+    <div class="proposal-main-col">
+      <div class="glass-card proposal-hero-box" style="padding: 28px;">
+        <div style="display: flex; gap: 10px; margin-bottom: 16px;">
+          <div class="skeleton-shimmer" style="height: 24px; width: 190px; border-radius: 9999px;"></div>
+          <div class="skeleton-shimmer" style="height: 24px; width: 120px; border-radius: 9999px;"></div>
+        </div>
+        <div class="skeleton-shimmer" style="height: 32px; width: 75%; margin-bottom: 14px;"></div>
+        <div class="skeleton-shimmer" style="height: 16px; width: 95%; margin-bottom: 8px;"></div>
+        <div class="skeleton-shimmer" style="height: 16px; width: 68%;"></div>
+      </div>
+      <div class="glass-card deliverables-box" style="padding: 28px;">
+        <div class="skeleton-shimmer" style="height: 20px; width: 230px; margin-bottom: 18px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <div class="skeleton-shimmer" style="height: 48px; width: 100%; border-radius: 10px;"></div>
+          <div class="skeleton-shimmer" style="height: 48px; width: 100%; border-radius: 10px;"></div>
+          <div class="skeleton-shimmer" style="height: 48px; width: 100%; border-radius: 10px;"></div>
+        </div>
+      </div>
+      <div class="glass-card milestones-box" style="padding: 28px;">
+        <div class="skeleton-shimmer" style="height: 20px; width: 250px; margin-bottom: 18px;"></div>
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="skeleton-shimmer" style="height: 64px; width: 100%; border-radius: 10px;"></div>
+          <div class="skeleton-shimmer" style="height: 64px; width: 100%; border-radius: 10px;"></div>
+          <div class="skeleton-shimmer" style="height: 64px; width: 100%; border-radius: 10px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="proposal-side-col">
+      <div class="glass-card pricing-approval-card" style="padding: 28px;">
+        <div class="skeleton-shimmer" style="height: 18px; width: 160px; margin-bottom: 18px;"></div>
+        <div class="skeleton-shimmer" style="height: 68px; width: 100%; margin-bottom: 18px; border-radius: 10px;"></div>
+        <div class="skeleton-shimmer" style="height: 44px; width: 100%; margin-bottom: 18px; border-radius: 8px;"></div>
+        <div class="skeleton-shimmer" style="height: 48px; width: 100%; border-radius: 9999px;"></div>
+      </div>
+    </div>
+  `;
+}
+
+function renderScopeSkeleton() {
+  const container = $('scope-result-container');
+  container.innerHTML = `
+    <div class="glass-card primary-card scope-analysis-layout" style="padding: 28px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
+        <div class="skeleton-shimmer" style="height: 20px; width: 150px;"></div>
+        <div class="skeleton-shimmer" style="height: 24px; width: 120px; border-radius: 9999px;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+        <div class="skeleton-shimmer" style="height: 130px; border-radius: 10px;"></div>
+        <div class="skeleton-shimmer" style="height: 130px; border-radius: 10px;"></div>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px;">
+        <div class="skeleton-shimmer" style="height: 68px; border-radius: 10px;"></div>
+        <div class="skeleton-shimmer" style="height: 68px; border-radius: 10px;"></div>
+      </div>
+      <div class="skeleton-shimmer" style="height: 52px; border-radius: 10px; margin-bottom: 16px;"></div>
+      <div class="skeleton-shimmer" style="height: 46px; border-radius: 9999px;"></div>
+    </div>
+  `;
+}
+
 // ─── PROPOSAL GENERATION ───
 $('btn-generate').addEventListener('click', async () => {
   const description = descEl.value.trim();
@@ -334,19 +421,25 @@ $('btn-generate').addEventListener('click', async () => {
     return;
   }
 
+  haptic('light');
   const btn = $('btn-generate');
   btn.disabled = true;
   btn.innerHTML = '<span class="sparkle">✦</span> <span>Analyzing with Gemini 3.8 Flash...</span>';
+
+  // Render shimmer skeleton immediately so user sees layout without lag
+  showStep('proposal');
+  renderProposalSkeleton();
 
   try {
     const data = await api('/api/quote', { description });
     state.quoteId = data.quoteId;
     state.quote = data.quote;
     renderProposal(data.quoteId, data.quote);
-    showStep('proposal');
+    haptic('success');
     toast('AI Proposal generated with 100% milestone math!', 'success');
   } catch (err) {
     toast(err.message, 'error');
+    showStep('brief');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span> <span class="btn-arrow">→</span>';
@@ -354,6 +447,7 @@ $('btn-generate').addEventListener('click', async () => {
 });
 
 $('btn-new-proposal').addEventListener('click', () => {
+  haptic('light');
   showStep('brief');
 });
 
@@ -361,6 +455,9 @@ $('btn-new-proposal').addEventListener('click', () => {
 function renderProposal(quoteId, quote) {
   const container = $('proposal-container');
   container.innerHTML = '';
+
+  // Local mutable state for direct manipulation of milestones
+  let currentMilestones = (quote.milestones || []).map(m => ({ ...m }));
 
   // Main Column
   const mainCol = el('div', { cls: 'proposal-main-col' });
@@ -403,22 +500,68 @@ function renderProposal(quoteId, quote) {
     mainCol.appendChild(delivBox);
   }
 
-  // 3. Milestones Card
-  if (quote.milestones?.length) {
+  // 3. Interactive Milestones Card (§2 Direct Manipulation & §4 Balance Math)
+  if (currentMilestones.length) {
     const milesBox = el('div', {
       cls: 'glass-card milestones-box',
       children: [
-        el('h3', { cls: 'box-title', html: '<span>📊 Payment Milestone Breakdown (Sum: 100%)</span>' }),
+        el('div', {
+          cls: 'milestones-header-row',
+          children: [
+            el('h3', { cls: 'box-title', html: '<span>📊 Payment Milestone Breakdown</span>' }),
+            el('div', {
+              cls: 'milestone-math-pills',
+              children: [
+                el('span', { id: 'milestone-sum-badge', cls: 'milestone-total-badge badge-ok', text: 'Total: 100%' }),
+                (() => {
+                  const bBtn = el('button', {
+                    id: 'btn-balance-milestones',
+                    cls: 'btn-micro-glass',
+                    text: '⚡ Auto-Balance to 100%',
+                    attr: { style: 'display: none;', type: 'button' }
+                  });
+                  bBtn.onclick = autoBalanceMilestones;
+                  return bBtn;
+                })()
+              ]
+            })
+          ]
+        }),
         el('div', {
           cls: 'milestones-styled-list',
-          children: quote.milestones.map(m => el('div', {
+          id: 'milestones-list-container',
+          children: currentMilestones.map((m, idx) => el('div', {
             cls: 'milestone-card-item',
             children: [
               el('div', {
                 cls: 'milestone-top-row',
                 children: [
                   el('span', { cls: 'milestone-title', text: m.name }),
-                  el('span', { cls: 'milestone-percent-pill', text: `${m.percent}%` })
+                  el('div', {
+                    cls: 'milestone-controls-row',
+                    children: [
+                      el('div', {
+                        cls: 'milestone-input-wrap',
+                        children: [
+                          (() => {
+                            const inp = el('input', {
+                              id: `milestone-input-${idx}`,
+                              cls: 'milestone-percent-input font-mono',
+                              attr: { type: 'number', min: '1', max: '99', step: '1', value: m.percent, 'aria-label': `${m.name} percentage` }
+                            });
+                            inp.addEventListener('input', () => {
+                              const val = Math.max(1, Math.min(99, parseInt(inp.value, 10) || 1));
+                              currentMilestones[idx].percent = val;
+                              updateMilestoneDisplays();
+                            });
+                            return inp;
+                          })(),
+                          el('span', { cls: 'milestone-percent-unit', text: '%' })
+                        ]
+                      }),
+                      el('span', { id: `milestone-usd-${idx}`, cls: 'milestone-usd-val font-mono', text: '$0.00 USD' })
+                    ]
+                  })
                 ]
               }),
               m.description ? el('p', { cls: 'milestone-desc-text', text: m.description }) : null,
@@ -426,6 +569,7 @@ function renderProposal(quoteId, quote) {
                 cls: 'milestone-progress-track',
                 children: [
                   el('div', {
+                    id: `milestone-fill-${idx}`,
                     cls: 'milestone-progress-fill',
                     attr: { style: `width: ${m.percent}%` }
                   })
@@ -437,6 +581,52 @@ function renderProposal(quoteId, quote) {
       ]
     });
     mainCol.appendChild(milesBox);
+  }
+
+  // 4. Assumptions & AI Risk Audit Card
+  if (quote.assumptions?.length || quote.risks?.length || quote.questions?.length) {
+    const auditCard = el('div', {
+      cls: 'glass-card assumptions-box',
+      children: [
+        el('h3', { cls: 'box-title', html: '<span>🛡️ AI Project Clarifications &amp; Risk Audit</span>' }),
+        el('div', {
+          cls: 'assumptions-grid',
+          children: [
+            quote.risks?.length ? el('div', {
+              cls: 'meta-info-card',
+              children: [
+                el('div', { cls: 'meta-card-title title-amber', html: '⚠️ Identified Risk Watchouts' }),
+                el('div', {
+                  cls: 'meta-chip-list',
+                  children: quote.risks.map(r => el('div', { text: `• ${r}` }))
+                })
+              ]
+            }) : null,
+            quote.questions?.length ? el('div', {
+              cls: 'meta-info-card',
+              children: [
+                el('div', { cls: 'meta-card-title title-cyan', html: '❓ Clarification Questions' }),
+                el('div', {
+                  cls: 'meta-chip-list',
+                  children: quote.questions.map(q => el('div', { text: `• ${q}` }))
+                })
+              ]
+            }) : null,
+            quote.assumptions?.length ? el('div', {
+              cls: 'meta-info-card',
+              children: [
+                el('div', { cls: 'meta-card-title title-violet', html: '📌 Key Working Assumptions' }),
+                el('div', {
+                  cls: 'meta-chip-list',
+                  children: quote.assumptions.map(a => el('div', { text: `• ${a}` }))
+                })
+              ]
+            }) : null
+          ].filter(Boolean)
+        })
+      ]
+    });
+    mainCol.appendChild(auditCard);
   }
 
   // Side Column: Price Approval Box
@@ -486,6 +676,71 @@ function renderProposal(quoteId, quote) {
   container.appendChild(mainCol);
   container.appendChild(sideCol);
 
+  // Auto-balance helper
+  function autoBalanceMilestones() {
+    haptic('light');
+    const n = currentMilestones.length;
+    if (n === 0) return;
+    const currentSum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
+    const diff = 100 - currentSum;
+    currentMilestones[n - 1].percent = Math.max(1, currentMilestones[n - 1].percent + diff);
+    // If still off, distribute equally
+    const newSum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
+    if (newSum !== 100) {
+      const base = Math.floor(100 / n);
+      const remainder = 100 - (base * n);
+      currentMilestones.forEach((m, i) => {
+        m.percent = base + (i === n - 1 ? remainder : 0);
+      });
+    }
+    currentMilestones.forEach((m, idx) => {
+      const inp = $(`milestone-input-${idx}`);
+      if (inp) inp.value = m.percent;
+    });
+    updateMilestoneDisplays();
+    toast('Milestones balanced to exactly 100%!', 'info');
+  }
+
+  // Live display updater
+  function updateMilestoneDisplays() {
+    const totalAmount = Number($('approved-amount-input')?.value || quote.amountUSD) || 0;
+    const sum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
+    const badge = $('milestone-sum-badge');
+    const balanceBtn = $('btn-balance-milestones');
+    const approveBtn = $('btn-approve-quote');
+    const isValid = Math.abs(sum - 100) < 0.01;
+
+    if (badge) {
+      badge.textContent = isValid ? 'Total: 100%' : `Total: ${sum}% (Must equal 100%)`;
+      badge.className = `milestone-total-badge ${isValid ? 'badge-ok' : 'badge-warn'}`;
+    }
+    if (balanceBtn) {
+      balanceBtn.style.display = isValid ? 'none' : 'inline-flex';
+    }
+    if (approveBtn) {
+      approveBtn.disabled = !isValid;
+      if (!isValid) approveBtn.title = 'Milestones must total 100% before approving';
+      else approveBtn.removeAttribute('title');
+    }
+
+    currentMilestones.forEach((m, idx) => {
+      const p = Number(m.percent) || 0;
+      const usdEl = $(`milestone-usd-${idx}`);
+      const fillEl = $(`milestone-fill-${idx}`);
+      const val = (totalAmount * (p / 100)).toFixed(2);
+      if (usdEl) usdEl.textContent = `$${val} USD`;
+      if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, p))}%`;
+    });
+  }
+
+  // Listen to total price edits to dynamically update milestone USD
+  $('approved-amount-input')?.addEventListener('input', () => {
+    updateMilestoneDisplays();
+  });
+
+  // Initial calculations
+  updateMilestoneDisplays();
+
   // Approve button event
   $('btn-approve-quote').addEventListener('click', async () => {
     const inputVal = $('approved-amount-input').value;
@@ -495,13 +750,26 @@ function renderProposal(quoteId, quote) {
       return;
     }
 
+    const sum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
+    if (Math.abs(sum - 100) > 0.01) {
+      toast(`Milestone percentages must equal 100% (currently ${sum}%). Click Auto-Balance!`, 'error');
+      return;
+    }
+
+    haptic('medium');
     const btn = $('btn-approve-quote');
     btn.disabled = true;
     btn.innerHTML = '<span>Locking Agreement on Server...</span>';
 
     try {
-      const res = await api('/api/confirm-quote', { quoteId, amountUSD: inputVal });
+      const res = await api('/api/confirm-quote', {
+        quoteId,
+        amountUSD: inputVal,
+        milestones: currentMilestones
+      });
       state.approvedAmount = res.amountUSD;
+      if (res.milestones) state.quote.milestones = res.milestones;
+      haptic('success');
       toast(`Quotation locked at $${Number(res.amountUSD).toFixed(2)} USD!`, 'success');
       showStep('scope');
       renderScopeStep();
@@ -527,13 +795,16 @@ function renderScopeStep() {
       return;
     }
 
+    haptic('light');
     const btn = $('btn-analyze-scope');
     btn.disabled = true;
     btn.innerHTML = '<span class="sparkle">✦</span> <span>Benchmarking against baseline...</span>';
+    renderScopeSkeleton();
 
     try {
       const data = await api('/api/scope-change', { quoteId: state.quoteId, newRequest: request });
       renderScopeAnalysis(data);
+      haptic('success');
       toast('Scope variance detected! See analysis on the right.', 'success');
     } catch (err) {
       toast(err.message, 'error');
@@ -801,8 +1072,8 @@ function renderReceipt(confirmed) {
         children: [
           renderMetaRow('Project Title:', confirmed.projectTitle || state.quote?.title || 'Freelance Agreement'),
           renderMetaRow('Captured Amount:', `$${Number(confirmed.amount).toFixed(2)} USD (Test Funds)`),
-          renderMetaRow('PayPal Order ID:', confirmed.orderId),
-          renderMetaRow('PayPal Capture ID:', confirmed.captureId || 'Verified Record'),
+          renderMetaRow('PayPal Order ID:', confirmed.orderId, true),
+          renderMetaRow('PayPal Capture ID:', confirmed.captureId || 'Verified Record', Boolean(confirmed.captureId)),
           renderMetaRow('Capture Status:', confirmed.status),
           renderMetaRow('Verified Timestamp:', confirmed.paidAt ? new Date(confirmed.paidAt).toUTCString() : new Date().toUTCString()),
           renderMetaRow('Environment:', 'api-m.sandbox.paypal.com')
@@ -813,12 +1084,16 @@ function renderReceipt(confirmed) {
         children: [
           (() => {
             const btn = el('button', { cls: 'btn-secondary-glass', text: '🖨️ Print Escrow Receipt' });
-            btn.onclick = () => window.print();
+            btn.onclick = () => {
+              haptic('light');
+              window.print();
+            };
             return btn;
           })(),
           (() => {
             const btn = el('button', { cls: 'btn-primary-glow', text: '+ Create Another Project' });
             btn.onclick = () => {
+              haptic('light');
               state.quoteId = null;
               state.quote = null;
               state.approvedAmount = null;
@@ -832,7 +1107,10 @@ function renderReceipt(confirmed) {
           })(),
           (() => {
             const btn = el('button', { cls: 'btn-secondary-glass', text: '📋 View History' });
-            btn.onclick = () => showView('history');
+            btn.onclick = () => {
+              haptic('light');
+              showView('history');
+            };
             return btn;
           })()
         ]
@@ -843,22 +1121,97 @@ function renderReceipt(confirmed) {
   container.appendChild(card);
 }
 
-function renderMetaRow(label, value) {
+function renderMetaRow(label, value, copyable = false) {
+  if (!copyable) {
+    return el('div', {
+      cls: 'receipt-meta-row',
+      children: [
+        el('span', { cls: 'receipt-meta-label', text: label }),
+        el('span', { cls: 'receipt-meta-val', text: value })
+      ]
+    });
+  }
+
+  const copyBtn = el('button', {
+    cls: 'btn-copy-chip',
+    html: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>',
+    attr: { 'aria-label': `Copy ${label}`, type: 'button' }
+  });
+
+  copyBtn.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+      haptic('light');
+      copyBtn.classList.add('copied');
+      copyBtn.innerHTML = '<span>✓ Copied!</span>';
+      setTimeout(() => {
+        copyBtn.classList.remove('copied');
+        copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
+      }, 2000);
+    } catch {
+      toast('Copied to clipboard', 'info');
+    }
+  });
+
   return el('div', {
     cls: 'receipt-meta-row',
     children: [
       el('span', { cls: 'receipt-meta-label', text: label }),
-      el('span', { cls: 'receipt-meta-val', text: value })
+      el('div', {
+        cls: 'receipt-meta-copy-wrap',
+        children: [
+          el('span', { cls: 'receipt-meta-val', text: value }),
+          copyBtn
+        ]
+      })
     ]
   });
 }
 
-// ─── CREDENTIALS HELPER MODAL ───
+// ─── CREDENTIALS HELPER MODAL (§7 Fluid Spatial Consistency) ───
 const helperModal = $('helper-modal');
-$('btn-quick-helper').addEventListener('click', () => helperModal.classList.remove('hidden'));
-$('btn-close-helper').addEventListener('click', () => helperModal.classList.add('hidden'));
-$('btn-got-it').addEventListener('click', () => helperModal.classList.add('hidden'));
-$('btn-watch-flow').addEventListener('click', () => showView('new-project'));
+const helperBtn   = $('btn-quick-helper');
+const modalDialog = helperModal ? helperModal.querySelector('.modal-dialog') : null;
+
+if (helperBtn && helperModal) {
+  helperBtn.addEventListener('click', () => {
+    haptic('light');
+    if (modalDialog) {
+      const rect = helperBtn.getBoundingClientRect();
+      modalDialog.style.transformOrigin = `${Math.round(rect.left + rect.width / 2)}px ${Math.round(rect.top + rect.height / 2)}px`;
+    }
+    helperModal.classList.remove('hidden');
+  });
+
+  $('btn-close-helper')?.addEventListener('click', () => {
+    haptic('light');
+    helperModal.classList.add('hidden');
+  });
+
+  $('btn-got-it')?.addEventListener('click', () => {
+    haptic('light');
+    helperModal.classList.add('hidden');
+  });
+
+  helperModal.addEventListener('click', e => {
+    if (e.target === helperModal) {
+      haptic('light');
+      helperModal.classList.add('hidden');
+    }
+  });
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && !helperModal.classList.contains('hidden')) {
+      haptic('light');
+      helperModal.classList.add('hidden');
+    }
+  });
+}
+
+$('btn-watch-flow')?.addEventListener('click', () => {
+  haptic('light');
+  showView('new-project');
+});
 
 // ─── GLOBAL VIEW BUTTON BINDINGS ───
 function bindViewButtons(ctx = document) {
