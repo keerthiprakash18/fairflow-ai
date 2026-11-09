@@ -89,11 +89,17 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-button, input, textarea, select {
+button, input, textarea, select, a {
   font-family: inherit;
   font-size: inherit;
   color: inherit;
   -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation; /* Eliminate ~300ms mobile tap delay (§1 Response) */
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent-violet-hi);
+  outline-offset: 3px;
 }
 
 button {
@@ -795,6 +801,12 @@ a {
 
 .app-view.active {
   display: block;
+  animation: viewFadeIn 320ms var(--spring-quick) forwards;
+}
+
+@keyframes viewFadeIn {
+  from { opacity: 0; transform: translate3d(0, 10px, 0); }
+  to   { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 .wizard-step {
@@ -1984,36 +1996,75 @@ textarea::placeholder {
 #toast.success { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 24px var(--accent-mint-glow); }
 #toast.error   { border-color: rgba(239, 68, 68, 0.6); }
 
-/* ── 16. MODAL SYSTEM WITH ORIGIN-AWARE SPRING (§7) ── */
+/* ── 16. MODAL SYSTEM WITH ORIGIN-AWARE SPRING & DRAWER (§7 & §12) ── */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(14px);
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 900;
-  transition: opacity 200ms ease;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 220ms ease, visibility 220ms ease;
 }
 
-.modal-backdrop.hidden { display: none; }
+.modal-backdrop.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
 
 .modal-dialog {
   width: 90%;
-  max-width: 500px;
+  max-width: 520px;
   padding: 32px;
-  background: var(--material-card);
+  background: var(--material-elevated);
   border: 1px solid var(--glass-border);
   border-top: 1px solid var(--glass-specular);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 32px 64px -16px rgba(0, 0, 0, 0.8);
-  animation: modalPop 260ms var(--spring-bounce) forwards;
+  border-radius: var(--radius-xl);
+  box-shadow: 0 32px 72px -16px rgba(0, 0, 0, 0.85);
+  transform: scale(1);
+  opacity: 1;
+  transition: transform 260ms var(--spring-bounce), opacity 220ms ease;
 }
 
-@keyframes modalPop {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+.modal-backdrop.hidden .modal-dialog {
+  transform: scale(0.92);
+  opacity: 0;
+}
+
+.sheet-handle {
+  display: none;
+  width: 38px;
+  height: 5px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.28);
+  margin: -10px auto 18px;
+}
+
+@media (max-width: 768px) {
+  .modal-backdrop {
+    align-items: flex-end;
+  }
+  .modal-dialog {
+    width: 100%;
+    max-width: 100%;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+    padding: 24px 20px calc(24px + env(safe-area-inset-bottom));
+    transform: translate3d(0, 0, 0);
+    transition: transform 280ms var(--spring-bounce), opacity 220ms ease;
+  }
+  .modal-backdrop.hidden .modal-dialog {
+    transform: translate3d(0, 100%, 0);
+    opacity: 0;
+  }
+  .sheet-handle {
+    display: block;
+  }
 }
 
 .modal-header {

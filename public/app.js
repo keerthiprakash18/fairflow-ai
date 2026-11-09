@@ -73,6 +73,7 @@ const SCOPE_TEMPLATES = {
 
 // ─── VIEW ROUTING ───
 function showView(viewName) {
+  if (state.currentView !== viewName) haptic('light');
   state.currentView = viewName;
   qsa('.app-view').forEach(v => v.classList.remove('active'));
   qsa('.nav-pill, .mobile-btn').forEach(t => {
@@ -1022,8 +1023,8 @@ function renderPayPalButtons() {
         toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
 
-        // Trigger victory confetti!
-        if (typeof confetti === 'function') {
+        // Trigger victory confetti (respecting prefers-reduced-motion)
+        if (typeof confetti === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
           confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
         }
 
