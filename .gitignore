@@ -4,3 +4,6 @@
 node_modules/
 .DS_Store
 *.log
+
+# Local prototype project briefs and payment metadata must not be committed.
+data/
