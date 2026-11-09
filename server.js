@@ -1,6 +1,6 @@
 /**
  * FairFlow AI — hackathon prototype v2.
- * Node 20+ only, zero external npm packages.
+ * Node 22.16+ only, zero external npm packages.
  * Sandbox ONLY. No production auth, no webhooks.
  *
  * Routes:
@@ -36,7 +36,7 @@ const orders  = new Map();
 const TTL     = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── Persistence (append-log to data/projects.json) ─────────────────────────
-const DATA_DIR  = path.join(__dirname, 'data');
+const DATA_DIR  = path.resolve(process.env.FAIRFLOW_DATA_DIR || path.join(__dirname, 'data'));
 const DATA_FILE = path.join(DATA_DIR, 'projects.json');
 
 async function ensureDataDir() {
@@ -99,9 +99,11 @@ function readBody(req) {
   });
 }
 
+function isConfigured(value) {
+  return typeof value === 'string' && value.trim().length > 0 && !/^(your_|replace_|placeholder|test_)/i.test(value.trim());
+}
 function requireEnv(name, value) {
-  if (!value || value.startsWith('replace_with_') || value.startsWith('YOUR_'))
-    throw Object.assign(new Error(`Set ${name} in your .env file first.`), { httpStatus: 503 });
+  if (!isConfigured(value)) throw Object.assign(new Error('Configure ' + name + ' in your private environment first.'), { httpStatus: 503 });
 }
 
 function cleanStore() {
@@ -177,15 +179,16 @@ async function geminiJson(prompt) {
     `${GEMINI_API_BASE}/v1beta/interactions`,
     {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GEMINI_API_KEY}` },
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
       body: JSON.stringify({
         model: GEMINI_MODEL,
         input: prompt,
         generation_config: {
-          response_mime_type: 'application/json',
+          
           temperature: 0.25,
           max_output_tokens: 2000,
         },
+        response_format: { type: 'text', mime_type: 'application/json' },
         store: false,
       }),
     }
@@ -194,7 +197,7 @@ async function geminiJson(prompt) {
   const steps = result?.steps || [];
   const modelOutput = steps.find(s => s.type === 'model_output');
   const textContent = modelOutput?.content?.find(c => c.type === 'text');
-  const output = textContent?.text || result?.output_text || '';
+  const output = modelOutput?.content?.filter(c => c.type === 'text').map(c => c.text || '').join('') || result?.output_text || '';
   if (!output) throw Object.assign(new Error('AI returned no output. Try a more detailed description.'), { httpStatus: 502 });
   return output;
 }
@@ -349,9 +352,8 @@ async function handle(req, res) {
     return send(res, 200, {
       ok: true,
       sandbox: true,
-      aiConfigured:     !!GEMINI_API_KEY     && !GEMINI_API_KEY.startsWith('replace_')     && !GEMINI_API_KEY.startsWith('YOUR_'),
-      paypalConfigured: !!PAYPAL_CLIENT_ID   && !PAYPAL_CLIENT_ID.startsWith('replace_')   && !PAYPAL_CLIENT_ID.startsWith('YOUR_')
-                     && !!PAYPAL_CLIENT_SECRET && !PAYPAL_CLIENT_SECRET.startsWith('replace_') && !PAYPAL_CLIENT_SECRET.startsWith('YOUR_'),
+      aiConfigured: isConfigured(GEMINI_API_KEY),
+      paypalConfigured: isConfigured(PAYPAL_CLIENT_ID) && isConfigured(PAYPAL_CLIENT_SECRET),
       model: GEMINI_MODEL,
       version: '2.0.0',
     });
@@ -359,7 +361,7 @@ async function handle(req, res) {
 
   // ── Config (safe — only public client ID) ─────────────────────────────────
   if (req.method === 'GET' && route === '/api/config') {
-    const clientId = (PAYPAL_CLIENT_ID.startsWith('replace_') || PAYPAL_CLIENT_ID.startsWith('YOUR_')) ? '' : PAYPAL_CLIENT_ID;
+    const clientId = isConfigured(PAYPAL_CLIENT_ID) ? PAYPAL_CLIENT_ID : '';
     return send(res, 200, { clientId, sandbox: true, currency: 'USD' });
   }
 
