@@ -29,13 +29,15 @@ test('health does not consider placeholder keys configured',()=>withServer(async
   const h=await (await fetch(base+'/api/health')).json();
   assert.equal(h.ok,true);assert.equal(h.sandbox,true);
   assert.equal(h.aiConfigured,false);assert.equal(h.paypalConfigured,false);
+  const stored=await (await fetch(base+'/api/projects')).json();
+  assert.ok(Array.isArray(stored.projects));
   const publicConfig=await (await fetch(base+'/api/config')).json();
   assert.equal(publicConfig.clientId,'');
 }));
 test('loads an actual frontend without secret credentials',()=>withServer(async base=>{
   const response=await fetch(base+'/');
   assert.equal(response.status,200);
-  assert.match(await response.text(),/AI Scope Guard/);
+  assert.match(await response.text(),/Scope Change/);
 }));
 test('rejects invalid AI brief and missing quote in scope guard',()=>withServer(async base=>{
   const post=async(url,body)=>fetch(base+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
