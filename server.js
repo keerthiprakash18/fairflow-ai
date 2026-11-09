@@ -25,6 +25,13 @@ const { randomUUID } = require('node:crypto');
 const PORT               = Number(process.env.PORT || 3000);
 const PAYPAL_BASE        = 'https://api-m.sandbox.paypal.com';
 const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const GEMINI_MODELS      = Array.from(new Set([
+  process.env.GEMINI_MODEL,
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-flash-lite-latest'
+].filter(Boolean)));
 const GEMINI_API_BASE    = 'https://generativelanguage.googleapis.com';
 const PAYPAL_CLIENT_ID   = process.env.PAYPAL_CLIENT_ID   || '';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
@@ -184,50 +191,43 @@ function normalizeQuote(raw) {
   };
 }
 
-// ─── Gemini: call via Interactions API ──────────────────────────────────────
-// Current Gemini Interactions API requires response_format for structured output.
-const string = {type:'string'};
-const stringArray = {type:'array',items:string};
-const milestoneSchema = {type:'object',properties:{name:string,percent:{type:'integer'},description:string},required:['name','percent','description']};
-const quoteSchema = {type:'object',properties:{
-  title:string,summary:string,deliverables:stringArray,milestones:{type:'array',items:milestoneSchema},
-  estimatedPriceUSD:{type:'number'},timeline:string,assumptions:stringArray,risks:stringArray,questions:stringArray
-},required:['title','summary','deliverables','milestones','estimatedPriceUSD','timeline','assumptions','risks','questions']};
-const scopeSchema = {type:'object',properties:{
-  originalScope:string,newRequests:stringArray,changes:stringArray,addedFeatures:stringArray,
-  removedItems:stringArray,timelineImpact:string,additionalCostUSD:{type:'number'},newTotalUSD:{type:'number'},
-  updatedMilestones:{type:'array',items:milestoneSchema},summary:string,
-  severity:{type:'string',enum:['low','medium','high']},recommendation:string
-},required:['originalScope','newRequests','changes','addedFeatures','removedItems','timelineImpact',
-  'additionalCostUSD','newTotalUSD','updatedMilestones','summary','severity','recommendation']};
-
-async function geminiJson(prompt, schema) {
+// ─── Gemini: resilient multi-model caller ──────────────────────────────────
+async function geminiJson(prompt) {
   requireEnv('GEMINI_API_KEY', GEMINI_API_KEY);
-  const result = await requestJson(
-    `${GEMINI_API_BASE}/v1beta/interactions`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
-      body: JSON.stringify({
-        model: GEMINI_MODEL,
-        input: prompt,
-        generation_config: {
-          
-          temperature: 0.25,
-          max_output_tokens: 2000,
-        },
-        response_format: { type: 'text', mime_type: 'application/json', schema },
-        store: false,
-      }),
+  let lastErr = null;
+  for (const model of GEMINI_MODELS) {
+    try {
+      const url = `${GEMINI_API_BASE}/v1beta/models/${model}:generateContent`;
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': GEMINI_API_KEY },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: {
+            responseMimeType: 'application/json',
+            temperature: 0.2,
+            maxOutputTokens: 2500,
+          },
+        }),
+        signal: AbortSignal.timeout(25000),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        const msg = data?.error?.message || `HTTP ${res.status}`;
+        console.warn(`[FairFlow AI] Model ${model} returned ${res.status}: ${msg.slice(0, 100)}`);
+        lastErr = new Error(msg);
+        continue;
+      }
+      let rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
+      if (!rawText) continue;
+      rawText = rawText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      return rawText;
+    } catch (err) {
+      console.warn(`[FairFlow AI] Model ${model} request error: ${err.message}`);
+      lastErr = err;
     }
-  );
-  // Extract text from Interactions API response
-  const steps = result?.steps || [];
-  const modelOutput = steps.find(s => s.type === 'model_output');
-  const textContent = modelOutput?.content?.find(c => c.type === 'text');
-  const output = modelOutput?.content?.filter(c => c.type === 'text').map(c => c.text || '').join('') || result?.output_text || '';
-  if (!output) throw Object.assign(new Error('AI returned no output. Try a more detailed description.'), { httpStatus: 502 });
-  return output;
+  }
+  throw Object.assign(new Error(lastErr?.message || 'AI generation temporarily unavailable. Please try again.'), { httpStatus: 502 });
 }
 
 
@@ -254,7 +254,7 @@ If description lacks detail, make conservative assumptions.
 Client project description:
 ${description}`;
 
-  const output = await geminiJson(prompt, quoteSchema);
+  const output = await geminiJson(prompt);
   try { return normalizeQuote(JSON.parse(output)); }
   catch { throw Object.assign(new Error('AI returned unreadable data. Please try again.'), { httpStatus: 502 }); }
 }
@@ -317,7 +317,7 @@ Required JSON keys:
 
 Base estimates on realistic market rates. Label all numbers as estimates.`;
 
-  const output = await geminiJson(prompt, scopeSchema);
+  const output = await geminiJson(prompt);
   if (!output) throw Object.assign(new Error('Scope analysis returned no data. Try again.'), { httpStatus: 502 });
   try { return normalizeScopeChange(JSON.parse(output), originalQuote); }
   catch { throw Object.assign(new Error('Scope analysis failed. Please try again.'), { httpStatus: 502 }); }

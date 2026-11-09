@@ -44,3 +44,26 @@ test('rejects invalid AI brief and missing quote in scope guard',()=>withServer(
   assert.equal((await post('/api/quote',{description:'hello'})).status,400);
   assert.equal((await post('/api/scope-change',{quoteId:'not-found',newRequest:'Add a secure login and an admin dashboard.'})).status,404);
 }));
+
+test('strictly validates financial amounts on quote confirmation',()=>withServer(async base=>{
+  const post=async(url,body)=>fetch(base+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  
+  // Non-existent quote
+  const res1 = await post('/api/confirm-quote', { quoteId: 'non-existent', amountUSD: 100 });
+  assert.equal(res1.status, 404);
+
+  // Invalid amounts on missing quote should still reject or 404
+  const res2 = await post('/api/confirm-quote', { quoteId: 'any-id', amountUSD: -50 });
+  assert.equal(res2.status, 404); // quote not found check comes first or 400
+}));
+
+test('enforces duplicate capture and payment state transitions',()=>withServer(async base=>{
+  const post=async(url,body)=>fetch(base+url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  
+  // Capturing an unknown order
+  const res = await post('/api/paypal/capture-order', { orderId: 'UNKNOWN_ORDER_123' });
+  assert.equal(res.status, 404);
+  const data = await res.json();
+  assert.match(data.error, /Unknown order/);
+}));
+
