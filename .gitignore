@@ -11,3 +11,8 @@ data/
 # Antigravity agent skills & configurations
 .agents/
 
+# Verification screenshots
+*.png
+screenshots/
+
+
