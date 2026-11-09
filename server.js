@@ -173,7 +173,23 @@ function normalizeQuote(raw) {
 }
 
 // ─── Gemini: call via Interactions API ──────────────────────────────────────
-async function geminiJson(prompt) {
+// Current Gemini Interactions API requires response_format for structured output.
+const string = {type:'string'};
+const stringArray = {type:'array',items:string};
+const milestoneSchema = {type:'object',properties:{name:string,percent:{type:'integer'},description:string},required:['name','percent','description']};
+const quoteSchema = {type:'object',properties:{
+  title:string,summary:string,deliverables:stringArray,milestones:{type:'array',items:milestoneSchema},
+  estimatedPriceUSD:{type:'number'},timeline:string,assumptions:stringArray,risks:stringArray,questions:stringArray
+},required:['title','summary','deliverables','milestones','estimatedPriceUSD','timeline','assumptions','risks','questions']};
+const scopeSchema = {type:'object',properties:{
+  originalScope:string,newRequests:stringArray,changes:stringArray,addedFeatures:stringArray,
+  removedItems:stringArray,timelineImpact:string,additionalCostUSD:{type:'number'},newTotalUSD:{type:'number'},
+  updatedMilestones:{type:'array',items:milestoneSchema},summary:string,
+  severity:{type:'string',enum:['low','medium','high']},recommendation:string
+},required:['originalScope','newRequests','changes','addedFeatures','removedItems','timelineImpact',
+  'additionalCostUSD','newTotalUSD','updatedMilestones','summary','severity','recommendation']};
+
+async function geminiJson(prompt, schema) {
   requireEnv('GEMINI_API_KEY', GEMINI_API_KEY);
   const result = await requestJson(
     `${GEMINI_API_BASE}/v1beta/interactions`,
@@ -188,7 +204,7 @@ async function geminiJson(prompt) {
           temperature: 0.25,
           max_output_tokens: 2000,
         },
-        response_format: { type: 'text', mime_type: 'application/json' },
+        response_format: { type: 'text', mime_type: 'application/json', schema },
         store: false,
       }),
     }
@@ -226,7 +242,7 @@ If description lacks detail, make conservative assumptions.
 Client project description:
 ${description}`;
 
-  const output = await geminiJson(prompt);
+  const output = await geminiJson(prompt, quoteSchema);
   try { return normalizeQuote(JSON.parse(output)); }
   catch { throw Object.assign(new Error('AI returned unreadable data. Please try again.'), { httpStatus: 502 }); }
 }
@@ -287,7 +303,7 @@ Required JSON keys:
 
 Base estimates on realistic market rates. Label all numbers as estimates.`;
 
-  const output = await geminiJson(prompt);
+  const output = await geminiJson(prompt, scopeSchema);
   if (!output) throw Object.assign(new Error('Scope analysis returned no data. Try again.'), { httpStatus: 502 });
   try { return normalizeScopeChange(JSON.parse(output), originalQuote.title); }
   catch { throw Object.assign(new Error('Scope analysis failed. Please try again.'), { httpStatus: 502 }); }
