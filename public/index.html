@@ -3,333 +3,581 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#090c1d">
-  <meta name="description" content="FairFlow AI — From project agreement to secure payments, powered by AI.">
-  <title>FairFlow AI | From Proposal to Payment</title>
-  <link rel="stylesheet" href="/style.css">
+  <meta name="theme-color" content="#060813">
+  <meta name="description" content="FairFlow AI — The AI-Powered Freelancer Trust & PayPal Payment OS. From Project Agreement to Secure Payments.">
+  <title>FairFlow AI — The Freelancer Trust &amp; Payment OS</title>
+  
+  <!-- Modern Typography: Plus Jakarta Sans + Inter + JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Canvas Confetti for Payment Celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+  
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <!-- Background aurora effects -->
-  <div class="aurora aurora-a" aria-hidden="true"></div>
-  <div class="aurora aurora-b" aria-hidden="true"></div>
+  <!-- Ambient Fintech Lighting & Mesh Grid -->
+  <div class="mesh-bg" aria-hidden="true"></div>
+  <div class="grid-overlay" aria-hidden="true"></div>
+  <div class="glow-orb orb-1" aria-hidden="true"></div>
+  <div class="glow-orb orb-2" aria-hidden="true"></div>
+  <div class="glow-orb orb-3" aria-hidden="true"></div>
 
-  <div class="shell">
-    <!-- Navigation -->
-    <header class="nav" role="banner">
-      <a class="logo" href="#" data-view="dashboard" aria-label="FairFlow AI Home">
-        <span class="logomark" aria-hidden="true">F<span>✦</span></span>
-        <span>fairflow<span class="dot">.</span><small>AI</small></span>
-      </a>
-      <nav class="nav-center" aria-label="Main navigation">
-        <button class="nav-tab active" data-view="dashboard" aria-current="page">Dashboard</button>
-        <button class="nav-tab" data-view="new-project">New Project</button>
-        <button class="nav-tab" data-view="history">History</button>
+  <div class="app-shell">
+    <!-- Top Navigation Bar -->
+    <header class="app-nav" role="banner">
+      <div class="nav-left">
+        <a class="brand-logo" href="#" data-view="dashboard" aria-label="FairFlow AI Homepage">
+          <div class="brand-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" stroke-width="2"/>
+              <path d="M4 10h16M10 20V10" stroke="currentColor" stroke-width="2"/>
+              <circle cx="16" cy="15" r="2" fill="#80f4c8"/>
+            </svg>
+            <span class="icon-pulse"></span>
+          </div>
+          <div class="brand-text">
+            <span class="brand-name">fairflow<span class="brand-dot">.</span>ai</span>
+            <span class="brand-sub">PAYPAL AI FINTECH</span>
+          </div>
+        </a>
+      </div>
+
+      <!-- Segmented Navigation Pills -->
+      <nav class="nav-center" aria-label="Main Navigation">
+        <button class="nav-pill active" data-view="dashboard">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-pill" data-view="new-project">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New Proposal</span>
+        </button>
+        <button class="nav-pill" data-view="history">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>History &amp; Escrow</span>
+        </button>
       </nav>
+
       <div class="nav-right">
-        <span class="sandbox-badge" title="Sandbox mode — no real money">
-          <span class="sandbox-dot" aria-hidden="true"></span>
-          SANDBOX
-        </span>
+        <div class="status-indicator" title="Connected to PayPal Sandbox and Google Gemini">
+          <span class="live-dot"></span>
+          <span class="status-label">SANDBOX ACTIVE</span>
+          <span class="model-tag">GEMINI 3.8</span>
+        </div>
+        <button class="icon-action-btn" id="btn-quick-helper" title="Demo Sandbox Credentials Helper" aria-label="PayPal Sandbox credentials helper">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        </button>
       </div>
     </header>
 
-    <!-- Mobile bottom nav -->
-    <nav class="mobile-nav" aria-label="Mobile navigation">
-      <button class="mobile-tab active" data-view="dashboard">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <span>Dashboard</span>
+    <!-- Mobile Navigation Bar -->
+    <nav class="mobile-bar" aria-label="Mobile Navigation">
+      <button class="mobile-btn active" data-view="dashboard">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+        <span>Overview</span>
       </button>
-      <button class="mobile-tab" data-view="new-project">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <button class="mobile-btn" data-view="new-project">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
         <span>New Project</span>
       </button>
-      <button class="mobile-tab" data-view="history">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12,6 12,12 16,14"/></svg>
-        <span>History</span>
+      <button class="mobile-btn" data-view="history">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span>Records</span>
       </button>
     </nav>
 
-    <main id="main-content">
-      <!-- ════════════════ VIEW: DASHBOARD ════════════════ -->
-      <section id="view-dashboard" class="view active" aria-label="Dashboard">
-        <div class="view-header">
-          <div>
-            <span class="eyebrow">✦ OVERVIEW</span>
-            <h1>Your Freelancer OS</h1>
-            <p class="view-desc">Track projects, quotations, and PayPal Sandbox payments from one place.</p>
+    <!-- Main Dynamic Application Container -->
+    <main id="app-viewport">
+      <!-- ════════════════ VIEW 1: LUXURY DASHBOARD ════════════════ -->
+      <section id="view-dashboard" class="app-view active" aria-label="Dashboard Overview">
+        <!-- Hero Banner with Glass Card -->
+        <div class="dashboard-hero">
+          <div class="hero-content">
+            <div class="badge-hero">
+              <span class="sparkle">✦</span>
+              <span>THE AI-POWERED FREELANCER OS</span>
+              <span class="badge-separator">•</span>
+              <span class="badge-sub">PAYPAL AI HACKATHON 2026</span>
+            </div>
+            <h1 class="hero-headline">
+              Turn Project Requirements into<br>
+              <span class="gradient-text">Human-Approved PayPal Payments.</span>
+            </h1>
+            <p class="hero-subtext">
+              FairFlow AI uses Google Gemini to transform conversational client briefs into milestone-based agreements, actively detects scope creep, and captures verified transactions through PayPal Orders API v2.
+            </p>
+            <div class="hero-actions">
+              <button class="btn-primary-glow" data-view="new-project">
+                <span class="btn-glow-text">✦ Create Smart Proposal</span>
+                <span class="btn-arrow">→</span>
+              </button>
+              <button class="btn-secondary-glass" id="btn-watch-flow">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                <span>Interactive Walkthrough</span>
+              </button>
+            </div>
           </div>
-          <button class="primary" data-view="new-project">+ New Project</button>
-        </div>
 
-        <!-- Stats cards -->
-        <div class="stats-grid" id="stats-grid" aria-label="Project statistics">
-          <div class="stat-card">
-            <div class="stat-icon purple" aria-hidden="true">📋</div>
-            <div class="stat-body">
-              <span class="stat-number" id="stat-total">—</span>
-              <span class="stat-label">Total Projects</span>
+          <!-- Live Feature Pill Strip -->
+          <div class="trust-pill-strip">
+            <div class="trust-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#80f4c8" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              <span>Server-Verified PayPal Capture</span>
             </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon blue" aria-hidden="true">⏳</div>
-            <div class="stat-body">
-              <span class="stat-number" id="stat-pending">—</span>
-              <span class="stat-label">Pending Payment</span>
+            <div class="trust-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c4aaff" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+              <span>AI Scope Creep Protection</span>
             </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon green" aria-hidden="true">✓</div>
-            <div class="stat-body">
-              <span class="stat-number" id="stat-paid">—</span>
-              <span class="stat-label">Paid (Sandbox)</span>
-            </div>
-          </div>
-          <div class="stat-card">
-            <div class="stat-icon gold" aria-hidden="true">$</div>
-            <div class="stat-body">
-              <span class="stat-number" id="stat-revenue">—</span>
-              <span class="stat-label">Total Earned (USD)</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Recent activity -->
-        <div class="section-block">
-          <div class="section-block-header">
-            <h2>Recent Activity</h2>
-            <button class="text-btn" data-view="history">View all →</button>
-          </div>
-          <div id="dashboard-recent" class="project-list">
-            <div class="empty-state">
-              <div class="empty-icon" aria-hidden="true">✳</div>
-              <h3>No projects yet</h3>
-              <p>Create your first AI-powered project proposal to get started.</p>
-              <button class="primary" data-view="new-project">Create First Project</button>
+            <div class="trust-pill">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span>Strict 100% Milestone Math</span>
             </div>
           </div>
         </div>
 
-        <!-- How it works -->
-        <div class="how-it-works">
-          <span class="eyebrow">THE WORKFLOW</span>
-          <h2>Simple by design. <em>Real under the hood.</em></h2>
-          <div class="workflow-steps">
-            <div class="step">
-              <span class="step-num">01</span>
-              <h3>AI reads the brief</h3>
-              <p>Gemini extracts scope, suggests deliverables, milestones, and a realistic price estimate.</p>
+        <!-- Metric Stat Cards with Gradient Glowing Glass -->
+        <div class="metrics-grid">
+          <div class="metric-card card-purple">
+            <div class="metric-header">
+              <span class="metric-title">TOTAL PROJECTS</span>
+              <div class="metric-icon-wrap icon-purple">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              </div>
             </div>
-            <div class="step-arrow" aria-hidden="true">→</div>
-            <div class="step">
-              <span class="step-num">02</span>
-              <h3>You review &amp; approve</h3>
-              <p>Edit the amount. Adjust milestones. Explicitly approve before any checkout begins.</p>
+            <div class="metric-val" id="stat-total">0</div>
+            <div class="metric-footer">
+              <span class="metric-badge trend-neutral">Persisted in local OS</span>
             </div>
-            <div class="step-arrow" aria-hidden="true">→</div>
-            <div class="step">
-              <span class="step-num">03</span>
-              <h3>Scope protection</h3>
-              <p>Client wants more? AI detects scope creep and estimates the fair additional cost.</p>
+          </div>
+
+          <div class="metric-card card-amber">
+            <div class="metric-header">
+              <span class="metric-title">PENDING APPROVAL</span>
+              <div class="metric-icon-wrap icon-amber">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
             </div>
-            <div class="step-arrow" aria-hidden="true">→</div>
-            <div class="step">
-              <span class="step-num">04</span>
-              <h3>PayPal checkout</h3>
-              <p>Server-validated orders. Real Sandbox API. Captured and confirmed payment receipt.</p>
+            <div class="metric-val" id="stat-pending">0</div>
+            <div class="metric-footer">
+              <span class="metric-badge trend-amber">Human action required</span>
+            </div>
+          </div>
+
+          <div class="metric-card card-emerald">
+            <div class="metric-header">
+              <span class="metric-title">VERIFIED PAYMENTS</span>
+              <div class="metric-icon-wrap icon-emerald">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"/></svg>
+              </div>
+            </div>
+            <div class="metric-val" id="stat-paid">0</div>
+            <div class="metric-footer">
+              <span class="metric-badge trend-emerald">PayPal Orders Captured</span>
+            </div>
+          </div>
+
+          <div class="metric-card card-cyan">
+            <div class="metric-header">
+              <span class="metric-title">EARNED IN SANDBOX</span>
+              <div class="metric-icon-wrap icon-cyan">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+              </div>
+            </div>
+            <div class="metric-val font-mono" id="stat-revenue">$0.00</div>
+            <div class="metric-footer">
+              <span class="metric-badge trend-cyan">Verified USD volume</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Projects Section -->
+        <div class="glass-section">
+          <div class="glass-section-header">
+            <div>
+              <h2 class="section-title">Recent Project Pipelines</h2>
+              <p class="section-desc">Track active proposals, escrow status, and confirmed PayPal transactions.</p>
+            </div>
+            <button class="btn-text-action" data-view="history">View All Records →</button>
+          </div>
+          <div id="dashboard-recent" class="pipeline-list">
+            <!-- Rendered dynamically -->
+          </div>
+        </div>
+
+        <!-- The 4-Pillar Architecture Diagram -->
+        <div class="flow-architecture-card">
+          <div class="arch-header">
+            <span class="arch-tag">SYSTEM WORKFLOW</span>
+            <h3 class="arch-title">AI Recommends. Humans Approve. PayPal Processes.</h3>
+          </div>
+          <div class="arch-steps-grid">
+            <div class="arch-step">
+              <div class="step-badge-num">01</div>
+              <div class="step-icon-round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+              </div>
+              <h4 class="step-name">Gemini Scoping</h4>
+              <p class="step-desc">Extracts deliverables, calculates 100% milestone splits, and establishes assumptions from raw briefs.</p>
+            </div>
+            <div class="arch-connector" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+            <div class="arch-step">
+              <div class="step-badge-num">02</div>
+              <div class="step-icon-round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              </div>
+              <h4 class="step-name">Human Authority</h4>
+              <p class="step-desc">Freelancer edits pricing, tunes milestones, and explicitly signs off. Server locks the quotation.</p>
+            </div>
+            <div class="arch-connector" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+            <div class="arch-step">
+              <div class="step-badge-num">03</div>
+              <div class="step-icon-round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h4 class="step-name">Scope Guard</h4>
+              <p class="step-desc">Diffs new client requests against original terms. Calculates financial and timeline variance automatically.</p>
+            </div>
+            <div class="arch-connector" aria-hidden="true">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </div>
+            <div class="arch-step">
+              <div class="step-badge-num">04</div>
+              <div class="step-icon-round">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              </div>
+              <h4 class="step-name">PayPal Orders v2</h4>
+              <p class="step-desc">Server initiates orders, buyer approves in PayPal, and backend captures &amp; verifies the settlement.</p>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- ════════════════ VIEW: NEW PROJECT ════════════════ -->
-      <section id="view-new-project" class="view" aria-label="New Project">
-
-        <!-- Step 1: Project Brief -->
-        <div id="step-brief">
-          <div class="view-header">
-            <div>
-              <span class="eyebrow">STEP 1 OF 4</span>
-              <h1>Describe Your Project</h1>
-              <p class="view-desc">Tell the AI what your client needs. Plain English is perfect.</p>
+      <!-- ════════════════ VIEW 2: NEW PROJECT WIZARD ════════════════ -->
+      <section id="view-new-project" class="app-view" aria-label="New Project Wizard">
+        <!-- Interactive Progress Stepper Bar -->
+        <div class="stepper-bar-container">
+          <div class="stepper-bar">
+            <div class="step-item active" data-step="brief" id="stepper-step-1">
+              <div class="step-circle">1</div>
+              <span class="step-label">Project Brief</span>
+            </div>
+            <div class="step-line" id="stepper-line-1"></div>
+            <div class="step-item" data-step="proposal" id="stepper-step-2">
+              <div class="step-circle">2</div>
+              <span class="step-label">AI Proposal</span>
+            </div>
+            <div class="step-line" id="stepper-line-2"></div>
+            <div class="step-item" data-step="scope" id="stepper-step-3">
+              <div class="step-circle">3</div>
+              <span class="step-label">Scope Guard</span>
+            </div>
+            <div class="step-line" id="stepper-line-3"></div>
+            <div class="step-item" data-step="checkout" id="stepper-step-4">
+              <div class="step-circle">4</div>
+              <span class="step-label">PayPal Checkout</span>
+            </div>
+            <div class="step-line" id="stepper-line-4"></div>
+            <div class="step-item" data-step="receipt" id="stepper-step-5">
+              <div class="step-circle">5</div>
+              <span class="step-label">Escrow Receipt</span>
             </div>
           </div>
-          <div class="two-col">
-            <article class="panel entry-panel">
-              <div class="panel-label">
-                <span class="step-badge">01</span>
+        </div>
+
+        <!-- ── STEP 1: PROJECT BRIEF ── -->
+        <div id="step-brief" class="wizard-step">
+          <div class="wizard-two-col">
+            <!-- Left Card: Input Form -->
+            <div class="glass-card primary-card">
+              <div class="card-header-styled">
+                <div class="header-icon-box">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                </div>
                 <div>
-                  <h2>Project Brief</h2>
-                  <p>Be specific about scope, deadline, and what the client expects.</p>
+                  <h2 class="card-heading">Describe The Client's Brief</h2>
+                  <p class="card-subheading">Type in natural language, or pick a 1-click test template below.</p>
                 </div>
               </div>
-              <label for="description" class="field-label">PROJECT DESCRIPTION</label>
-              <textarea
-                id="description"
-                maxlength="4000"
-                rows="10"
-                placeholder="Example: I'm a freelance developer building a 10-page e-commerce website for a local boutique. The client needs product listings with search, a shopping cart, Stripe checkout, customer account registration, and an admin dashboard to manage orders. The deadline is 6 weeks from now. The client has provided a logo and brand colors but no designs yet."
-                aria-label="Project description — describe what your client needs"
-              ></textarea>
-              <div class="char-counter"><span id="char-count">0</span> / 4000</div>
-              <div class="form-tips">
-                <span class="tip">💡 Include: scope, timeline, deliverables, client context</span>
-              </div>
-              <div class="form-actions">
-                <button class="primary large-btn" id="btn-generate" aria-describedby="generate-help">
-                  <span class="btn-icon" aria-hidden="true">✦</span> Generate AI Proposal
-                </button>
-                <p id="generate-help" class="fine-print">AI will analyze your brief and suggest deliverables, milestones, and a price estimate. You review everything before checkout.</p>
-              </div>
-            </article>
 
-            <div class="side-info">
-              <div class="info-card">
-                <div class="info-icon" aria-hidden="true">🎯</div>
-                <h3>What FairFlow AI does</h3>
-                <ul>
-                  <li>Extracts clear deliverables from your description</li>
-                  <li>Suggests a milestone payment structure</li>
-                  <li>Estimates a fair project price</li>
-                  <li>Identifies risks and missing requirements</li>
-                  <li>Generates questions to ask your client</li>
+              <!-- Quick Template Chips for Judges -->
+              <div class="template-chips-section">
+                <span class="chips-label">⚡ 1-CLICK DEMO TEMPLATES:</span>
+                <div class="chips-row">
+                  <button type="button" class="template-chip" data-template="ecommerce">
+                    <span>🛍️ E-Commerce Store ($3,500)</span>
+                  </button>
+                  <button type="button" class="template-chip" data-template="saas">
+                    <span>📱 SaaS MVP App ($5,200)</span>
+                  </button>
+                  <button type="button" class="template-chip" data-template="webflow">
+                    <span>🎨 Brand &amp; Webflow ($2,400)</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Brief Input Area with Enhance Tool -->
+              <div class="input-group-styled">
+                <div class="input-top-bar">
+                  <label for="description" class="form-label">PROJECT SPECIFICATION</label>
+                  <button type="button" class="btn-enhance-ai" id="btn-enhance-brief" title="AI will flesh out your short notes into a professional project brief">
+                    <span class="sparkle">✦</span>
+                    <span>Enhance with AI</span>
+                  </button>
+                </div>
+                <div class="textarea-wrapper">
+                  <textarea
+                    id="description"
+                    rows="8"
+                    maxlength="4000"
+                    placeholder="Example: I'm developing a 10-page e-commerce website for a local boutique. It needs product search and catalog, shopping cart, customer login, PayPal checkout, and an admin order management dashboard. Estimated timeline is 30 days."
+                    aria-label="Project brief description"
+                  ></textarea>
+                </div>
+                <div class="textarea-bottom-bar">
+                  <span class="char-count-badge"><span id="char-count">0</span> / 4000 chars</span>
+                  <span class="input-hint">Minimum 20 characters required</span>
+                </div>
+              </div>
+
+              <div class="action-footer">
+                <button type="button" class="btn-primary-glow btn-full" id="btn-generate">
+                  <span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span>
+                  <span class="btn-arrow">→</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Right Card: Why FairFlow Matters -->
+            <div class="side-guidance-column">
+              <div class="glass-card guidance-card">
+                <div class="guidance-icon">🎯</div>
+                <h3 class="guidance-title">What Gemini Will Analyze</h3>
+                <ul class="guidance-checklist">
+                  <li>
+                    <span class="check-icon">✓</span>
+                    <div><strong>Clear Deliverables:</strong> Itemized, verifiable tasks for your contract.</div>
+                  </li>
+                  <li>
+                    <span class="check-icon">✓</span>
+                    <div><strong>100% Milestone Math:</strong> Exact percentage splits for phased invoicing.</div>
+                  </li>
+                  <li>
+                    <span class="check-icon">✓</span>
+                    <div><strong>Pricing Estimate:</strong> Data-driven benchmark in USD.</div>
+                  </li>
+                  <li>
+                    <span class="check-icon">✓</span>
+                    <div><strong>Hidden Risks &amp; Questions:</strong> Potential traps to clarify before work starts.</div>
+                  </li>
                 </ul>
               </div>
-              <div class="info-card warning-card">
-                <div class="info-icon" aria-hidden="true">⚠️</div>
-                <h3>AI estimates, you decide</h3>
-                <p>All prices are AI suggestions based on your description. You must review, adjust, and explicitly approve before any PayPal checkout begins.</p>
-              </div>
-            </div>
-          </div>
-        </div>
 
-        <!-- Step 2: Proposal Review -->
-        <div id="step-proposal" class="hidden-step">
-          <div class="view-header">
-            <div>
-              <span class="eyebrow">STEP 2 OF 4</span>
-              <h1>Review Your Proposal</h1>
-              <p class="view-desc">AI-generated. Approve or adjust before proceeding.</p>
-            </div>
-            <button class="outline-btn" id="btn-new-proposal">← New Description</button>
-          </div>
-          <div id="proposal-container"></div>
-        </div>
-
-        <!-- Step 3: Scope Change -->
-        <div id="step-scope" class="hidden-step">
-          <div class="view-header">
-            <div>
-              <span class="eyebrow">STEP 3 OF 4 — OPTIONAL</span>
-              <h1>Scope Change Detector</h1>
-              <p class="view-desc">Client asked for more? Let AI analyze the impact on your agreement.</p>
-            </div>
-            <button class="outline-btn" id="btn-skip-scope">Skip to Checkout →</button>
-          </div>
-          <div class="two-col">
-            <article class="panel entry-panel">
-              <div class="panel-label">
-                <span class="step-badge scope-badge" aria-hidden="true">🔍</span>
+              <div class="glass-card security-badge-card">
+                <div class="badge-lock-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#80f4c8" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                </div>
                 <div>
-                  <h2>New Client Request</h2>
-                  <p>What additional work is the client asking for?</p>
+                  <h4 class="security-card-title">Financial Safety Guaranteed</h4>
+                  <p class="security-card-text">AI recommendations are strictly advisory. The final payment amount is locked only upon your manual approval and verified on the server.</p>
                 </div>
               </div>
-              <label for="scope-request" class="field-label">CLIENT'S NEW REQUEST</label>
-              <textarea
-                id="scope-request"
-                maxlength="3000"
-                rows="7"
-                placeholder="Example: The client now also wants a blog section with categories and tags, a newsletter signup form integrated with Mailchimp, and a live chat widget. They say this is 'just a small addition' but expect it in the same 6-week timeline."
-                aria-label="Describe the client's new request or additional requirements"
-              ></textarea>
-              <div class="form-actions">
-                <button class="primary large-btn" id="btn-analyze-scope">
-                  <span class="btn-icon" aria-hidden="true">🔍</span> Analyze Scope Change
+            </div>
+          </div>
+        </div>
+
+        <!-- ── STEP 2: AI PROPOSAL REVIEW ── -->
+        <div id="step-proposal" class="wizard-step hidden-step">
+          <div class="step-view-header">
+            <div>
+              <span class="step-breadcrumb">STEP 2 OF 5</span>
+              <h2 class="step-heading">Review &amp; Approve Proposal</h2>
+              <p class="step-subheading">Gemini drafted this proposal based on your brief. Edit the price and inspect the milestones before locking.</p>
+            </div>
+            <button class="btn-secondary-glass" id="btn-new-proposal">← Edit Brief</button>
+          </div>
+          <div id="proposal-container" class="proposal-layout-grid">
+            <!-- Dynamically populated by app.js -->
+          </div>
+        </div>
+
+        <!-- ── STEP 3: SCOPE CHANGE DETECTOR (DIFFERENTIATOR) ── -->
+        <div id="step-scope" class="wizard-step hidden-step">
+          <div class="step-view-header">
+            <div>
+              <span class="step-breadcrumb highlight">FEATURE 4 • PRIMARY DIFFERENTIATOR</span>
+              <h2 class="step-heading">AI Scope Creep Protection</h2>
+              <p class="step-subheading">Client asking for "small additions"? Gemini will calculate the financial and timeline impact against the approved baseline.</p>
+            </div>
+            <button class="btn-secondary-glass" id="btn-skip-scope">Skip Directly to Checkout →</button>
+          </div>
+
+          <div class="wizard-two-col">
+            <!-- Left: Scope Change Input -->
+            <div class="glass-card primary-card">
+              <div class="card-header-styled">
+                <div class="header-icon-box amber-box">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <div>
+                  <h3 class="card-heading">Client's Scope Change Request</h3>
+                  <p class="card-subheading">Paste what the client is asking for mid-stream.</p>
+                </div>
+              </div>
+
+              <!-- 1-Click Scope Change Templates for Demo -->
+              <div class="template-chips-section">
+                <span class="chips-label">⚡ 1-CLICK SCOPE SCENARIOS:</span>
+                <div class="chips-row">
+                  <button type="button" class="template-chip chip-amber" data-scope-template="marketplace">
+                    <span>➕ Add Multi-Vendor Payouts</span>
+                  </button>
+                  <button type="button" class="template-chip chip-amber" data-scope-template="chat">
+                    <span>➕ Add Live Chat &amp; Push</span>
+                  </button>
+                  <button type="button" class="template-chip chip-amber" data-scope-template="rush">
+                    <span>⚡ Rush Deadline by 2 Weeks</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="input-group-styled">
+                <label for="scope-request" class="form-label">NEW FEATURE / CHANGE REQUEST</label>
+                <div class="textarea-wrapper">
+                  <textarea
+                    id="scope-request"
+                    rows="7"
+                    maxlength="3000"
+                    placeholder="Example: The client now wants a multi-vendor marketplace where other vendors can register, upload products, and receive automatic split payouts. They also asked for real-time buyer-seller chat."
+                    aria-label="New client scope change request"
+                  ></textarea>
+                </div>
+              </div>
+
+              <div class="action-footer">
+                <button type="button" class="btn-amber-glow btn-full" id="btn-analyze-scope">
+                  <span class="btn-glow-text">🔍 Detect Scope Change &amp; Impact</span>
+                  <span class="btn-arrow">→</span>
                 </button>
               </div>
-            </article>
+            </div>
+
+            <!-- Right: Dynamic Analysis Panel -->
             <div id="scope-result-container">
-              <div class="scope-placeholder panel">
-                <div class="scope-placeholder-icon" aria-hidden="true">⚖️</div>
-                <h3>Scope Protection</h3>
-                <p>Enter the client's new request and AI will compare it against your approved agreement — detecting scope creep and estimating fair additional costs.</p>
-                <div class="scope-features">
-                  <span>📋 Original vs New comparison</span>
-                  <span>💰 Additional cost estimate</span>
-                  <span>⏱️ Timeline impact</span>
-                  <span>✅ Accept or reject workflow</span>
+              <div class="glass-card scope-placeholder-card">
+                <div class="radar-scan-anim" aria-hidden="true">
+                  <div class="radar-circle circle-1"></div>
+                  <div class="radar-circle circle-2"></div>
+                  <div class="radar-beam"></div>
+                </div>
+                <h3 class="placeholder-title">Scope Protection Ready</h3>
+                <p class="placeholder-desc">Enter the client's new request on the left. Gemini will benchmark it against your signed terms and generate a defensible change order analysis.</p>
+                <div class="placeholder-specs">
+                  <span>✦ Visual Side-by-Side Scope Diffs</span>
+                  <span>✦ Additional USD Cost Estimate</span>
+                  <span>✦ Timeline Variance Gauge</span>
+                  <span>✦ Defensible Freelancer Advisory</span>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- Step 4: Checkout -->
-        <div id="step-checkout" class="hidden-step">
-          <div class="view-header">
+        <!-- ── STEP 4: PAYPAL SANDBOX CHECKOUT ── -->
+        <div id="step-checkout" class="wizard-step hidden-step">
+          <div class="step-view-header">
             <div>
-              <span class="eyebrow">STEP 4 OF 4</span>
-              <h1>PayPal Sandbox Checkout</h1>
-              <p class="view-desc">Secure payment via PayPal Orders API. Sandbox only — no real money.</p>
+              <span class="step-breadcrumb">STEP 4 OF 5</span>
+              <h2 class="step-heading">PayPal Orders API v2 Checkout</h2>
+              <p class="step-subheading">Server-authenticated Sandbox payment. No real money will be charged.</p>
             </div>
           </div>
-          <div id="checkout-container"></div>
+          <div id="checkout-container" class="checkout-layout-grid">
+            <!-- Dynamically populated by app.js -->
+          </div>
         </div>
 
-        <!-- Step 5: Receipt -->
-        <div id="step-receipt" class="hidden-step">
-          <div id="receipt-container"></div>
+        <!-- ── STEP 5: VERIFIED PAYMENT RECEIPT ── -->
+        <div id="step-receipt" class="wizard-step hidden-step">
+          <div id="receipt-container" class="receipt-layout-container">
+            <!-- Dynamically populated by app.js -->
+          </div>
         </div>
       </section>
 
-      <!-- ════════════════ VIEW: HISTORY ════════════════ -->
-      <section id="view-history" class="view" aria-label="Payment History">
-        <div class="view-header">
+      <!-- ════════════════ VIEW 3: TRANSACTION HISTORY & ESCROW ════════════════ -->
+      <section id="view-history" class="app-view" aria-label="Transaction Records">
+        <div class="step-view-header">
           <div>
-            <span class="eyebrow">RECORDS</span>
-            <h1>Project & Payment History</h1>
-            <p class="view-desc">All quotations and sandbox transactions.</p>
+            <span class="step-breadcrumb">LOCAL AUDIT TRAIL</span>
+            <h2 class="step-heading">Quotation &amp; Escrow Ledger</h2>
+            <p class="step-subheading">Atomic records of all proposals, approved milestones, and verified PayPal captures.</p>
           </div>
-          <button class="primary" data-view="new-project">+ New Project</button>
+          <button class="btn-primary-glow" data-view="new-project">+ New Proposal</button>
         </div>
-        <div id="history-list" class="project-list">
-          <div class="loading-state">
-            <div class="spinner" aria-label="Loading projects"></div>
-            <p>Loading projects...</p>
-          </div>
+        <div id="history-list" class="history-table-card glass-card">
+          <!-- Dynamically populated -->
         </div>
       </section>
     </main>
 
-    <footer class="footer" role="contentinfo">
-      <div class="footer-brand">
-        <span class="logomark small" aria-hidden="true">F<span>✦</span></span>
-        <span>FairFlow AI — PayPal AI Hackathon 2026</span>
+    <!-- Luxury Application Footer -->
+    <footer class="app-footer" role="contentinfo">
+      <div class="footer-left">
+        <div class="footer-brand">
+          <span class="logomark-sm">F</span>
+          <span>FairFlow AI</span>
+        </div>
+        <span class="footer-pipe">•</span>
+        <span class="footer-note">Built for the PayPal AI Hackathon 2026</span>
       </div>
-      <div class="footer-links">
-        <span>Sandbox only — no real money transferred</span>
-        <span>•</span>
-        <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer">PayPal Developer ↗</a>
-        <span>•</span>
-        <a href="https://github.com/keerthiprakash18/fairflow-ai" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+      <div class="footer-right">
+        <span class="sandbox-badge-footer">⚡ PAYPAL SANDBOX DEV ENVIRONMENT</span>
+        <a href="https://github.com/keerthiprakash18/fairflow-ai" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub ↗</a>
+        <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer" class="footer-link">PayPal Docs ↗</a>
       </div>
     </footer>
   </div>
 
-  <!-- Toast notifications -->
+  <!-- Toast Notification Container -->
   <div id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
-  <!-- Print receipt modal -->
-  <div id="print-modal" class="modal-overlay hidden" role="dialog" aria-modal="true" aria-label="Print receipt">
-    <div class="modal-box">
-      <div id="print-content"></div>
-      <div class="modal-actions">
-        <button class="primary" onclick="window.print()">🖨️ Print</button>
-        <button class="outline-btn" onclick="document.getElementById('print-modal').classList.add('hidden')">Close</button>
+  <!-- Sandbox Test Credentials Modal Helper -->
+  <div id="helper-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-label="Sandbox Credentials Helper">
+    <div class="modal-dialog glass-card">
+      <div class="modal-header">
+        <div class="modal-title-row">
+          <span class="modal-icon">🧪</span>
+          <h3 class="modal-title">PayPal Sandbox Testing Guide</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-helper" aria-label="Close modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-intro">Judges can test real PayPal checkout without spending real money. Use your PayPal Developer Sandbox test buyer account:</p>
+        <div class="helper-box">
+          <div class="helper-row">
+            <span class="helper-label">Environment:</span>
+            <span class="helper-val highlight-green">api-m.sandbox.paypal.com</span>
+          </div>
+          <div class="helper-row">
+            <span class="helper-label">Currency:</span>
+            <span class="helper-val">USD (Simulated Sandbox Balances)</span>
+          </div>
+          <div class="helper-row">
+            <span class="helper-label">Server Capture:</span>
+            <span class="helper-val">Verified status === 'COMPLETED'</span>
+          </div>
+        </div>
+        <p class="modal-sub">Don't have a Sandbox buyer account? Create one in 10 seconds at <a href="https://developer.paypal.com/dashboard/accounts" target="_blank" rel="noopener" class="link-styled">PayPal Developer Dashboard → Sandbox Accounts ↗</a>.</p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary-glow btn-full" id="btn-got-it">Got it, proceed with demo!</button>
       </div>
     </div>
   </div>

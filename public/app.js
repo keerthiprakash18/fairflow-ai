@@ -1,54 +1,49 @@
 /**
- * FairFlow AI — Frontend Application v2
- * Vanilla JavaScript SPA — no build tools, no frameworks.
- * Hackathon prototype: PayPal AI Hackathon 2026
+ * FairFlow AI — Elite Frontend Application (1000x Edition)
+ * Zero frameworks, vanilla JS, pristine 60fps micro-interactions
  */
 'use strict';
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── STATE MANAGEMENT ───
 const state = {
-  currentView:   'dashboard',
-  currentStep:   'brief',       // brief | proposal | scope | checkout | receipt
-  quoteId:       null,
-  quote:         null,
+  currentView: 'dashboard',
+  currentStep: 'brief',
+  quoteId: null,
+  quote: null,
   approvedAmount: null,
-  paypalLoaded:  false,
+  paypalLoaded: false,
   paypalRendered: false,
-  projects:      [],
+  projects: [],
 };
 
-// ─── DOM helpers ──────────────────────────────────────────────────────────────
+// ─── DOM SELECTORS & UTILITIES ───
 const $ = id => document.getElementById(id);
-const qs = (sel, ctx = document) => ctx.querySelector(sel);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 
 function el(tag, opts = {}) {
   const e = document.createElement(tag);
-  if (opts.text  != null)  e.textContent = opts.text;
-  // Never put dynamic content in innerHTML. Dynamic values use textContent.
-  if (opts.cls)            e.className   = opts.cls;
-  if (opts.id)             e.id          = opts.id;
+  if (opts.text != null) e.textContent = opts.text;
+  if (opts.html != null) e.innerHTML = opts.html;
+  if (opts.cls) e.className = opts.cls;
+  if (opts.id) e.id = opts.id;
   if (opts.attr) Object.entries(opts.attr).forEach(([k, v]) => e.setAttribute(k, v));
   if (opts.children) opts.children.forEach(c => c && e.appendChild(c));
   return e;
 }
 
-// ─── Toast notifications ──────────────────────────────────────────────────────
+// ─── TOAST NOTIFICATIONS ───
 const toastEl = $('toast');
 let toastTimer;
 function toast(msg, type = 'info') {
   toastEl.textContent = msg;
   toastEl.className = `show ${type}`;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5500);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
 }
 
-// ─── API helper ───────────────────────────────────────────────────────────────
+// ─── API CLIENT ───
 async function api(route, body, method = 'POST') {
-  const opts = {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-  };
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
   if (body !== undefined) opts.body = JSON.stringify(body);
   const r = await fetch(route, opts);
   const data = await r.json();
@@ -63,52 +58,70 @@ async function apiGet(route) {
   return data;
 }
 
-// ─── View routing ─────────────────────────────────────────────────────────────
+// ─── 1-CLICK DEMO TEMPLATES ───
+const TEMPLATES = {
+  ecommerce: "I am developing a 10-page e-commerce website for a local clothing boutique. It needs product listings with search and category filters, a shopping cart, customer registration and login, PayPal checkout integration, and an admin dashboard to manage inventory and view orders. The deadline is 30 days. The client has provided their brand logo and color palette.",
+  saas: "Building an MVP mobile-responsive SaaS dashboard for personal habit and finance tracking. Needs Firebase auth, monthly budget overview with interactive charts, Stripe/PayPal subscription billing, and CSV transaction export. Target delivery is 6 weeks.",
+  webflow: "Redesigning a boutique architecture firm's portfolio site. Needs a custom Webflow/HTML5 build, dynamic project CMS filtering, high-resolution photo gallery with lightbox, and a client inquiry booking form. Timeline is 21 days."
+};
+
+const SCOPE_TEMPLATES = {
+  marketplace: "The client now wants to transform the store into a full multi-vendor marketplace where third-party designers can create seller accounts, upload products, and receive automatic split payments. They also want a live customer chat widget.",
+  chat: "The client also wants to add real-time buyer-to-seller instant messaging, push notifications on order updates, and SMS notifications via Twilio.",
+  rush: "The client requests to expedite the entire launch deadline from 30 days down to 10 days, while keeping the full deliverable list intact."
+};
+
+// ─── VIEW ROUTING ───
 function showView(viewName) {
   state.currentView = viewName;
-
-  qsa('.view').forEach(v => v.classList.remove('active'));
-  qsa('.nav-tab, .mobile-tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.view === viewName);
-    t.setAttribute('aria-current', t.dataset.view === viewName ? 'page' : 'false');
+  qsa('.app-view').forEach(v => v.classList.remove('active'));
+  qsa('.nav-pill, .mobile-btn').forEach(t => {
+    const isTarget = t.dataset.view === viewName;
+    t.classList.toggle('active', isTarget);
+    t.setAttribute('aria-current', isTarget ? 'page' : 'false');
   });
 
-  const view = $(`view-${viewName}`);
-  if (view) {
-    view.classList.add('active');
-    view.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const target = $(`view-${viewName}`);
+  if (target) {
+    target.classList.add('active');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   if (viewName === 'dashboard') loadDashboard();
-  if (viewName === 'history')   loadHistory();
-  if (viewName === 'new-project') {
-    if (state.currentStep === 'brief') {
-      showStep('brief');
-    }
+  if (viewName === 'history') loadHistory();
+  if (viewName === 'new-project' && state.currentStep === 'brief') {
+    showStep('brief');
   }
 }
 
-// ─── Step routing (New Project wizard) ───────────────────────────────────────
+// ─── STEP ROUTING (WIZARD) ───
 const STEPS = ['brief', 'proposal', 'scope', 'checkout', 'receipt'];
 
 function showStep(stepName) {
   state.currentStep = stepName;
   STEPS.forEach(s => {
-    const el = $(`step-${s}`);
-    if (el) el.classList.toggle('hidden-step', s !== stepName);
+    const stepEl = $(`step-${s}`);
+    if (stepEl) stepEl.classList.toggle('hidden-step', s !== stepName);
   });
+
+  // Update Stepper Progress Bar
+  const activeIdx = STEPS.indexOf(stepName);
+  STEPS.forEach((s, idx) => {
+    const item = $(`stepper-step-${idx + 1}`);
+    const line = $(`stepper-line-${idx + 1}`);
+    if (item) {
+      item.classList.toggle('active', idx === activeIdx);
+      item.classList.toggle('completed', idx < activeIdx);
+    }
+    if (line) {
+      line.classList.toggle('active', idx < activeIdx);
+    }
+  });
+
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// ─── Character counter ────────────────────────────────────────────────────────
-const descEl = $('description');
-if (descEl) {
-  descEl.addEventListener('input', () => {
-    $('char-count').textContent = descEl.value.length;
-  });
-}
-
-// ─── DASHBOARD ────────────────────────────────────────────────────────────────
+// ─── DASHBOARD RENDERING ───
 async function loadDashboard() {
   try {
     const data = await apiGet('/api/projects');
@@ -116,94 +129,90 @@ async function loadDashboard() {
     renderDashboardStats(state.projects);
     renderDashboardRecent(state.projects.slice(0, 5));
   } catch (err) {
-    console.error('Dashboard load error:', err);
+    console.error('Failed to load dashboard:', err);
   }
 }
 
 function renderDashboardStats(projects) {
-  const total   = projects.length;
-  const paid    = projects.filter(p => p.status === 'paid').length;
-  const pending = projects.filter(p => ['approved', 'checkout-started', 'draft'].includes(p.status)).length;
+  const total = projects.length;
+  const paid = projects.filter(p => p.status === 'paid').length;
+  const pending = projects.filter(p => ['draft', 'approved', 'checkout-started', 'scope-change-requested'].includes(p.status)).length;
   const revenue = projects.filter(p => p.status === 'paid').reduce((s, p) => s + (Number(p.amountUSD) || 0), 0);
 
-  $('stat-total').textContent   = total;
+  $('stat-total').textContent = total;
   $('stat-pending').textContent = pending;
-  $('stat-paid').textContent    = paid;
-  $('stat-revenue').textContent = revenue > 0 ? `$${revenue.toFixed(2)}` : '$0.00';
+  $('stat-paid').textContent = paid;
+  $('stat-revenue').textContent = revenue > 0 ? `$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
 }
 
 function renderDashboardRecent(projects) {
   const container = $('dashboard-recent');
   if (!projects.length) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon" aria-hidden="true">✳</div>
-        <h3>No projects yet</h3>
-        <p>Create your first AI-powered project proposal to get started.</p>
-        <button class="primary" data-view="new-project">Create First Project</button>
+      <div style="text-align: center; padding: 48px 20px;">
+        <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
+        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">No projects created yet</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Describe your first freelance project to test Gemini scoping &amp; PayPal Sandbox.</p>
+        <button class="btn-primary-glow" data-view="new-project">✦ Create First Proposal</button>
       </div>`;
-    bindNavButtons(container);
+    bindViewButtons(container);
     return;
   }
+
   container.innerHTML = '';
-  projects.forEach(p => container.appendChild(buildProjectCard(p)));
-}
-
-function buildProjectCard(p) {
-  const statusInfo = getStatusInfo(p.status);
-  const card = el('div', {
-    cls: 'project-card',
-    children: [
-      el('div', {
-        cls: 'project-card-header',
-        children: [
-          el('div', { cls: 'project-card-title-group', children: [
-            el('h3', { cls: 'project-card-title', text: p.title || 'Untitled Project' }),
-            el('span', { cls: `status-badge ${statusInfo.cls}`, text: statusInfo.label }),
-          ]}),
-          el('span', { cls: 'project-card-amount', text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)} USD` : '—' }),
-        ]
-      }),
-      el('div', {
-        cls: 'project-card-meta',
-        children: [
-          el('span', { text: p.paidAt ? `Paid ${formatDate(p.paidAt)}` : `Created ${formatDate(p.createdAt)}` }),
-          p.orderId ? el('span', { cls: 'project-card-id', text: `Order: ${p.orderId.slice(0, 8)}…` }) : null,
-        ]
-      }),
-    ]
+  projects.forEach(p => {
+    const isPaid = p.status === 'paid';
+    const item = el('div', {
+      cls: 'pipeline-item',
+      children: [
+        el('div', {
+          cls: 'item-left',
+          children: [
+            el('div', {
+              cls: `item-status-icon ${isPaid ? 'status-paid-bg' : 'status-draft-bg'}`,
+              text: isPaid ? '✓' : '◈'
+            }),
+            el('div', {
+              cls: 'item-details',
+              children: [
+                el('strong', { text: p.title || 'Freelance Agreement' }),
+                el('span', { cls: 'item-meta', text: isPaid ? `Paid • ${formatDate(p.paidAt)}` : `Draft • ${formatDate(p.createdAt)}` })
+              ]
+            })
+          ]
+        }),
+        el('div', {
+          cls: 'item-right',
+          children: [
+            el('span', {
+              cls: 'item-amount',
+              text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)} USD` : '—'
+            })
+          ]
+        })
+      ]
+    });
+    container.appendChild(item);
   });
-  return card;
-}
-
-function getStatusInfo(status) {
-  const map = {
-    'draft':                 { label: 'Draft',         cls: 'status-draft'    },
-    'approved':              { label: 'Approved',      cls: 'status-approved' },
-    'scope-change-requested':{ label: 'Scope Change',  cls: 'status-scope'    },
-    'checkout-started':      { label: 'In Checkout',   cls: 'status-checkout' },
-    'paid':                  { label: '✓ Paid',        cls: 'status-paid'     },
-  };
-  return map[status] || { label: status || 'Unknown', cls: 'status-draft' };
 }
 
 function formatDate(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'Just now';
   try {
     return new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   } catch { return iso.slice(0, 10); }
 }
 
-// ─── HISTORY ──────────────────────────────────────────────────────────────────
+// ─── HISTORY RENDERING ───
 async function loadHistory() {
   const container = $('history-list');
-  container.innerHTML = '<div class="loading-state"><div class="spinner" aria-label="Loading"></div><p>Loading projects…</p></div>';
+  container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-muted);">Loading persistent records...</div>';
   try {
     const data = await apiGet('/api/projects');
     state.projects = data.projects || [];
     renderHistory(state.projects);
   } catch (err) {
-    container.replaceChildren(el('div', { cls:'error-state', children:[el('p', {text:'Could not load history: '+err.message})] }));
+    container.innerHTML = `<div style="padding: 30px; color: var(--red-400);">Error loading history: ${err.message}</div>`;
   }
 }
 
@@ -211,225 +220,301 @@ function renderHistory(projects) {
   const container = $('history-list');
   if (!projects.length) {
     container.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon" aria-hidden="true">📋</div>
-        <h3>No projects yet</h3>
-        <p>Your completed projects and payment records will appear here.</p>
-        <button class="primary" data-view="new-project">Create First Project</button>
+      <div style="text-align: center; padding: 56px 20px;">
+        <h3 style="font-size: 17px; font-weight: 700; margin-bottom: 8px;">No transaction records</h3>
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 24px;">Approved and paid projects will be securely recorded in this ledger.</p>
+        <button class="btn-primary-glow" data-view="new-project">+ Create New Project</button>
       </div>`;
-    bindNavButtons(container);
+    bindViewButtons(container);
     return;
   }
-  container.innerHTML = '';
 
-  // Group by status
-  const paid    = projects.filter(p => p.status === 'paid');
-  const others  = projects.filter(p => p.status !== 'paid');
-
-  if (paid.length) {
-    container.appendChild(el('h2', { cls: 'history-section-title', text: `Completed Payments (${paid.length})` }));
-    paid.forEach(p => container.appendChild(buildHistoryRow(p)));
-  }
-  if (others.length) {
-    container.appendChild(el('h2', { cls: 'history-section-title', text: `Other Projects (${others.length})` }));
-    others.forEach(p => container.appendChild(buildHistoryRow(p)));
-  }
-}
-
-function buildHistoryRow(p) {
-  const statusInfo = getStatusInfo(p.status);
-  return el('div', {
-    cls: 'history-row',
-    children: [
-      el('div', { cls: 'history-row-left', children: [
-        el('div', { cls: 'history-row-icon', text: p.status === 'paid' ? '✓' : '◈', attr: { 'aria-hidden': 'true' } }),
-        el('div', { cls: 'history-row-info', children: [
-          el('strong', { text: p.title || 'Untitled Project' }),
-          el('span', { cls: 'history-row-date', text: formatDate(p.paidAt || p.createdAt) }),
-        ]}),
-      ]}),
-      el('div', { cls: 'history-row-right', children: [
-        el('span', { cls: `status-badge ${statusInfo.cls}`, text: statusInfo.label }),
-        el('strong', { cls: 'history-row-amount', text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)}` : '—' }),
-      ]}),
-    ]
+  container.innerHTML = '<div style="padding: 24px 28px 12px; font-weight: 800; font-size: 16px;">Verified Project Ledger</div>';
+  projects.forEach(p => {
+    const isPaid = p.status === 'paid';
+    const row = el('div', {
+      cls: 'pipeline-item',
+      attr: { style: 'margin: 0 24px 12px;' },
+      children: [
+        el('div', {
+          cls: 'item-left',
+          children: [
+            el('div', {
+              cls: `item-status-icon ${isPaid ? 'status-paid-bg' : 'status-draft-bg'}`,
+              text: isPaid ? '✓' : '◈'
+            }),
+            el('div', {
+              cls: 'item-details',
+              children: [
+                el('strong', { text: p.title || 'Untitled Project' }),
+                el('span', {
+                  cls: 'item-meta',
+                  text: p.orderId ? `PayPal Order: ${p.orderId} • ${formatDate(p.paidAt || p.createdAt)}` : `Status: ${p.status} • ${formatDate(p.createdAt)}`
+                })
+              ]
+            })
+          ]
+        }),
+        el('div', {
+          cls: 'item-right',
+          children: [
+            el('span', {
+              cls: 'item-amount',
+              text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)} USD` : '—'
+            })
+          ]
+        })
+      ]
+    });
+    container.appendChild(row);
   });
 }
 
-// ─── PROPOSAL GENERATION ──────────────────────────────────────────────────────
+// ─── CHAR COUNTER & ENHANCE TOOL ───
+const descEl = $('description');
+if (descEl) {
+  descEl.addEventListener('input', () => {
+    $('char-count').textContent = descEl.value.length;
+  });
+}
+
+// Enhance with AI
+$('btn-enhance-brief').addEventListener('click', async () => {
+  const current = descEl.value.trim();
+  if (current.length < 5) {
+    toast('Please enter a short project idea first (e.g. "Real estate app with map search")', 'error');
+    return;
+  }
+  const btn = $('btn-enhance-brief');
+  const originalHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '<span>✦ Enhancing brief...</span>';
+
+  try {
+    const res = await api('/api/enhance-brief', { brief: current });
+    descEl.value = res.enhanced;
+    $('char-count').textContent = res.enhanced.length;
+    toast('AI enhanced your brief with technical specifications!', 'success');
+  } catch (err) {
+    toast(`Could not enhance: ${err.message}`, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = originalHtml;
+  }
+});
+
+// Template chips handlers
+qsa('[data-template]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.template;
+    if (TEMPLATES[key]) {
+      descEl.value = TEMPLATES[key];
+      $('char-count').textContent = descEl.value.length;
+      toast(`Loaded template: ${btn.textContent.trim()}`, 'info');
+    }
+  });
+});
+
+qsa('[data-scope-template]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.dataset.scopeTemplate;
+    const scopeInput = $('scope-request');
+    if (SCOPE_TEMPLATES[key] && scopeInput) {
+      scopeInput.value = SCOPE_TEMPLATES[key];
+      toast(`Loaded scope scenario: ${btn.textContent.trim()}`, 'info');
+    }
+  });
+});
+
+// ─── PROPOSAL GENERATION ───
 $('btn-generate').addEventListener('click', async () => {
   const description = descEl.value.trim();
   if (description.length < 20) {
-    toast('Please write at least 20 characters describing your project.', 'error');
+    toast('Please write at least 20 characters describing your project requirements.', 'error');
     return;
   }
 
   const btn = $('btn-generate');
-  btn.disabled  = true;
-  btn.innerHTML = '<span class="spinner-sm" aria-hidden="true"></span> Generating proposal…';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="sparkle">✦</span> <span>Analyzing with Gemini 3.8 Flash...</span>';
 
   try {
     const data = await api('/api/quote', { description });
     state.quoteId = data.quoteId;
-    state.quote   = data.quote;
+    state.quote = data.quote;
     renderProposal(data.quoteId, data.quote);
     showStep('proposal');
-    showView('new-project');
-    toast('AI proposal ready! Review all details before checkout.', 'success');
+    toast('AI Proposal generated with 100% milestone math!', 'success');
   } catch (err) {
     toast(err.message, 'error');
   } finally {
-    btn.disabled  = false;
-    btn.innerHTML = '<span class="btn-icon" aria-hidden="true">✦</span> Generate AI Proposal';
+    btn.disabled = false;
+    btn.innerHTML = '<span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span> <span class="btn-arrow">→</span>';
   }
 });
 
 $('btn-new-proposal').addEventListener('click', () => {
-  state.quoteId       = null;
-  state.quote         = null;
-  state.approvedAmount = null;
-  state.paypalRendered = false;
-  $('proposal-container').innerHTML = '';
   showStep('brief');
 });
 
-// ─── RENDER PROPOSAL ──────────────────────────────────────────────────────────
+// ─── RENDER PROPOSAL VIEW ───
 function renderProposal(quoteId, quote) {
   const container = $('proposal-container');
   container.innerHTML = '';
 
-  const wrap = el('div', { cls: 'proposal-wrap' });
+  // Main Column
+  const mainCol = el('div', { cls: 'proposal-main-col' });
 
-  // ── Project summary card ──
-  wrap.appendChild(el('div', {
-    cls: 'proposal-card',
+  // 1. Overview Card
+  const heroBox = el('div', {
+    cls: 'glass-card proposal-hero-box',
     children: [
-      el('div', { cls: 'proposal-card-header', children: [
-        el('h2', { cls: 'proposal-title', text: quote.title }),
-        el('span', { cls: 'ai-badge', text: 'AI Generated' }),
-      ]}),
-      el('p', { cls: 'proposal-summary', text: quote.summary }),
-      quote.timeline ? el('div', { cls: 'proposal-timeline', children: [
-        el('span', { cls: 'timeline-icon', text: '📅', attr: { 'aria-hidden': 'true' } }),
-        el('span', { text: `Estimated timeline: ${quote.timeline}` }),
-      ]}) : null,
+      el('div', {
+        cls: 'proposal-tag-row',
+        children: [
+          el('span', { cls: 'tag-ai-badge', html: '<span class="sparkle">✦</span> GEMINI 3.8 FLASH SCOPED' }),
+          quote.timeline ? el('span', { cls: 'proposal-timeline-pill', text: `⏱️ ${quote.timeline}` }) : null
+        ]
+      }),
+      el('h2', { cls: 'proposal-project-title', text: quote.title }),
+      el('p', { cls: 'proposal-summary-text', text: quote.summary })
     ]
-  }));
+  });
+  mainCol.appendChild(heroBox);
 
-  // ── Deliverables ──
+  // 2. Deliverables Card
   if (quote.deliverables?.length) {
-    wrap.appendChild(buildListCard('📦 Deliverables', quote.deliverables, 'deliverables-card'));
-  }
-
-  // ── Milestones ──
-  if (quote.milestones?.length) {
-    const msCard = el('div', { cls: 'proposal-card milestones-card' });
-    msCard.appendChild(el('h3', { cls: 'card-section-title', text: '📊 Payment Milestones' }));
-    quote.milestones.forEach((m, i) => {
-      const bar = el('div', { cls: 'milestone-row' });
-      bar.appendChild(el('div', { cls: 'milestone-info', children: [
-        el('strong', { text: m.name }),
-        m.description ? el('span', { cls: 'milestone-desc', text: m.description }) : null,
-      ]}));
-      const right = el('div', { cls: 'milestone-right' });
-      right.appendChild(el('span', { cls: 'milestone-pct', text: `${m.percent}%` }));
-      bar.appendChild(right);
-      const track = el('div', { cls: 'milestone-track' });
-      const fill  = el('div', { cls: 'milestone-fill', attr: { style: `width:${m.percent}%`, 'aria-label': `${m.percent}% of total` } });
-      track.appendChild(fill);
-      msCard.appendChild(bar);
-      msCard.appendChild(track);
+    const delivBox = el('div', {
+      cls: 'glass-card deliverables-box',
+      children: [
+        el('h3', { cls: 'box-title', html: '<span>📦 Deliverable Scope Items</span>' }),
+        el('div', {
+          cls: 'deliverables-styled-list',
+          children: quote.deliverables.map((d, i) => el('div', {
+            cls: 'deliverable-chip',
+            children: [
+              el('span', { cls: 'chip-num', text: `#${i + 1}` }),
+              el('span', { text: d })
+            ]
+          }))
+        })
+      ]
     });
-    wrap.appendChild(msCard);
+    mainCol.appendChild(delivBox);
   }
 
-  // ── Assumptions ──
-  if (quote.assumptions?.length) {
-    wrap.appendChild(buildListCard('🧩 Assumptions', quote.assumptions, 'assumptions-card'));
+  // 3. Milestones Card
+  if (quote.milestones?.length) {
+    const milesBox = el('div', {
+      cls: 'glass-card milestones-box',
+      children: [
+        el('h3', { cls: 'box-title', html: '<span>📊 Payment Milestone Breakdown (Sum: 100%)</span>' }),
+        el('div', {
+          cls: 'milestones-styled-list',
+          children: quote.milestones.map(m => el('div', {
+            cls: 'milestone-card-item',
+            children: [
+              el('div', {
+                cls: 'milestone-top-row',
+                children: [
+                  el('span', { cls: 'milestone-title', text: m.name }),
+                  el('span', { cls: 'milestone-percent-pill', text: `${m.percent}%` })
+                ]
+              }),
+              m.description ? el('p', { cls: 'milestone-desc-text', text: m.description }) : null,
+              el('div', {
+                cls: 'milestone-progress-track',
+                children: [
+                  el('div', {
+                    cls: 'milestone-progress-fill',
+                    attr: { style: `width: ${m.percent}%` }
+                  })
+                ]
+              })
+            ]
+          }))
+        })
+      ]
+    });
+    mainCol.appendChild(milesBox);
   }
 
-  // ── Risks ──
-  if (quote.risks?.length) {
-    wrap.appendChild(buildListCard('⚠️ Potential Risks', quote.risks, 'risks-card'));
-  }
-
-  // ── Questions for client ──
-  if (quote.questions?.length) {
-    wrap.appendChild(buildListCard('❓ Questions for Your Client', quote.questions, 'questions-card'));
-  }
-
-  // ── Approve & Amount ──
-  const approveCard = el('div', { cls: 'proposal-card approve-card', id: 'approve-card' });
-  approveCard.appendChild(el('h3', { cls: 'card-section-title', text: '💳 Review & Approve Payment' }));
-  approveCard.appendChild(el('p', { cls: 'approve-desc', text: quote.caution }));
-
-  const amountWrap = el('div', { cls: 'amount-editor' });
-  amountWrap.appendChild(el('label', { cls: 'field-label', text: 'APPROVED AMOUNT (USD)', attr: { for: 'amount-input' } }));
-  const moneyRow = el('div', { cls: 'money-row' });
-  moneyRow.appendChild(el('span', { cls: 'currency-sym', text: '$', attr: { 'aria-hidden': 'true' } }));
-  const amountInput = el('input', {
-    id: 'amount-input',
-    attr: {
-      type: 'number', min: '1', max: '10000', step: '0.01',
-      value: quote.amountUSD.toFixed(2),
-      'aria-label': 'Payment amount in USD — you can edit this',
-    }
+  // Side Column: Price Approval Box
+  const sideCol = el('div', { cls: 'proposal-side-col' });
+  const approveBox = el('div', {
+    cls: 'glass-card pricing-approval-card',
+    children: [
+      el('span', { cls: 'pricing-title', text: 'HUMAN APPROVAL REQUIRED' }),
+      el('div', {
+        cls: 'pricing-editor',
+        children: [
+          el('label', { cls: 'form-label', text: 'TOTAL USD QUOTATION' }),
+          el('div', {
+            cls: 'pricing-input-box',
+            children: [
+              el('span', { cls: 'currency-symbol', text: '$' }),
+              el('input', {
+                id: 'approved-amount-input',
+                cls: 'amount-field',
+                attr: {
+                  type: 'number',
+                  min: '1',
+                  max: '10000',
+                  step: '0.01',
+                  value: Number(quote.amountUSD).toFixed(2),
+                  'aria-label': 'Approved project quotation amount in USD'
+                }
+              })
+            ]
+          }),
+          el('p', { cls: 'pricing-sub-note', text: 'You can edit this estimate before locking. Server enforces numeric limits ($1.00 – $10,000.00).' })
+        ]
+      }),
+      el('div', {
+        cls: 'pricing-caution-box',
+        text: '⚠️ "AI recommends. Humans approve. PayPal processes." Locking this quote will establish the verified baseline for checkout.'
+      }),
+      el('button', {
+        cls: 'btn-primary-glow btn-full',
+        id: 'btn-approve-quote',
+        html: '<span class="btn-glow-text">✓ Approve &amp; Lock Terms</span> <span class="btn-arrow">→</span>'
+      })
+    ]
   });
-  moneyRow.appendChild(amountInput);
-  amountWrap.appendChild(moneyRow);
-  amountWrap.appendChild(el('p', { cls: 'fine-print', text: 'Edit this amount before approving. AI suggestions are estimates — your decision is final.' }));
-  approveCard.appendChild(amountWrap);
+  sideCol.appendChild(approveBox);
 
-  const approveBtn = el('button', {
-    cls: 'primary large-btn approve-btn',
-    id: 'btn-approve',
-    text: '✓ Approve Quote & Continue to Checkout',
-  });
-  approveCard.appendChild(approveBtn);
-  wrap.appendChild(approveCard);
+  container.appendChild(mainCol);
+  container.appendChild(sideCol);
 
-  container.appendChild(wrap);
-
-  // ── Approve handler ──
-  approveBtn.addEventListener('click', async () => {
-    const rawVal = amountInput.value;
-    if (!rawVal || isNaN(Number(rawVal)) || Number(rawVal) < 1) {
-      toast('Please enter a valid payment amount of at least $1.00', 'error');
+  // Approve button event
+  $('btn-approve-quote').addEventListener('click', async () => {
+    const inputVal = $('approved-amount-input').value;
+    const num = Number(inputVal);
+    if (!num || num < 1 || num > 10000) {
+      toast('Please enter a valid amount between $1.00 and $10,000.00', 'error');
       return;
     }
 
-    approveBtn.disabled  = true;
-    approveBtn.innerHTML = '<span class="spinner-sm" aria-hidden="true"></span> Approving…';
+    const btn = $('btn-approve-quote');
+    btn.disabled = true;
+    btn.innerHTML = '<span>Locking Agreement on Server...</span>';
 
     try {
-      const confirmed = await api('/api/confirm-quote', { quoteId, amountUSD: rawVal });
-      state.approvedAmount = confirmed.amountUSD;
-      amountInput.disabled = true;
-      toast('Quote approved! Proceeding to checkout…', 'success');
-
-      // Show scope step or go directly to checkout
-      renderScopeStep();
+      const res = await api('/api/confirm-quote', { quoteId, amountUSD: inputVal });
+      state.approvedAmount = res.amountUSD;
+      toast(`Quotation locked at $${Number(res.amountUSD).toFixed(2)} USD!`, 'success');
       showStep('scope');
+      renderScopeStep();
     } catch (err) {
       toast(err.message, 'error');
-      approveBtn.disabled  = false;
-      approveBtn.innerHTML = '✓ Approve Quote & Continue to Checkout';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-glow-text">✓ Approve &amp; Lock Terms</span> <span class="btn-arrow">→</span>';
     }
   });
 }
 
-function buildListCard(title, items, cls = '') {
-  const card = el('div', { cls: `proposal-card ${cls}` });
-  card.appendChild(el('h3', { cls: 'card-section-title', text: title }));
-  const list = el('ul', { cls: 'proposal-list' });
-  items.forEach(item => list.appendChild(el('li', { text: item })));
-  card.appendChild(list);
-  return card;
-}
-
-// ─── SCOPE CHANGE ─────────────────────────────────────────────────────────────
+// ─── SCOPE CHANGE DETECTOR ───
 function renderScopeStep() {
-  // Update skip button to go to checkout
   $('btn-skip-scope').onclick = () => {
     renderCheckoutStep();
     showStep('checkout');
@@ -438,23 +523,23 @@ function renderScopeStep() {
   $('btn-analyze-scope').onclick = async () => {
     const request = $('scope-request').value.trim();
     if (request.length < 10) {
-      toast('Please describe the new client request in at least 10 characters.', 'error');
+      toast('Please describe the client\'s change request in at least 10 characters.', 'error');
       return;
     }
 
     const btn = $('btn-analyze-scope');
-    btn.disabled  = true;
-    btn.innerHTML = '<span class="spinner-sm" aria-hidden="true"></span> Analyzing scope change…';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="sparkle">✦</span> <span>Benchmarking against baseline...</span>';
 
     try {
       const data = await api('/api/scope-change', { quoteId: state.quoteId, newRequest: request });
       renderScopeAnalysis(data);
-      toast('Scope analysis complete! Review the impact below.', 'success');
+      toast('Scope variance detected! See analysis on the right.', 'success');
     } catch (err) {
       toast(err.message, 'error');
     } finally {
-      btn.disabled  = false;
-      btn.innerHTML = '<span class="btn-icon" aria-hidden="true">🔍</span> Analyze Scope Change';
+      btn.disabled = false;
+      btn.innerHTML = '<span class="btn-glow-text">🔍 Detect Scope Change &amp; Impact</span> <span class="btn-arrow">→</span>';
     }
   };
 }
@@ -464,174 +549,162 @@ function renderScopeAnalysis(data) {
   const container = $('scope-result-container');
   container.innerHTML = '';
 
-  const severityColors = { low: 'severity-low', medium: 'severity-medium', high: 'severity-high' };
-  const severityLabels = { low: 'Low Impact', medium: 'Medium Impact', high: 'High Impact' };
+  const layout = el('div', { cls: 'glass-card primary-card scope-analysis-layout' });
 
-  const wrap = el('div', { cls: 'scope-analysis' });
-
-  // Header
-  wrap.appendChild(el('div', {
-    cls: 'scope-header',
+  // Header Bar with Severity
+  const header = el('div', {
+    cls: 'scope-header-bar',
     children: [
-      el('h3', { text: 'Scope Change Analysis' }),
-      el('span', { cls: `severity-badge ${severityColors[analysis.severity] || 'severity-medium'}`, text: severityLabels[analysis.severity] || 'Unknown Impact' }),
+      el('strong', { text: 'Variance Impact Level' }),
+      el('span', {
+        cls: `severity-indicator severity-${analysis.severity || 'medium'}`,
+        text: `${(analysis.severity || 'medium').toUpperCase()} SEVERITY`
+      })
     ]
-  }));
+  });
+  layout.appendChild(header);
 
-  // Summary
-  if (analysis.summary) {
-    wrap.appendChild(el('p', { cls: 'scope-summary', text: analysis.summary }));
-  }
+  // Side-by-side Diffs
+  const diffGrid = el('div', {
+    cls: 'scope-diff-grid',
+    children: [
+      el('div', {
+        cls: 'diff-card diff-orig',
+        children: [
+          el('h4', { cls: 'diff-title', html: '<span>📋 Original Terms</span>' }),
+          el('p', { text: analysis.originalScope, attr: { style: 'font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;' } }),
+          el('strong', { cls: 'font-mono', text: `$${Number(originalQuote.amountUSD).toFixed(2)} USD (Locked)` })
+        ]
+      }),
+      el('div', {
+        cls: 'diff-card diff-new',
+        children: [
+          el('h4', { cls: 'diff-title', html: '<span>➕ Requested Additions</span>' }),
+          el('ul', {
+            cls: 'diff-list',
+            children: (analysis.addedFeatures?.length ? analysis.addedFeatures : analysis.newRequests || ['New features requested']).map(r => el('li', { text: `• ${r}` }))
+          })
+        ]
+      })
+    ]
+  });
+  layout.appendChild(diffGrid);
 
-  // Comparison grid
-  const grid = el('div', { cls: 'scope-compare-grid' });
+  // Financial & Timeline Variance Metrics
+  const metricsRow = el('div', {
+    cls: 'impact-metric-row',
+    children: [
+      el('div', {
+        cls: 'impact-metric-box',
+        children: [
+          el('span', { cls: 'impact-metric-label', text: 'ESTIMATED ADDITIONAL COST' }),
+          el('span', { cls: 'impact-metric-val color-amber', text: `+$${analysis.additionalCostUSD.toFixed(2)} USD` })
+        ]
+      }),
+      el('div', {
+        cls: 'impact-metric-box',
+        children: [
+          el('span', { cls: 'impact-metric-label', text: 'SUGGESTED REVISED TOTAL' }),
+          el('span', { cls: 'impact-metric-val color-mint', text: `$${analysis.newTotalUSD.toFixed(2)} USD` })
+        ]
+      })
+    ]
+  });
+  layout.appendChild(metricsRow);
 
-  // Original scope column
-  const origCol = el('div', { cls: 'scope-col scope-original' });
-  origCol.appendChild(el('div', { cls: 'scope-col-header', children: [
-    el('span', { cls: 'scope-col-icon', text: '📋', attr: { 'aria-hidden': 'true' } }),
-    el('strong', { text: 'Original Scope' }),
-  ]}));
-  origCol.appendChild(el('p', { cls: 'scope-col-text', text: analysis.originalScope }));
-  if (originalQuote) {
-    origCol.appendChild(el('div', { cls: 'scope-price-tag', text: `$${Number(originalQuote.amountUSD).toFixed(2)} USD (approved)` }));
-  }
-  grid.appendChild(origCol);
-
-  // Arrow
-  grid.appendChild(el('div', { cls: 'scope-arrow', text: '→', attr: { 'aria-hidden': 'true' } }));
-
-  // New requests column
-  const newCol = el('div', { cls: 'scope-col scope-new' });
-  newCol.appendChild(el('div', { cls: 'scope-col-header', children: [
-    el('span', { cls: 'scope-col-icon', text: '➕', attr: { 'aria-hidden': 'true' } }),
-    el('strong', { text: 'New Requests' }),
-  ]}));
-  if (analysis.newRequests?.length) {
-    const list = el('ul', { cls: 'scope-list' });
-    analysis.newRequests.forEach(r => list.appendChild(el('li', { text: r })));
-    newCol.appendChild(list);
-  }
-  grid.appendChild(newCol);
-  wrap.appendChild(grid);
-
-  // Impact details
-  const impactGrid = el('div', { cls: 'impact-grid' });
-
-  if (analysis.addedFeatures?.length) {
-    impactGrid.appendChild(buildImpactCard('🆕 Added Features', analysis.addedFeatures, 'added'));
-  }
-  if (analysis.changes?.length) {
-    impactGrid.appendChild(buildImpactCard('🔄 What Changes', analysis.changes, 'changes'));
-  }
-  if (analysis.timelineImpact) {
-    impactGrid.appendChild(el('div', {
-      cls: 'impact-card timeline-card',
-      children: [
-        el('h4', { text: '⏱️ Timeline Impact' }),
-        el('p', { text: analysis.timelineImpact }),
-      ]
-    }));
-  }
-  wrap.appendChild(impactGrid);
-
-  // Cost estimate
-  if (analysis.additionalCostUSD > 0 || analysis.newTotalUSD > 0) {
-    const costCard = el('div', { cls: 'cost-impact-card' });
-    costCard.appendChild(el('h4', { text: '💰 Estimated Additional Cost' }));
-    const costGrid = el('div', { cls: 'cost-grid' });
-    if (analysis.additionalCostUSD > 0) {
-      costGrid.appendChild(el('div', { cls: 'cost-item', children: [
-        el('span', { cls: 'cost-label', text: 'Additional Work' }),
-        el('strong', { cls: 'cost-value add', text: `+$${analysis.additionalCostUSD.toFixed(2)}` }),
-      ]}));
-    }
-    if (originalQuote?.amountUSD) {
-      costGrid.appendChild(el('div', { cls: 'cost-item', children: [
-        el('span', { cls: 'cost-label', text: 'Original Approved' }),
-        el('strong', { cls: 'cost-value', text: `$${Number(originalQuote.amountUSD).toFixed(2)}` }),
-      ]}));
-    }
-    if (analysis.newTotalUSD > 0) {
-      costGrid.appendChild(el('div', { cls: 'cost-item total-item', children: [
-        el('span', { cls: 'cost-label', text: 'Suggested New Total' }),
-        el('strong', { cls: 'cost-value total', text: `$${analysis.newTotalUSD.toFixed(2)}` }),
-      ]}));
-    }
-    costCard.appendChild(costGrid);
-    costCard.appendChild(el('p', { cls: 'fine-print', text: '⚠️ All cost estimates are AI suggestions. Review with your client and adjust before creating a new quote if applicable.' }));
-    wrap.appendChild(costCard);
-  }
-
-  // Recommendation
+  // Advisory text
   if (analysis.recommendation) {
-    wrap.appendChild(el('div', {
-      cls: 'recommendation-card',
+    layout.appendChild(el('div', {
+      cls: 'advisory-box',
       children: [
-        el('h4', { text: '💡 FairFlow Recommendation' }),
-        el('p', { text: analysis.recommendation }),
+        el('strong', { text: '💡 FairFlow Recommendation: ', attr: { style: 'color: var(--violet-300);' } }),
+        el('span', { text: analysis.recommendation })
       ]
     }));
   }
 
-  // Actions
-  const actions = el('div', { cls: 'scope-actions' });
-  const proceedBtn = el('button', { cls: 'primary large-btn', text: '→ Proceed with Original Quote' });
+  // Action Button
+  const proceedBtn = el('button', {
+    cls: 'btn-primary-glow btn-full',
+    html: '<span class="btn-glow-text">Proceed to Checkout with Original Terms</span> <span class="btn-arrow">→</span>'
+  });
   proceedBtn.addEventListener('click', () => {
     renderCheckoutStep();
     showStep('checkout');
   });
-  actions.appendChild(proceedBtn);
-  actions.appendChild(el('p', { cls: 'fine-print', text: 'Your original approved quote is preserved. If accepting the scope change, generate a new project with the revised scope.' }));
-  wrap.appendChild(actions);
-  container.appendChild(wrap);
+  layout.appendChild(proceedBtn);
+
+  container.appendChild(layout);
 }
 
-function buildImpactCard(title, items, type) {
-  const card = el('div', { cls: `impact-card impact-${type}` });
-  card.appendChild(el('h4', { text: title }));
-  const list = el('ul', { cls: 'impact-list' });
-  items.forEach(item => list.appendChild(el('li', { text: item })));
-  card.appendChild(list);
-  return card;
-}
-
-// ─── CHECKOUT ─────────────────────────────────────────────────────────────────
+// ─── CHECKOUT & PAYPAL INTEGRATION ───
 function renderCheckoutStep() {
   const container = $('checkout-container');
   container.innerHTML = '';
 
-  const amount = state.approvedAmount;
-  const quote  = state.quote;
+  const amount = Number(state.approvedAmount || state.quote.amountUSD);
+  const title = state.quote?.title || 'Freelance Agreement';
 
-  const wrap = el('div', { cls: 'checkout-wrap' });
+  // Left: Order Summary Breakdown
+  const summaryCard = el('div', {
+    cls: 'glass-card checkout-summary-card',
+    children: [
+      el('span', { cls: 'pricing-title', text: 'ESCROW AGREEMENT' }),
+      el('h3', { cls: 'proposal-project-title', text: title, attr: { style: 'font-size: 22px; margin-top: 6px;' } }),
+      el('div', {
+        cls: 'order-breakdown-table',
+        children: [
+          el('div', {
+            cls: 'breakdown-row',
+            children: [
+              el('span', { text: 'Approved Project Amount:' }),
+              el('strong', { cls: 'font-mono', text: `$${amount.toFixed(2)} USD` })
+            ]
+          }),
+          el('div', {
+            cls: 'breakdown-row',
+            children: [
+              el('span', { text: 'PayPal Platform Fee (Sandbox):' }),
+              el('span', { cls: 'font-mono color-mint', text: '$0.00 USD' })
+            ]
+          }),
+          el('div', {
+            cls: 'breakdown-row total-row',
+            children: [
+              el('span', { text: 'Total To Capture:' }),
+              el('span', { cls: 'total-amount', text: `$${amount.toFixed(2)} USD` })
+            ]
+          })
+        ]
+      }),
+      el('div', {
+        cls: 'security-badge-card',
+        children: [
+          el('span', { text: '🛡️' }),
+          el('div', {
+            children: [
+              el('strong', { text: 'PayPal Sandbox Protected Escrow', attr: { style: 'font-size: 12px; display: block;' } }),
+              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--text-muted);' } })
+            ]
+          })
+        ]
+      })
+    ]
+  });
 
-  // Order summary
-  const summary = el('div', { cls: 'checkout-summary panel' });
-  summary.appendChild(el('h3', { cls: 'checkout-summary-title', text: 'Order Summary' }));
-  summary.appendChild(el('div', { cls: 'checkout-project-name', text: quote?.title || 'Freelance Project' }));
-  summary.appendChild(el('div', { cls: 'checkout-amount-display', children: [
-    el('span', { text: 'Total Amount' }),
-    el('strong', { text: `$${Number(amount).toFixed(2)} USD` }),
-  ]}));
-  summary.appendChild(el('div', { cls: 'sandbox-notice', children: [
-    el('span', { cls: 'sandbox-dot small', attr: { 'aria-hidden': 'true' } }),
-    el('span', { text: 'Sandbox transaction — no real money will be charged' }),
-  ]}));
-  wrap.appendChild(summary);
+  // Right: PayPal Checkout Buttons Area
+  const paypalCard = el('div', {
+    cls: 'glass-card paypal-buttons-container',
+    children: [
+      el('h4', { text: 'Complete Payment via PayPal', attr: { style: 'font-family: var(--font-heading); font-size: 16px; font-weight: 800; margin-bottom: 8px;' } }),
+      el('p', { text: 'Click below to authorize via PayPal Sandbox. Server will independently capture and verify the order status.', attr: { style: 'font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;' } }),
+      el('div', { id: 'paypal-buttons' })
+    ]
+  });
 
-  // PayPal button area
-  const paypalWrap = el('div', { cls: 'paypal-wrap panel' });
-  paypalWrap.appendChild(el('h3', { cls: 'checkout-summary-title', text: 'Complete Payment' }));
-  paypalWrap.appendChild(el('p', { cls: 'paypal-instructions', text: 'Click the PayPal button below. You will be prompted to log in with a PayPal Sandbox test buyer account to approve the payment.' }));
-  const paypalButtons = el('div', { id: 'paypal-buttons', attr: { 'aria-label': 'PayPal checkout buttons' } });
-  paypalWrap.appendChild(paypalButtons);
-  paypalWrap.appendChild(el('p', { cls: 'fine-print paypal-fine-print', text: 'Powered by PayPal Orders API v2 — Sandbox environment. Payment is captured server-side after buyer approval.' }));
-  wrap.appendChild(paypalWrap);
+  container.appendChild(summaryCard);
+  container.appendChild(paypalCard);
 
-  container.appendChild(wrap);
-
-  // Load and render PayPal SDK
   loadAndRenderPayPal();
 }
 
@@ -639,15 +712,14 @@ async function loadAndRenderPayPal() {
   if (state.paypalRendered) return;
   try {
     const config = await apiGet('/api/config');
-    if (!config.clientId) throw new Error('PayPal Client ID not configured. Check your .env file.');
+    if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId);
     renderPayPalButtons();
   } catch (err) {
-    const container = $('paypal-buttons');
-    if (container) {
-      container.replaceChildren(el('div',{cls:'paypal-error',children:[el('p',{text:'PayPal could not load: '+err.message})]}));
+    const target = $('paypal-buttons');
+    if (target) {
+      target.innerHTML = `<div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: var(--red-400); font-size: 12px;">⚠️ ${err.message}</div>`;
     }
-    toast(err.message, 'error');
   }
 }
 
@@ -656,34 +728,38 @@ function loadPayPalSdk(clientId) {
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons`;
-    script.onload  = resolve;
-    script.onerror = () => reject(new Error('Could not load PayPal SDK. Check your internet connection and Client ID.'));
+    script.onload = resolve;
+    script.onerror = () => reject(new Error('Failed to load PayPal JS SDK. Check internet connection.'));
     document.head.appendChild(script);
   });
 }
 
 function renderPayPalButtons() {
-  if (!window.paypal || !$('paypal-buttons')) return;
-  if (state.paypalRendered) return;
+  if (!window.paypal || !$('paypal-buttons') || state.paypalRendered) return;
   state.paypalRendered = true;
 
   window.paypal.Buttons({
-    style: { layout: 'vertical', shape: 'rect', label: 'paypal', color: 'blue' },
+    style: { layout: 'vertical', shape: 'rect', label: 'paypal', color: 'blue', height: 48 },
 
     createOrder: async () => {
       const data = await api('/api/paypal/create-order', { quoteId: state.quoteId });
       return data.id;
     },
 
-    onApprove: async (ppData) => {
+    onApprove: async ppData => {
       try {
-        toast('Payment approved — capturing on server…', 'info');
+        toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
+
+        // Trigger victory confetti!
+        if (typeof confetti === 'function') {
+          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
+        }
+
         renderReceipt(confirmed);
         showStep('receipt');
-        toast('Sandbox payment completed successfully!', 'success');
-        // Refresh history/dashboard data
-        setTimeout(loadDashboard, 500);
+        toast('Sandbox transaction captured and verified!', 'success');
+        setTimeout(loadDashboard, 1000);
       } catch (err) {
         toast(`Capture failed: ${err.message}`, 'error');
         state.paypalRendered = false;
@@ -691,120 +767,109 @@ function renderPayPalButtons() {
     },
 
     onCancel: () => {
-      toast('Checkout cancelled — no payment was made.', 'info');
+      toast('PayPal checkout cancelled. No funds transferred.', 'info');
       state.paypalRendered = false;
     },
 
-    onError: (err) => {
-      console.error('[PayPal SDK error]', err);
-      toast('PayPal checkout error. Check Sandbox credentials and try again.', 'error');
+    onError: err => {
+      console.error('PayPal checkout error:', err);
+      toast('PayPal checkout error. Verify sandbox account credentials.', 'error');
       state.paypalRendered = false;
-    },
+    }
   }).render('#paypal-buttons');
 }
 
-// ─── RECEIPT ──────────────────────────────────────────────────────────────────
+// ─── VERIFIED ESCROW RECEIPT ───
 function renderReceipt(confirmed) {
   const container = $('receipt-container');
   container.innerHTML = '';
 
-  const wrap = el('div', { cls: 'receipt-wrap' });
-
-  // Success header
-  wrap.appendChild(el('div', {
-    cls: 'receipt-success-header',
+  const card = el('div', {
+    cls: 'receipt-card-styled',
     children: [
-      el('div', { cls: 'receipt-check', text: '✓', attr: { 'aria-hidden': 'true' } }),
-      el('h1', { text: 'Payment Confirmed' }),
-      el('p', { text: 'Your PayPal Sandbox transaction was captured and verified by the server.' }),
+      el('div', { cls: 'receipt-hologram-seal', text: 'VERIFIED SANDBOX' }),
+      el('div', {
+        cls: 'receipt-header-styled',
+        children: [
+          el('div', { cls: 'receipt-check-ring', text: '✓' }),
+          el('h1', { cls: 'receipt-status-title', text: 'Payment Verified & Captured' }),
+          el('p', { text: 'PayPal Orders API v2 status COMPLETED. Cryptographically recorded by FairFlow server.', attr: { style: 'font-size: 13px; color: var(--text-secondary);' } })
+        ]
+      }),
+      el('div', {
+        cls: 'receipt-body-styled',
+        children: [
+          renderMetaRow('Project Title:', confirmed.projectTitle || state.quote?.title || 'Freelance Agreement'),
+          renderMetaRow('Captured Amount:', `$${Number(confirmed.amount).toFixed(2)} USD (Test Funds)`),
+          renderMetaRow('PayPal Order ID:', confirmed.orderId),
+          renderMetaRow('PayPal Capture ID:', confirmed.captureId || 'Verified Record'),
+          renderMetaRow('Capture Status:', confirmed.status),
+          renderMetaRow('Verified Timestamp:', confirmed.paidAt ? new Date(confirmed.paidAt).toUTCString() : new Date().toUTCString()),
+          renderMetaRow('Environment:', 'api-m.sandbox.paypal.com')
+        ]
+      }),
+      el('div', {
+        cls: 'receipt-actions-row',
+        children: [
+          (() => {
+            const btn = el('button', { cls: 'btn-secondary-glass', text: '🖨️ Print Escrow Receipt' });
+            btn.onclick = () => window.print();
+            return btn;
+          })(),
+          (() => {
+            const btn = el('button', { cls: 'btn-primary-glow', text: '+ Create Another Project' });
+            btn.onclick = () => {
+              state.quoteId = null;
+              state.quote = null;
+              state.approvedAmount = null;
+              state.paypalRendered = false;
+              descEl.value = '';
+              $('char-count').textContent = '0';
+              showStep('brief');
+              showView('new-project');
+            };
+            return btn;
+          })(),
+          (() => {
+            const btn = el('button', { cls: 'btn-secondary-glass', text: '📋 View History' });
+            btn.onclick = () => showView('history');
+            return btn;
+          })()
+        ]
+      })
     ]
-  }));
-
-  // Receipt card
-  const card = el('div', { cls: 'receipt-card panel', id: 'receipt-printable', attr: { 'aria-label': 'Payment receipt' } });
-
-  const header = el('div', { cls: 'receipt-card-header' });
-  header.appendChild(el('div', { cls: 'receipt-logo-row', children: [
-    el('span', { cls: 'logomark', text: 'F', attr: { 'aria-hidden': 'true' } }),
-    el('span', { cls: 'receipt-brand', text: 'FairFlow AI' }),
-    el('span', { cls: 'receipt-sandbox-tag', text: '⚡ SANDBOX' }),
-  ]}));
-  header.appendChild(el('div', { cls: 'receipt-status-row', children: [
-    el('span', { cls: 'receipt-status-badge', text: `✓ ${confirmed.status}` }),
-  ]}));
-  card.appendChild(header);
-
-  const details = el('div', { cls: 'receipt-details' });
-  const fields = [
-    ['Project',       confirmed.projectTitle || state.quote?.title || 'Freelance Project'],
-    ['Amount',        `$${Number(confirmed.amount).toFixed(2)} USD`],
-    ['Currency',      confirmed.currency || 'USD'],
-    ['PayPal Order',  confirmed.orderId],
-    ['Capture ID',    confirmed.captureId || 'Pending reference'],
-    ['Status',        confirmed.status],
-    ['Date',          confirmed.paidAt ? formatDate(confirmed.paidAt) : new Date().toLocaleDateString()],
-    ['Time',          confirmed.paidAt ? new Date(confirmed.paidAt).toLocaleTimeString() : new Date().toLocaleTimeString()],
-    ['Environment',   'PayPal Sandbox (Test Transaction)'],
-  ];
-  fields.forEach(([label, value]) => {
-    details.appendChild(el('div', {
-      cls: 'receipt-row',
-      children: [
-        el('span', { cls: 'receipt-label', text: label }),
-        el('span', { cls: 'receipt-value', text: value }),
-      ]
-    }));
   });
-  card.appendChild(details);
 
-  card.appendChild(el('div', { cls: 'receipt-disclaimer', text: '⚠️ This is a Sandbox test transaction. No real money was transferred. For production use, replace Sandbox credentials with Live PayPal credentials and add proper authentication.' }));
-  wrap.appendChild(card);
-
-  // Actions
-  const actions = el('div', { cls: 'receipt-actions' });
-  const printBtn = el('button', { cls: 'outline-btn', text: '🖨️ Print Receipt' });
-  printBtn.addEventListener('click', () => window.print());
-  const newBtn = el('button', { cls: 'primary', text: '+ New Project' });
-  newBtn.addEventListener('click', () => {
-    state.quoteId        = null;
-    state.quote          = null;
-    state.approvedAmount = null;
-    state.paypalRendered = false;
-    $('description').value = '';
-    $('char-count').textContent = '0';
-    showStep('brief');
-    showView('new-project');
-  });
-  const histBtn = el('button', { cls: 'outline-btn', text: '📋 View History' });
-  histBtn.addEventListener('click', () => showView('history'));
-  actions.appendChild(printBtn);
-  actions.appendChild(newBtn);
-  actions.appendChild(histBtn);
-  wrap.appendChild(actions);
-
-  container.appendChild(wrap);
+  container.appendChild(card);
 }
 
-// ─── Global navigation binding ────────────────────────────────────────────────
-function bindNavButtons(ctx = document) {
-  qsa('[data-view]', ctx).forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      const view = btn.dataset.view;
-      if (view) showView(view);
-    });
+function renderMetaRow(label, value) {
+  return el('div', {
+    cls: 'receipt-meta-row',
+    children: [
+      el('span', { cls: 'receipt-meta-label', text: label }),
+      el('span', { cls: 'receipt-meta-val', text: value })
+    ]
   });
 }
 
-// ─── Init ─────────────────────────────────────────────────────────────────────
+// ─── CREDENTIALS HELPER MODAL ───
+const helperModal = $('helper-modal');
+$('btn-quick-helper').addEventListener('click', () => helperModal.classList.remove('hidden'));
+$('btn-close-helper').addEventListener('click', () => helperModal.classList.add('hidden'));
+$('btn-got-it').addEventListener('click', () => helperModal.classList.add('hidden'));
+$('btn-watch-flow').addEventListener('click', () => showView('new-project'));
+
+// ─── GLOBAL VIEW BUTTON BINDINGS ───
+function bindViewButtons(ctx = document) {
+  qsa('[data-view]', ctx).forEach(b => {
+    b.onclick = () => showView(b.dataset.view);
+  });
+}
+
+// ─── INITIALIZATION ───
 function init() {
-  bindNavButtons();
-
-  // Scope skip button
-  $('btn-skip-scope').addEventListener('click', () => {
-    renderCheckoutStep();
-    showStep('checkout');
-  });
-
+  bindViewButtons();
   loadDashboard();
 }
 

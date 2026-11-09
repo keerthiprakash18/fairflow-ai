@@ -412,6 +412,29 @@ async function handle(req, res) {
     return send(res, 200, { projects: safe });
   }
 
+  // ── Enhance Brief with AI ────────────────────────────────────────────────
+  if (req.method === 'POST' && route === '/api/enhance-brief') {
+    const { brief } = await readBody(req);
+    if (typeof brief !== 'string' || brief.trim().length < 5) {
+      return send(res, 400, { error: 'Enter at least a short 5-character project idea to enhance.' });
+    }
+    const prompt = `You are FairFlow AI's Project Scoping Specialist for freelancers.
+The freelancer provided a draft idea: "${brief.trim().slice(0, 1000)}".
+Expand this into an articulate, professional 3 to 4 sentence technical brief.
+Mention key features, deliverables, typical technology stack, and realistic timeline.
+Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
+    const raw = await geminiJson(prompt);
+    let cleaned = raw.replace(/^```(?:json|text)?/i, '').replace(/```$/i, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (parsed.technical_brief) cleaned = parsed.technical_brief;
+      else if (parsed.brief) cleaned = parsed.brief;
+      else if (typeof parsed === 'object') cleaned = Object.values(parsed).join(' ');
+    } catch {}
+    cleaned = cleaned.replace(/^["'`]+|["'`]+$/g, '').trim();
+    return send(res, 200, { enhanced: cleaned });
+  }
+
   // ── Generate quote ────────────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/quote') {
     const { description } = await readBody(req);
