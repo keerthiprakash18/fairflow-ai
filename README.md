@@ -1,110 +1,106 @@
-# FairFlow AI
+# FairFlow AI — AI-Powered Freelancer Trust & Payment OS
 
-**AI-assisted freelance quotes → user-approved price → real PayPal Sandbox checkout.**
+**Built for the [PayPal AI Hackathon 2026](https://paypalaihackathon.devpost.com/).**
 
-A hackathon prototype built for the [PayPal AI Hackathon](https://paypalaihackathon.devpost.com/). This project uses **Gemini AI** to interpret freelance project descriptions and the **PayPal Developer Platform** to create and capture sandbox payment orders.
+A sandbox-only prototype that connects natural-language freelance project analysis, scope-change detection, human-approved quotations, and PayPal payment capture. **AI recommends; users approve; PayPal processes.**
 
-## Core demo flow
+> **Hackathon prototype, not a real-money finance product.** No real customer records or PayPal Live credentials should be used.
 
-1. Type a freelance project brief (20+ characters).
-2. Gemini generates a structured scope, milestones, assumptions and proposed price.
-3. Human reviews/edits the estimate and clicks **Approve quote**.
-4. A PayPal Checkout button creates an order *on the server* using PayPal REST Orders v2.
-5. Sign in with **PayPal Sandbox personal test-buyer account** to approve the transaction.
-6. Server captures the order with PayPal. The page reports the order/capture IDs and confirmed `COMPLETED` status.
+## What works in the code
 
-**This is a REAL API integration in SANDBOX, not mock data.** Sandbox funds are fake. The app will not work without valid AI and PayPal Sandbox credentials.
+- Multi-view, mobile-responsive interface: Dashboard, New Project, History.
+- Gemini API structured proposals: deliverables, milestones, risks, questions, timeline and indicative USD estimates.
+- Human approval and server-validated quotation amount.
+- AI Scope Change analysis: compare added requirements against the original quote without silently changing the approved amount.
+- PayPal Sandbox Orders v2 order creation and server-side capture with verified order/capture status and amount.
+- Printable **sandbox-only** receipt and recent transaction summaries.
+- Local JSON persistence in `data/projects.json`. Writes are serialized and atomic. This directory is Git-ignored.
+- Backend uses Node.js built-in HTTP/fetch. No third-party npm dependencies.
 
-## Quick setup (Windows, Mac, Linux)
+**Verification:** Syntax and offline smoke tests can run without credentials. A real Gemini call and an end-to-end PayPal Sandbox capture still **must be tested by the project owner** using rotated private credentials before the Devpost demonstration. Never describe a transaction as successful unless actually confirmed in the Sandbox.
 
-### 1. Prerequisites
+## Quick start
 
-- Node.js 20.12+ (Node 24 recommended). No npm install is required.
-- Free PayPal Developer account with a **Sandbox REST App**.
-- Gemini API key created in [Google AI Studio](https://aistudio.google.com/apikey).
+Requirements: **Node.js 22.16+**, PayPal Developer **Sandbox REST app**, a Gemini API key, and a test-buyer account from PayPal Sandbox Accounts.
 
-### 2. Environment variables
+```bash
+git clone https://github.com/keerthiprakash18/fairflow-ai.git
+cd fairflow-ai
+```
 
-Copy `.env.example` to `.env` in the project root. Replace placeholder text with **your own** credentials:
+Copy `.env.example` to `.env`. Replace placeholders in **`.env` only**:
 
 ```env
-PAYPAL_CLIENT_ID=your_sandbox_client_id
-PAYPAL_CLIENT_SECRET=your_sandbox_client_secret
-GEMINI_API_KEY=your_gemini_api_key
+PAYPAL_CLIENT_ID=YOUR_SANDBOX_CLIENT_ID
+PAYPAL_CLIENT_SECRET=YOUR_SANDBOX_CLIENT_SECRET
+GEMINI_API_KEY=YOUR_GEMINI_API_KEY
+GEMINI_MODEL=gemini-3.8-flash
 PORT=3000
 ```
 
-Do not share secrets. Do not commit `.env` or screenshots of it. API keys are stored on the server only. The PayPal **client ID** is intentionally exposed to the PayPal browser SDK; the **secret** is never sent to the browser.
-
-### 3. Start the app
+See [PayPal Developer Dashboard](https://developer.paypal.com/dashboard/) and [Google AI Studio](https://aistudio.google.com/apikey). Never paste secrets in screenshots, chats, GitHub, or front-end code. If a key was exposed, revoke/rotate it and use a replacement locally.
 
 ```bash
+npm run check
+npm test
 npm start
 ```
 
-Open **http://localhost:3000**. You can check configuration status at **http://localhost:3000/api/health** (returns booleans only, no secrets).
+Visit **http://localhost:3000**. Check `/api/health`: `aiConfigured` and `paypalConfigured` only indicate that non-placeholder credentials were loaded, **not** that remote authentication succeeds.
 
-### 4. Complete a test payment
+If port 3000 is already in use, stop the older process or in PowerShell run:
 
-From PayPal Developer Dashboard → **Testing Tools → Sandbox Accounts**, locate or create a **Personal** buyer test account. Use those *sandbox-only* credentials in the PayPal checkout window. Never use your real PayPal account for sandbox checkout.
+```powershell
+$env:PORT=3001
+npm start
+```
 
-## Technical architecture
+Then visit **http://localhost:3001**.
 
-- **Frontend:** HTML5, CSS3, browser JavaScript, PayPal JavaScript SDK.
-- **Backend:** Node.js built-in HTTP server and `fetch` (no dependencies).
-- **AI:** Gemini REST `generateContent` with JSON output; backend normalizes data, validates pricing and sums milestone percentages.
-- **Payments:** PayPal Sandbox OAuth 2.0, Orders v2 create / capture, with all secrets kept server-side.
-- **Trust and control:** AI suggests, user explicitly approves the amount, then buyer explicitly authorizes the payment through PayPal.
+## Judge walkthrough (Sandbox-only)
 
-## Endpoints
+1. Open **New Project**. Describe a freelance project of at least 20 characters.
+2. Select **Generate AI Proposal**. Review deliverables, price, milestones, timeline, risks and questions.
+3. Edit the price and explicitly approve the quotation.
+4. In **Scope Change**, enter a new client request; compare added work and estimated impact. The original approved price is preserved.
+5. Choose **Continue to Checkout**. Use a PayPal **Sandbox personal test-buyer account**, not a real PayPal login.
+6. Approve the Sandbox payment; the server verifies the PayPal order **and capture** amount/currency/status.
+7. View the receipt, print it, then inspect Dashboard/History for the transaction record.
 
-| Method | Endpoint | Purpose |
-|---|---|---|
-| GET | `/api/health` | Test that server is running and keys are configured (never returns secrets) |
-| GET | `/api/config` | PayPal browser SDK public client ID |
-| POST | `/api/quote` | Gemini AI project estimate and milestones |
-| POST | `/api/confirm-quote` | Human confirms the price and freezes quote amount for checkout |
-| POST | `/api/paypal/create-order` | Server creates a PayPal sandbox order |
-| POST | `/api/paypal/capture-order` | Server captures approved order and checks status |
+## API routes
 
-## Important limitations
+| Method | Route | Purpose |
+| --- | --- | --- |
+| GET | `/api/health` | Configuration flags, version, sandbox status (no secrets) |
+| GET | `/api/config` | Public PayPal client ID for browser SDK |
+| GET | `/api/projects` | Recent local prototype records (no authentication; **demo only**) |
+| POST | `/api/quote` | Generate AI scope and draft quotation |
+| POST | `/api/confirm-quote` | Human approval and price validation |
+| POST | `/api/scope-change` | AI comparison of approved quote and new client request |
+| POST | `/api/paypal/create-order` | Create PayPal Sandbox order from approved server-side amount |
+| POST | `/api/paypal/capture-order` | Server-side Sandbox capture, verify amount and capture status |
 
-This is a **hackathon prototype**, not a real-money invoice/payment service: it has no account login, persistence, production-grade authorization, webhooks, tax handling, fraud protection, or refund service. Quote/order records are held in server memory and expire after two hours. On server restart they are lost. **Do not configure live credentials or use real customer data.** For real production use, add authentication, database, price validation/business logic, reliable server-side idempotency, webhook validation, rate limiting, and durable order reconciliation.
+## Architecture
 
-If a Gemini API call fails due to quota/model availability, check your API key and change model by defining `GEMINI_MODEL` in `.env` to an available model you have access to.
+- **Frontend:** static HTML/CSS/JavaScript and PayPal JavaScript SDK.
+- **Backend:** Node.js built-in `http`, `fetch`, and `fs/promises`.
+- **AI:** Google Gemini Interactions API with JSON response schema.
+- **Payments:** PayPal Sandbox OAuth 2.0 and Orders API v2. No payment/card credentials are stored.
+- **Storage:** local `data/projects.json`, excluded from Git. This is **not production-grade storage**. Set `FAIRFLOW_DATA_DIR` for a separate writable storage directory if testing; make sure it remains private.
+- **Tests:** `node --check` and Node built-in `node --test` smoke checks. They do not prove successful external API transactions.
 
-## Judge reproducibility
+## Security and limitations
 
-- Clone or download repository, configure your own Sandbox and Gemini keys, run `npm start`.
-- No dependency installation, paid hosting, or real payment needed.
-- For a public demo, host in an environment supporting Node.js HTTP processes and set environment variables privately. Keep deployment accessible through judging (and apply controls appropriate for demo traffic).
+This prototype lacks **user accounts, authorization, CSRF protection, request-rate limiting, durable multi-instance transaction reconciliation, tested webhooks, and production fraud controls**. Project history is visible to anyone who can access its server. Run it locally with fictional/demo project descriptions; **do not expose it publicly with real client data** until access control and storage/security are designed properly.
+
+JSON persistence is local to the server and may be lost on ephemeral hosting. Outstanding Sandbox payments may require manual PayPal verification if the app restarts during checkout. Do not assume a failed browser response means no payment happened. Sandbox order/capture IDs are test data, never evidence of real-world funds.
+
+## Devpost submission still required
+
+To enter judging, also provide: (1) complete project description and tooling explanation, (2) public repository and MIT license, (3) a functional demo via accessible hosted URL **or complete local run instructions**, and (4) a **public YouTube demo under three minutes** showing the actual application. Devpost submission is a separate manual action. **A public GitHub repository alone is not a submission.**
+
+Deadline: **November 12, 2026, 12:00 PM Pacific / November 13, 2026, 1:30 AM IST**.
 
 ## License
 
-MIT, see `LICENSE`.
-
-## AI Scope Guard (prototype feature)
-
-After generating a quote, enter additional client requirements in the **AI Scope Guard** panel. Gemini analyzes the additions, identifies potential change in timeline and suggests *estimated* extra work. The original agreed quote and its price are not modified by this action. Price suggestions are not payment requests.
-
-## Verification commands
-
-```bash
-npm test
-npm run check
-```
-
-`npm start` supports securely configured hosting environment variables and optionally reads a local `.env` file with Node 22.16+. No credentials are included in the repository.
-
-The automated tests cover offline server responses, input validation and frontend serving. **Real Gemini responses and PayPal Sandbox checkout/capture still require an owner-run integration test with private credentials**.
-
-## Remaining hackathon tasks
-
-- Verify an actual Gemini quote response and Scope Guard response.
-- Verify PayPal Sandbox checkout with a Sandbox test buyer and payment capture.
-- Prepare a compelling under-three-minute YouTube demo and Devpost submission.
-- Optional enhancements: durable persistence, dashboard, history and hosting. These are NOT yet implemented.
-
-## Credentials and safety
-
-Previous local screenshots may have exposed PayPal Sandbox and Gemini credentials. Rotate/revoke affected credentials and keep replacements only in local `.env` or hosting secret settings. Never commit credentials or screenshots containing them.
+MIT — see [LICENSE](LICENSE).
