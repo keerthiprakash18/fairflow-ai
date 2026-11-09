@@ -260,26 +260,28 @@ ${description}`;
 }
 
 // ─── Gemini: scope-change analysis ───────────────────────────────────────────
-function normalizeScopeChange(raw, originalTitle) {
+function normalizeScopeChange(raw, originalQuote) {
+  const candidate = Number(raw.additionalCostUSD);
+  const additionalCostUSD = Number.isFinite(candidate)
+    ? Math.min(50000, Math.max(0, Math.round(candidate * 100) / 100)) : 0;
+  const arr = (v,max) => Array.isArray(v) ? v.slice(0,max).map(x => String(x).slice(0,200)) : [];
+  const milestones = Array.isArray(raw.updatedMilestones) ? raw.updatedMilestones.slice(0,6).map(m => ({
+    name: String(m.name || 'Deliverable').slice(0,90),
+    percent: Math.max(1,Math.round(Number(m.percent || 0))),
+    description: String(m.description || '').slice(0,200)
+  })) : [];
   return {
-    originalScope:  String(raw.originalScope  || '').slice(0, 500),
-    newRequests:    Array.isArray(raw.newRequests)    ? raw.newRequests.slice(0, 8).map(v => String(v).slice(0, 200))    : [],
-    changes:        Array.isArray(raw.changes)        ? raw.changes.slice(0, 8).map(v => String(v).slice(0, 200))        : [],
-    addedFeatures:  Array.isArray(raw.addedFeatures)  ? raw.addedFeatures.slice(0, 8).map(v => String(v).slice(0, 200))  : [],
-    removedItems:   Array.isArray(raw.removedItems)   ? raw.removedItems.slice(0, 4).map(v => String(v).slice(0, 200))   : [],
-    timelineImpact: String(raw.timelineImpact || '').slice(0, 300),
-    additionalCostUSD: Math.min(50000, Math.max(0, Number(raw.additionalCostUSD || 0))),
-    newTotalUSD:       Math.min(50000, Math.max(0, Number(raw.newTotalUSD       || 0))),
-    updatedMilestones: Array.isArray(raw.updatedMilestones)
-      ? raw.updatedMilestones.slice(0, 6).map(m => ({
-          name:    String(m.name    || '').slice(0, 90),
-          percent: Math.max(1, Math.round(Number(m.percent || 0))),
-          description: String(m.description || '').slice(0, 200),
-        }))
-      : [],
-    summary:  String(raw.summary  || '').slice(0, 500),
-    severity: ['low', 'medium', 'high'].includes(raw.severity) ? raw.severity : 'medium',
-    recommendation: String(raw.recommendation || '').slice(0, 400),
+    originalScope:String(raw.originalScope || '').slice(0,500),
+    newRequests:arr(raw.newRequests,8),changes:arr(raw.changes,8),
+    addedFeatures:arr(raw.addedFeatures,8),removedItems:arr(raw.removedItems,4),
+    timelineImpact:String(raw.timelineImpact || '').slice(0,300),
+    additionalCostUSD,
+    newTotalUSD:Math.round((originalQuote.amountUSD + additionalCostUSD) * 100) / 100,
+    updatedMilestones:milestones.reduce((sum,m)=>sum+m.percent,0)===100 ? milestones : originalQuote.milestones,
+    summary:String(raw.summary || '').slice(0,500),
+    severity:['low','medium','high'].includes(raw.severity)?raw.severity:'medium',
+    recommendation:String(raw.recommendation || '').slice(0,400),
+    warning:'Suggested changes are AI estimates only. The approved quote remains unchanged.'
   };
 }
 
@@ -317,7 +319,7 @@ Base estimates on realistic market rates. Label all numbers as estimates.`;
 
   const output = await geminiJson(prompt, scopeSchema);
   if (!output) throw Object.assign(new Error('Scope analysis returned no data. Try again.'), { httpStatus: 502 });
-  try { return normalizeScopeChange(JSON.parse(output), originalQuote.title); }
+  try { return normalizeScopeChange(JSON.parse(output), originalQuote); }
   catch { throw Object.assign(new Error('Scope analysis failed. Please try again.'), { httpStatus: 502 }); }
 }
 
