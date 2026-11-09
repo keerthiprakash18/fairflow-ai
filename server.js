@@ -52,16 +52,28 @@ async function loadProjects() {
   }
 }
 
+// File writes must be serialized; concurrent requests must not clobber payment history.
+let projectWriteQueue = Promise.resolve();
 async function saveProject(record) {
-  await ensureDataDir();
-  const list = await loadProjects();
-  const existing = list.findIndex(p => p.quoteId === record.quoteId);
-  if (existing >= 0) {
-    list[existing] = { ...list[existing], ...record };
-  } else {
-    list.push(record);
-  }
-  await fs.writeFile(DATA_FILE, JSON.stringify(list, null, 2), 'utf8');
+  const save = async () => {
+    await ensureDataDir();
+    const list = await loadProjects();
+    const existing = list.findIndex(p => p.quoteId === record.quoteId);
+    const previous = existing >= 0 ? list[existing] : null;
+    const next = { ...(previous || {}), ...record, updatedAt: new Date().toISOString() };
+    if (previous?.createdAt) next.createdAt = previous.createdAt;
+    if (existing >= 0) list[existing] = next;
+    else list.push(next);
+    const tmp = DATA_FILE + '.' + process.pid + '.' + randomUUID() + '.tmp';
+    try {
+      await fs.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
+      await fs.rename(tmp, DATA_FILE);
+    } finally {
+      await fs.unlink(tmp).catch(() => {});
+    }
+  };
+  projectWriteQueue = projectWriteQueue.catch(() => {}).then(save);
+  return projectWriteQueue;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -433,16 +445,15 @@ async function handle(req, res) {
       return send(res, 400, { error: 'Describe the new client request in 10–3000 characters.' });
     const quote = quotes.get(quoteId);
     if (!quote) return send(res, 404, { error: 'Original quote not found. Generate a quote first.' });
+    if (!quote.locked) return send(res, 400, { error: 'Approve the original quotation before comparing scope.' });
     const analysis = await analyzeScopeChange(quote, newRequest.trim());
     // Preserve original — do NOT overwrite quote
+    // Save the analysis but preserve the approved/paid status and original createdAt.
     await saveProject({
       quoteId,
-      title: quote.title,
-      amountUSD: quote.amountUSD,
-      status: 'scope-change-requested',
       scopeChangeRequest: newRequest.trim().slice(0, 500),
       scopeAnalysis: analysis,
-      createdAt: new Date().toISOString(),
+      scopeAnalyzedAt: new Date().toISOString(),
     });
     return send(res, 200, { analysis, originalQuote: { title: quote.title, amountUSD: quote.amountUSD, deliverables: quote.deliverables } });
   }
