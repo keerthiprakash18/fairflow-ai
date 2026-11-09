@@ -925,7 +925,9 @@ a {
 }
 
 .chips-label {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -941,6 +943,9 @@ a {
 }
 
 .template-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
   padding: 7px 13px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid var(--glass-border);
@@ -949,7 +954,7 @@ a {
   font-size: 12px;
   font-weight: 600;
   color: var(--label-secondary);
-  transition: transform 60ms var(--spring-press), background 150ms ease;
+  transition: transform 60ms var(--spring-press), background 150ms ease, color 150ms ease;
 }
 
 .template-chip:active {

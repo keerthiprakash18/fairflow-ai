@@ -7,3 +7,7 @@ node_modules/
 
 # Local prototype project briefs and payment metadata must not be committed.
 data/
+
+# Antigravity agent skills & configurations
+.agents/
+

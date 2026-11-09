@@ -174,9 +174,11 @@ function renderDashboardRecent(projects) {
   if (!projects.length) {
     container.innerHTML = `
       <div style="text-align: center; padding: 48px 20px;">
-        <div style="font-size: 32px; margin-bottom: 12px;">📋</div>
+        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: var(--label-tertiary);">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        </div>
         <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">No projects created yet</h3>
-        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 20px;">Describe your first freelance project to test Gemini scoping &amp; PayPal Sandbox.</p>
+        <p style="font-size: 13px; color: var(--label-tertiary); margin-bottom: 20px;">Describe your first freelance project to test Gemini scoping &amp; PayPal Sandbox.</p>
         <button class="btn-primary-glow" data-view="new-project">✦ Create First Proposal</button>
       </div>`;
     bindViewButtons(container);
@@ -485,7 +487,7 @@ function renderProposal(quoteId, quote) {
     const delivBox = el('div', {
       cls: 'glass-card deliverables-box',
       children: [
-        el('h3', { cls: 'box-title', html: '<span>📦 Deliverable Scope Items</span>' }),
+        el('h3', { cls: 'box-title', html: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="box-title-icon" aria-hidden="true"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg><span>Deliverable Scope Items</span>' }),
         el('div', {
           cls: 'deliverables-styled-list',
           children: quote.deliverables.map((d, i) => el('div', {
@@ -509,7 +511,7 @@ function renderProposal(quoteId, quote) {
         el('div', {
           cls: 'milestones-header-row',
           children: [
-            el('h3', { cls: 'box-title', html: '<span>📊 Payment Milestone Breakdown</span>' }),
+            el('h3', { cls: 'box-title', html: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="box-title-icon" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Payment Milestone Breakdown</span>' }),
             el('div', {
               cls: 'milestone-math-pills',
               children: [
@@ -518,7 +520,7 @@ function renderProposal(quoteId, quote) {
                   const bBtn = el('button', {
                     id: 'btn-balance-milestones',
                     cls: 'btn-micro-glass',
-                    text: '⚡ Auto-Balance to 100%',
+                    html: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg><span>Auto-Balance to 100%</span>',
                     attr: { style: 'display: none;', type: 'button' }
                   });
                   bBtn.onclick = autoBalanceMilestones;
@@ -589,14 +591,14 @@ function renderProposal(quoteId, quote) {
     const auditCard = el('div', {
       cls: 'glass-card assumptions-box',
       children: [
-        el('h3', { cls: 'box-title', html: '<span>🛡️ AI Project Clarifications &amp; Risk Audit</span>' }),
+        el('h3', { cls: 'box-title', html: '<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="box-title-icon" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><span>AI Project Clarifications &amp; Risk Audit</span>' }),
         el('div', {
           cls: 'assumptions-grid',
           children: [
             quote.risks?.length ? el('div', {
               cls: 'meta-info-card',
               children: [
-                el('div', { cls: 'meta-card-title title-amber', html: '⚠️ Identified Risk Watchouts' }),
+                el('div', { cls: 'meta-card-title title-amber', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Identified Risk Watchouts</span>' }),
                 el('div', {
                   cls: 'meta-chip-list',
                   children: quote.risks.map(r => el('div', { text: `• ${r}` }))
@@ -606,7 +608,7 @@ function renderProposal(quoteId, quote) {
             quote.questions?.length ? el('div', {
               cls: 'meta-info-card',
               children: [
-                el('div', { cls: 'meta-card-title title-cyan', html: '❓ Clarification Questions' }),
+                el('div', { cls: 'meta-card-title title-cyan', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>Clarification Questions</span>' }),
                 el('div', {
                   cls: 'meta-chip-list',
                   children: quote.questions.map(q => el('div', { text: `• ${q}` }))
@@ -616,7 +618,7 @@ function renderProposal(quoteId, quote) {
             quote.assumptions?.length ? el('div', {
               cls: 'meta-info-card',
               children: [
-                el('div', { cls: 'meta-card-title title-violet', html: '📌 Key Working Assumptions' }),
+                el('div', { cls: 'meta-card-title title-violet', html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg><span>Key Working Assumptions</span>' }),
                 el('div', {
                   cls: 'meta-chip-list',
                   children: quote.assumptions.map(a => el('div', { text: `• ${a}` }))
@@ -663,7 +665,7 @@ function renderProposal(quoteId, quote) {
       }),
       el('div', {
         cls: 'pricing-caution-box',
-        text: '⚠️ "AI recommends. Humans approve. PayPal processes." Locking this quote will establish the verified baseline for checkout.'
+        html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0; margin-top:2px;"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>&ldquo;AI recommends. Humans approve. PayPal processes.&rdquo; Locking this quote will establish the verified baseline for checkout.</span>'
       }),
       el('button', {
         cls: 'btn-primary-glow btn-full',
@@ -843,15 +845,15 @@ function renderScopeAnalysis(data) {
       el('div', {
         cls: 'diff-card diff-orig',
         children: [
-          el('h4', { cls: 'diff-title', html: '<span>📋 Original Terms</span>' }),
-          el('p', { text: analysis.originalScope, attr: { style: 'font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;' } }),
+          el('h4', { cls: 'diff-title', html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Original Signed Terms</span>' }),
+          el('p', { text: analysis.originalScope, attr: { style: 'font-size: 12px; color: var(--label-secondary); margin-bottom: 8px;' } }),
           el('strong', { cls: 'font-mono', text: `$${Number(originalQuote.amountUSD).toFixed(2)} USD (Locked)` })
         ]
       }),
       el('div', {
         cls: 'diff-card diff-new',
         children: [
-          el('h4', { cls: 'diff-title', html: '<span>➕ Requested Additions</span>' }),
+          el('h4', { cls: 'diff-title', html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Requested Additions</span>' }),
           el('ul', {
             cls: 'diff-list',
             children: (analysis.addedFeatures?.length ? analysis.addedFeatures : analysis.newRequests || ['New features requested']).map(r => el('li', { text: `• ${r}` }))
@@ -952,11 +954,14 @@ function renderCheckoutStep() {
       el('div', {
         cls: 'security-badge-card',
         children: [
-          el('span', { text: '🛡️' }),
+          el('div', {
+            cls: 'badge-lock-icon',
+            html: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#80f4c8" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
+          }),
           el('div', {
             children: [
               el('strong', { text: 'PayPal Sandbox Protected Escrow', attr: { style: 'font-size: 12px; display: block;' } }),
-              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--text-muted);' } })
+              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--label-tertiary);' } })
             ]
           })
         ]
@@ -1084,7 +1089,10 @@ function renderReceipt(confirmed) {
         cls: 'receipt-actions-row',
         children: [
           (() => {
-            const btn = el('button', { cls: 'btn-secondary-glass', text: '🖨️ Print Escrow Receipt' });
+            const btn = el('button', {
+              cls: 'btn-secondary-glass',
+              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Print Escrow Receipt</span>'
+            });
             btn.onclick = () => {
               haptic('light');
               window.print();
@@ -1092,7 +1100,10 @@ function renderReceipt(confirmed) {
             return btn;
           })(),
           (() => {
-            const btn = el('button', { cls: 'btn-primary-glow', text: '+ Create Another Project' });
+            const btn = el('button', {
+              cls: 'btn-primary-glow',
+              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Create Another Project</span>'
+            });
             btn.onclick = () => {
               haptic('light');
               state.quoteId = null;
@@ -1107,7 +1118,10 @@ function renderReceipt(confirmed) {
             return btn;
           })(),
           (() => {
-            const btn = el('button', { cls: 'btn-secondary-glass', text: '📋 View History' });
+            const btn = el('button', {
+              cls: 'btn-secondary-glass',
+              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>View History</span>'
+            });
             btn.onclick = () => {
               haptic('light');
               showView('history');
