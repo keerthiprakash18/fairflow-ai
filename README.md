@@ -82,3 +82,29 @@ If a Gemini API call fails due to quota/model availability, check your API key a
 ## License
 
 MIT, see `LICENSE`.
+
+## AI Scope Guard (prototype feature)
+
+After generating a quote, enter additional client requirements in the **AI Scope Guard** panel. Gemini analyzes the additions, identifies potential change in timeline and suggests *estimated* extra work. The original agreed quote and its price are not modified by this action. Price suggestions are not payment requests.
+
+## Verification commands
+
+```bash
+npm test
+npm run check
+```
+
+`npm start` supports securely configured hosting environment variables and optionally reads a local `.env` file with Node 22.16+. No credentials are included in the repository.
+
+The automated tests cover offline server responses, input validation and frontend serving. **Real Gemini responses and PayPal Sandbox checkout/capture still require an owner-run integration test with private credentials**.
+
+## Remaining hackathon tasks
+
+- Verify an actual Gemini quote response and Scope Guard response.
+- Verify PayPal Sandbox checkout with a Sandbox test buyer and payment capture.
+- Prepare a compelling under-three-minute YouTube demo and Devpost submission.
+- Optional enhancements: durable persistence, dashboard, history and hosting. These are NOT yet implemented.
+
+## Credentials and safety
+
+Previous local screenshots may have exposed PayPal Sandbox and Gemini credentials. Rotate/revoke affected credentials and keep replacements only in local `.env` or hosting secret settings. Never commit credentials or screenshots containing them.
