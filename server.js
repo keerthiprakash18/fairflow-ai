@@ -466,6 +466,7 @@ async function handle(req, res) {
     const quote = quotes.get(quoteId);
     if (!quote || !quote.locked || quote.paid)
       return send(res, 400, { error: 'Confirm a valid quote before starting checkout.' });
+    if (quote.orderId) return send(res, 200, { id: quote.orderId });
     const token  = await paypalToken();
     const amount = quote.amountUSD.toFixed(2);
     const idempotencyKey = `create-${quoteId}`;
@@ -484,7 +485,8 @@ async function handle(req, res) {
       },
     }, token, idempotencyKey);
     if (!data.id) throw new Error('PayPal order could not be created');
-    orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false });
+    orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false, capturing: false });
+    quote.orderId = data.id;
     await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, createdAt: new Date().toISOString() });
     return send(res, 200, { id: data.id });
   }
@@ -493,39 +495,32 @@ async function handle(req, res) {
   if (req.method === 'POST' && route === '/api/paypal/capture-order') {
     const { orderId } = await readBody(req);
     const entry = orders.get(orderId);
-    if (!entry)          return send(res, 404, { error: 'Unknown order ID. Please start checkout again.' });
-    if (entry.captured)  return send(res, 400, { error: 'This order has already been captured. No duplicate charges.' });
-    const token = await paypalToken();
-    const data  = await paypalApi('POST', `/v2/checkout/orders/${encodeURIComponent(orderId)}/capture`, {}, token, `capture-${orderId}`);
-    if (data.status !== 'COMPLETED')
-      throw Object.assign(new Error(`PayPal status is "${data.status}", not COMPLETED. Payment may be pending.`), { httpStatus: 502 });
-    entry.captured = true;
-    const quote   = quotes.get(entry.quoteId);
-    if (quote) quote.paid = true;
-    const captureUnit = data.purchase_units?.[0]?.payments?.captures?.[0];
-    const captureId   = captureUnit?.id || null;
-    const captureAmt  = captureUnit?.amount?.value || quote?.amountUSD?.toFixed(2) || null;
-    const paidAt      = new Date().toISOString();
-    await saveProject({
-      quoteId:   entry.quoteId,
-      title:     quote?.title || 'Unknown project',
-      amountUSD: quote?.amountUSD || captureAmt,
-      status:    'paid',
-      orderId,
-      captureId,
-      paidAt,
-      createdAt: new Date().toISOString(),
-    });
-    return send(res, 200, {
-      status: data.status,
-      orderId: data.id,
-      captureId,
-      amount:    captureAmt,
-      currency:  'USD',
-      projectTitle: quote?.title || 'Project',
-      paidAt,
-      sandbox: true,
-    });
+    if (!entry) return send(res, 404, { error: 'Unknown order. Verify your Sandbox transaction before retrying.' });
+    if (entry.captured) return send(res, 409, { error: 'Order already captured.' });
+    if (entry.capturing) return send(res, 409, { error: 'Payment capture already in progress.' });
+    const quote = quotes.get(entry.quoteId);
+    if (!quote) return send(res, 404, { error: 'Original quote expired. Verify PayPal before restarting checkout.' });
+    entry.capturing = true;
+    try {
+      const token = await paypalToken();
+      const data = await paypalApi('POST', '/v2/checkout/orders/' + encodeURIComponent(orderId) + '/capture', {}, token, 'capture-' + orderId);
+      const captured = data.purchase_units?.[0]?.payments?.captures?.[0];
+      const amount = Number(captured?.amount?.value);
+      if (data.id !== orderId || data.status !== 'COMPLETED' || captured?.status !== 'COMPLETED'
+          || captured?.amount?.currency_code !== 'USD' || !captured?.id
+          || !Number.isFinite(amount) || Math.abs(amount-quote.amountUSD)>0.001) {
+        throw Object.assign(new Error('Sandbox payment could not be verified. Check the PayPal transaction record.'), { httpStatus: 502 });
+      }
+      entry.captured = true;
+      quote.paid = true;
+      const paidAt = new Date().toISOString();
+      await saveProject({quoteId:entry.quoteId,title:quote.title,amountUSD:quote.amountUSD,
+        status:'paid',orderId,captureId:captured.id,paidAt});
+      return send(res, 200, {
+        status:'COMPLETED',orderId:data.id,captureId:captured.id,amount:amount.toFixed(2),
+        currency:'USD',projectTitle:quote.title,paidAt,sandbox:true
+      });
+    } finally { entry.capturing = false; }
   }
 
   // ── Static files ──────────────────────────────────────────────────────────
