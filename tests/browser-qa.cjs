@@ -124,6 +124,8 @@ async function waitForHealth(url, server) {
     assert.equal(receiptStyle.background, 'rgb(255, 255, 255)');
     assert.notEqual(receiptStyle.radius, '0px', 'Receipt must have styled card corners');
     assert.notEqual(receiptStyle.padding, '0px', 'Receipt hero must have layout spacing');
+    // Keep screenshot evidence clean: success toasts should not obscure the transaction data.
+    await page.locator('#toast').waitFor({ state: 'hidden', timeout: 8000 });
     await page.screenshot({ path: path.join(out, 'mocked-payment-receipt.png'), fullPage: true });
     // Reopen the saved receipt from persistent project history without a second payment.
     await page.getByRole('button', { name: 'View audit trail' }).click();
