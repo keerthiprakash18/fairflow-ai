@@ -17,7 +17,9 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
         addedFeatures:['Seller accounts'],removedItems:[],changes:['Multi-seller flow'],
         timelineImpact:'+2 weeks',additionalCostUSD:450,newTotalUSD:1350,
         updatedMilestones:[{name:'Build',percent:100}],summary:'Additional seller platform.',
-        severity:'high',recommendation:'Seek explicit approval before repricing.'
+        severity:'high',recommendation:'Seek explicit approval before repricing.',
+        estimateBasis:['New seller accounts require account management and permission checks','Multi-seller order flow adds integration work'],
+        estimatedEffortHours:25,unknowns:['How many seller roles need different permissions?']
       })}]}}]});
     }
     if(prompt.includes('Expand this into an articulate')) {
