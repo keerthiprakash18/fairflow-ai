@@ -205,7 +205,15 @@ async function waitForHealth(url, server) {
       await page.setViewportSize({width,height:900});
       await page.waitForTimeout(100);
       const screen = await page.evaluate(() => ({
-        width:innerWidth,scrollWidth:document.documentElement.scrollWidth
+        width:innerWidth,scrollWidth:document.documentElement.scrollWidth,
+        overflowCandidates:[...document.querySelectorAll('body *')].map(node=>({
+          element:node,
+          rect:node.getBoundingClientRect(),
+          style:getComputedStyle(node)
+        })).filter(x=>x.rect.right>innerWidth+2 && x.rect.width>0 && x.style.position!=='fixed')
+          .slice(0,18).map(x=>({tag:x.element.tagName,className:String(x.element.className).slice(0,64),
+            left:Math.round(x.rect.left),right:Math.round(x.rect.right),
+            width:Math.round(x.rect.width),overflow:x.style.overflowX}))
       }));
       assert.ok(screen.scrollWidth <= screen.width + 2,
         'Responsive viewport ' + width + 'px is horizontally scrollable: ' + JSON.stringify(screen));
