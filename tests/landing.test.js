@@ -75,3 +75,9 @@ test('paid history can replay a saved receipt without a second PayPal capture',(
   assert.match(js,/history-receipt-button/);
   assert.match(css,/\.history-receipt-button\s*\{/);
 });
+
+test('marketing does not claim a specific Gemini model when runtime uses a fallback',()=>{
+  assert.doesNotMatch(html,/Gemini 3\.8/i);
+  assert.doesNotMatch(js,/Gemini 3\.8/i);
+  assert.match(html,/GOOGLE GEMINI API/);
+});

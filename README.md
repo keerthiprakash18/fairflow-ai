@@ -82,7 +82,7 @@ sequenceDiagram
     actor F as Freelancer / Judge
     participant UI as FairFlow Client (Vanilla JS / CSS)
     participant S as Node.js Backend Server
-    participant G as Google Gemini 3.8 Flash
+    participant G as Google Gemini API
     participant PP as PayPal Sandbox Orders v2
 
     F->>UI: Input Project Brief or Click Demo Template
@@ -147,7 +147,7 @@ Judges can test the entire lifecycle in under **2 minutes** at `http://localhost
 2. **Generate AI Proposal:**
    * Click **"+ New Proposal"**.
    * Click any 1-Click Demo chip (e.g. **"🛍 E-Commerce Store"**) or enter your own idea and test the **"⚡ AI Enhance Brief"** button.
-   * Click **"✦ Generate AI Proposal"**. Gemini 3.8 Flash returns a structured deliverable matrix, percentage milestone breakdown, and project risk audit.
+   * Click **"✦ Generate AI Proposal"**. Google Gemini returns a structured deliverable matrix, percentage milestone breakdown, and project risk audit.
 3. **Interactive Human Approval:**
    * Adjust milestone percentages; click the **"⚡ Auto-Balance to 100%"** button to see spring-based math reconciliation.
    * Set your final price (e.g., `$2,750.00`) and click **"✓ Approve & Lock Quotation"**.
@@ -364,3 +364,16 @@ If a capture succeeds at PayPal but FairFlow fails before saving it, open **PayP
 **Actual Gemini Scope Guard smoke check (owner laptop):** with a private `.env`, run `npm run verify:scope`. It runs real Gemini quote and scope requests against an ephemeral local test ledger; it **never** creates/captures any PayPal payment. Automated GitHub CI still uses provider mocks. For the actual video, show the real API response on your laptop and distinguish it from mock screenshots.
 
 **Public hosting warning:** Do not expose `/api/projects` or AI/PayPal routes on the internet without authenticated user accounts, per-user authorization, secure database storage and production payment controls. A cosmetic login screen would not solve those problems. Public hosting is **not required** for this hackathon; judges may use the repository's documented local setup. See [Security audit](SECURITY_AUDIT.md), [demo video materials](DEMO_VIDEO_SCRIPT.md) and [submission checklist](HACKATHON_SUBMISSION.md).
+
+
+### One-command final owner verification
+
+From your Windows PowerShell in the repository, after `git pull origin main` and checking that your **uncommitted** `.env` has valid private Gemini and PayPal Sandbox credentials, run:
+
+```powershell
+npm run verify:submission
+```
+
+This runs source syntax, offline regression tests, **real Gemini connectivity + actual quote and Scope Guard requests**, and PayPal Sandbox **OAuth only**. It does **not** initiate any payment, create a PayPal order, or repeat your already completed Sandbox capture. The final step uses a temporary test ledger and removes it. If you want to inspect old payment statuses without charging, use `npm run diagnose:paypal` separately.
+
+**Video/Devpost publication cannot be replaced by the automated checks**: record real on-screen footage, publish the video to YouTube, paste its URL into Devpost, and confirm final submission yourself.

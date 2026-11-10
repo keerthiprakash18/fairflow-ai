@@ -92,3 +92,6 @@ _This kit is documentation; it does not certify that external provider connectiv
 - [ ] **Click Submit before November 13, 2026 at 01:30 IST** and confirm Devpost shows the submission as submitted, not merely saved as draft.
 
 **Important:** There is intentionally no fake login screen for local demo. Public hosting would require real backend login, user-scoped permissions and secure persistence; in-memory request limits are not sufficient.
+
+
+**Fast final local gate (no new payment):** `npm run verify:submission`. This runs offline checks, REAL provider connectivity and REAL Gemini Scope Guard with private `.env` credentials, using a temporary ledger. It does **not** execute any PayPal order or capture.
