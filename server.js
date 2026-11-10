@@ -373,7 +373,7 @@ function normalizeScopeChange(raw, originalQuote) {
     summary:String(raw.summary || '').slice(0,500),
     // Explain the estimate without inventing a precision or claiming model confidence.
     estimateBasis:arr(raw.estimateBasis,5),
-    estimatedEffortHours:(Number.isFinite(Number(raw.estimatedEffortHours)) && Number(raw.estimatedEffortHours)>=0)
+    estimatedEffortHours:(raw.estimatedEffortHours !== null && raw.estimatedEffortHours !== undefined && raw.estimatedEffortHours !== '' && Number.isFinite(Number(raw.estimatedEffortHours)) && Number(raw.estimatedEffortHours)>=0)
       ? Math.min(2000,Math.round(Number(raw.estimatedEffortHours))) : null,
     unknowns:arr(raw.unknowns,5),
     severity:['low','medium','high'].includes(raw.severity)?raw.severity:'medium',
