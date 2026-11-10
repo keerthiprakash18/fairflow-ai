@@ -407,7 +407,7 @@ function renderHistory(projects) {
                 el('strong', { text: p.title || 'Untitled Project' }),
                 el('span', {
                   cls: 'item-meta',
-                  text: p.orderId ? `PayPal Order: ${p.orderId} • ${formatDate(p.paidAt || p.createdAt)}` : `Status: ${p.status} • ${formatDate(p.createdAt)}`
+                  text: p.orderId ? `${p.offlineDemo ? 'Offline mock order' : 'PayPal Order'}: ${p.orderId} • ${formatDate(p.paidAt || p.createdAt)}` : `Status: ${p.status} • ${formatDate(p.createdAt)}`
                 })
               ]
             })
@@ -450,7 +450,8 @@ function openStoredReceipt(project) {
     orderId: project.orderId,
     captureId: project.captureId,
     paidAt: project.paidAt,
-    archived: true
+    archived: true,
+    offlineDemo: Boolean(project.offlineDemo)
   });
   showView('new-project');
   showStep('receipt');
@@ -1405,6 +1406,7 @@ function renderPayPalButtons() {
 
 // ─── VERIFIED SANDBOX RECEIPT ───
 function renderReceipt(confirmed) {
+  const simulated = Boolean(confirmed.offlineDemo);
   const container = $('receipt-container');
   container.replaceChildren();
 
@@ -1419,7 +1421,7 @@ function renderReceipt(confirmed) {
 
   const receipt = el('article', {
     cls: 'receipt-card-styled',
-    attr: { 'aria-label': 'Verified PayPal Sandbox payment receipt' },
+    attr: { 'aria-label': simulated ? 'Offline simulated example receipt' : 'Verified PayPal Sandbox payment receipt' },
     children: [
       el('header', {
         cls: 'receipt-brandbar',
@@ -1434,22 +1436,24 @@ function renderReceipt(confirmed) {
               ] })
             ]
           }),
-          el('span', { cls: 'receipt-env-pill', text: '● SANDBOX VERIFIED' })
+          el('span', { cls: 'receipt-env-pill', text: simulated ? '● OFFLINE MOCK' : '● SANDBOX VERIFIED' })
         ]
       }),
       el('div', {
         cls: 'receipt-hero',
         children: [
           el('div', { cls: 'receipt-check-ring', text: '✓', attr: { 'aria-hidden': 'true' } }),
-          el('span', { cls: 'receipt-eyebrow', text: 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
-          el('h1', { cls: 'receipt-status-title', text: 'Payment complete.' }),
-          el('p', { cls: 'receipt-subheading', text: confirmed.archived
-            ? 'Saved record of a previously server-verified Sandbox capture. No new payment has been made.'
-            : 'The Sandbox capture was verified by FairFlow against the approved order.' }),
+          el('span', { cls: 'receipt-eyebrow', text: simulated ? 'OFFLINE DEMO / MOCK PROVIDER ONLY' : 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
+          el('h1', { cls: 'receipt-status-title', text: simulated ? 'Simulated checkout complete.' : 'Payment complete.' }),
+          el('p', { cls: 'receipt-subheading', text: simulated
+            ? 'Offline mock walkthrough only. No Gemini or PayPal calls; no money moved.'
+            : confirmed.archived
+              ? 'Saved record of a previously server-verified Sandbox capture. No new payment has been made.'
+              : 'The Sandbox capture was verified by FairFlow against the approved order.' }),
           el('div', {
             cls: 'receipt-amount-panel',
             children: [
-              el('span', { cls: 'receipt-amount-label', text: 'TOTAL CAPTURED · TEST FUNDS' }),
+              el('span', { cls: 'receipt-amount-label', text: simulated ? 'SIMULATED AMOUNT · NOT A TRANSACTION' : 'TOTAL CAPTURED · TEST FUNDS' }),
               el('div', {
                 cls: 'receipt-amount-line',
                 children: [
@@ -1457,7 +1461,7 @@ function renderReceipt(confirmed) {
                   el('span', { cls: 'receipt-currency', text: 'USD' })
                 ]
               }),
-              el('span', { cls: 'receipt-amount-note', text: 'PayPal Sandbox · No real money transferred' })
+              el('span', { cls: 'receipt-amount-note', text: simulated ? 'Offline local mock · No PayPal Sandbox API call' : 'PayPal Sandbox · No real money transferred' })
             ]
           })
         ]
@@ -1467,17 +1471,17 @@ function renderReceipt(confirmed) {
         children: [
           el('div', { cls: 'receipt-section-heading', children: [
             el('span', { text: '01  /  TRANSACTION RECORD' }),
-            el('span', { cls: 'receipt-record-pill', text: 'COMPLETED' })
+            el('span', { cls: 'receipt-record-pill', text: simulated ? 'SIMULATED' : 'COMPLETED' })
           ] }),
           el('div', {
             cls: 'receipt-meta-list',
             children: [
               renderMetaRow('Project', projectTitle),
-              renderMetaRow('Capture status', confirmed.status || 'COMPLETED'),
-              renderMetaRow('PayPal order ID', confirmed.orderId || 'Unavailable', Boolean(confirmed.orderId)),
-              renderMetaRow('PayPal capture ID', confirmed.captureId || 'Unavailable', Boolean(confirmed.captureId)),
-              renderMetaRow('Verified on (UTC)', verifiedAt),
-              renderMetaRow('Environment', 'api-m.sandbox.paypal.com')
+              renderMetaRow(simulated ? 'Demo result' : 'Capture status', simulated ? 'SIMULATED — NO PAYMENT' : confirmed.status || 'COMPLETED'),
+              renderMetaRow(simulated ? 'Mock order ID' : 'PayPal order ID', confirmed.orderId || 'Unavailable', Boolean(confirmed.orderId)),
+              renderMetaRow(simulated ? 'Mock capture ID' : 'PayPal capture ID', confirmed.captureId || 'Unavailable', Boolean(confirmed.captureId)),
+              renderMetaRow(simulated ? 'Generated on (UTC)' : 'Verified on (UTC)', verifiedAt),
+              renderMetaRow('Environment', simulated ? 'Offline local mock · no provider network' : 'api-m.sandbox.paypal.com')
             ]
           })
         ]
@@ -1487,8 +1491,9 @@ function renderReceipt(confirmed) {
         children: [
           el('span', { cls: 'receipt-verification-icon', text: '✓', attr: { 'aria-hidden': 'true' } }),
           el('div', { children: [
-            el('strong', { text: 'Order amount and capture status checked' }),
-            el('span', { text: 'The server verified the USD amount, order ID and completed capture before recording this receipt.' })
+            el('strong', { text: simulated ? 'Mock order consistency checked' : 'Order amount and capture status checked' }),
+            el('span', { text: simulated ? 'This mock result is NOT independent PayPal verification.'
+              : 'The server verified the USD amount, order ID and completed capture before recording this receipt.' })
           ] })
         ]
       }),
@@ -1496,9 +1501,11 @@ function renderReceipt(confirmed) {
         cls: 'receipt-footnote',
         children: [
           el('span', { text: 'FAIRFLOW  /  EVERY CHANGE DESERVES FAIR PAY.' }),
-          el('span', { text: confirmed.archived
-            ? 'SAVED SANDBOX RECORD · NO NEW CAPTURE'
-            : 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
+          el('span', { text: simulated
+            ? 'FAKE DEMO DATA · NOT A PAYMENT RECEIPT'
+            : confirmed.archived
+              ? 'SAVED SANDBOX RECORD · NO NEW CAPTURE'
+              : 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
         ]
       })
     ]
