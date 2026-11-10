@@ -8,7 +8,7 @@
 | Finding | Mitigation shipped | Remaining limitation |
 |---|---|---|
 | Corrupt project ledger could be silently replaced | JSON parsing fails closed; local backup `data/projects.json.bak`; atomic writes | Still a single-machine JSON file, not an encrypted, transactional database |
-| PayPal capture could succeed before local save | Inspect PayPal Orders v2 status first; explicit **reconcile-order** reads a COMPLETED order, verifies USD amount and one capture, then records it without recapture | No production webhooks, scheduled reconciliation, or multi-process transaction locking |
+| PayPal capture could succeed before local save | Inspect PayPal Orders v2 status first; explicit **reconcile-order** reads a COMPLETED order, verifies USD amount and one capture, then records it without recapture. The normal capture response now uses the same full payload/ownership validation. | No production webhooks, scheduled reconciliation, or multi-process transaction locking |
 | API requests unlimited | Per-IP/per-route in-memory rate limits; body and content-type limits | Not distributed, does not deter all local-machine threats |
 | Cross-origin POSTs possible | Origin and Fetch Metadata checks, no CORS allow-all | No user accounts, session authorization or CSRF tokens for authenticated use |
 | Clickjacking / browser response metadata | X-Frame-Options, CSP frame-ancestors/object-src/base-uri, Referrer-Policy, Permissions-Policy, nosniff | CSP does not currently restrict all scripts due to PayPal SDK and existing inline presentation; manual CSP review needed for public hosting |
@@ -24,7 +24,7 @@
 
 - GitHub CI tests use an actual local Node server and **mock upstream providers** for deterministic behavior. Success does **not** imply live Gemini/PayPal connectivity.
 - The owner separately demonstrated real Gemini generation and a real PayPal Sandbox completed-capture receipt on November 10, 2026. The screenshot is evidence of local behavior, not a production security audit.
-- A new `npm run verify:scope` command allows the owner to check **real Gemini proposal → approved quote → real scope analysis**, with a temporary local ledger and no PayPal payments.
+- `npm run verify:scope` passed on the owner's machine November 10, 2026: **real Gemini proposal → approved quote → real scope analysis**, with a temporary local ledger and no PayPal payments. `npm run verify:payments` is an additional private read-only remote confirmation for existing receipts, and is not a payment capture.
 - Reconciliation tests cover a previously captured remote order and rejection on mismatched amounts; no repeat payments should be necessary.
 
 ## Submission readiness gate
