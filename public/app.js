@@ -1135,6 +1135,27 @@ function renderScopeAnalysis(data) {
     layout.appendChild(el('p',{cls:'scope-timeline-impact',text:'Estimated schedule impact: ' + analysis.timelineImpact}));
   }
 
+  // Explainable estimate panel: model-supplied reasons only, never fabricated confidence.
+  const basis = Array.isArray(analysis.estimateBasis) ? analysis.estimateBasis : [];
+  const unknowns = Array.isArray(analysis.unknowns) ? analysis.unknowns : [];
+  const reasons = el('section', { cls:'estimate-explanation', attr:{'aria-label':'How the AI estimated this change'} });
+  reasons.appendChild(el('h4', { text:'Why this estimate?' }));
+  reasons.appendChild(el('p', { text:'AI-generated planning estimate, not a verified market quote. Confirm effort and price with the client before any change is approved.' }));
+  if (basis.length) {
+    reasons.appendChild(el('strong', { text:'Estimate drivers' }));
+    reasons.appendChild(el('ul', { children:basis.map(item => el('li', {text:item})) }));
+  } else {
+    reasons.appendChild(el('p', {text:'Detailed estimate assumptions were not provided. Ask for an itemized explanation before accepting the suggested price.'}));
+  }
+  if (Number.isFinite(analysis.estimatedEffortHours)) {
+    reasons.appendChild(el('p', {text:'Approximate additional work: ' + analysis.estimatedEffortHours + ' hours (unverified estimate).'}));
+  }
+  if (unknowns.length) {
+    reasons.appendChild(el('strong', {text:'Questions to resolve'}));
+    reasons.appendChild(el('ul', {children:unknowns.map(item => el('li', {text:item}))}));
+  }
+  layout.appendChild(reasons);
+
   // Advisory text
   if (analysis.recommendation) {
     layout.appendChild(el('div', {
@@ -1160,6 +1181,8 @@ function renderScopeAnalysis(data) {
     'AI-estimated extra cost: +$' + Number(analysis.additionalCostUSD || 0).toFixed(2) + ' USD',
     'AI-suggested total: $' + Number(analysis.newTotalUSD || approved).toFixed(2) + ' USD',
     'Estimated time impact: ' + (analysis.timelineImpact || 'To be agreed'),
+    ...(basis.length ? ['Estimate drivers:', ...basis.map((reason,i) => (i + 1) + '. ' + reason)] : []),
+    ...(unknowns.length ? ['Questions to confirm:', ...unknowns.map((question,i) => (i + 1) + '. ' + question)] : []),
     'Recommendation: ' + (analysis.recommendation || 'Review with client'),
     '',
     'NOT APPROVED: No additional charges have been authorized.',

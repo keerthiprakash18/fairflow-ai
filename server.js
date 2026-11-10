@@ -371,6 +371,11 @@ function normalizeScopeChange(raw, originalQuote) {
     newTotalUSD:Math.round((originalQuote.amountUSD + additionalCostUSD) * 100) / 100,
     updatedMilestones:milestones.reduce((sum,m)=>sum+m.percent,0)===100 ? milestones : originalQuote.milestones,
     summary:String(raw.summary || '').slice(0,500),
+    // Explain the estimate without inventing a precision or claiming model confidence.
+    estimateBasis:arr(raw.estimateBasis,5),
+    estimatedEffortHours:(raw.estimatedEffortHours !== null && raw.estimatedEffortHours !== undefined && raw.estimatedEffortHours !== '' && Number.isFinite(Number(raw.estimatedEffortHours)) && Number(raw.estimatedEffortHours)>=0)
+      ? Math.min(2000,Math.round(Number(raw.estimatedEffortHours))) : null,
+    unknowns:arr(raw.unknowns,5),
     severity:['low','medium','high'].includes(raw.severity)?raw.severity:'medium',
     recommendation:String(raw.recommendation || '').slice(0,400),
     warning:'Suggested changes are AI estimates only. The approved quote remains unchanged.'
@@ -406,8 +411,11 @@ Required JSON keys:
 - summary (string, max 300 chars): plain-English summary of scope change impact
 - severity ("low" | "medium" | "high"): change severity
 - recommendation (string): professional recommendation to freelancer
+- estimateBasis (array of 2-4 strings): explain which added deliverables and assumptions drive the estimate, without invented market-rate facts
+- estimatedEffortHours (number or null): rough additional work hours only when the request provides enough information; otherwise null
+- unknowns (array of 1-4 strings): missing requirements to confirm with client before quoting
 
-Base estimates on realistic market rates. Label all numbers as estimates.`;
+Do not invent hourly rate data, certainty scores, or false precision. If there is not enough information to estimate additional work hours, output null. The estimateBasis must not claim external verification. Base estimates on realistic assumptions and label all numbers as estimates.`;
 
   const output = await geminiJson(prompt);
   if (!output) throw Object.assign(new Error('Scope analysis returned no data. Try again.'), { httpStatus: 502 });
