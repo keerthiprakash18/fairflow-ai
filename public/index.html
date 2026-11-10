@@ -24,7 +24,7 @@
     <!-- Editorial Top Masthead Bar -->
     <header class="workbench-masthead" role="banner">
       <div class="masthead-left">
-        <a class="brand-masthead" href="#" data-view="dashboard" aria-label="FairFlow Workbench Homepage">
+        <a class="brand-masthead" href="#" data-view="landing" aria-label="FairFlow Homepage">
           <div class="brand-monogram">FF</div>
           <div class="brand-info">
             <span class="brand-title">FAIRFLOW</span>
@@ -33,8 +33,23 @@
         </a>
       </div>
 
-      <!-- Segmented Navigation Bar -->
-      <nav class="masthead-nav" aria-label="Main Navigation">
+      <!-- Segmented Navigation: Landing Page Mode -->
+      <nav class="masthead-nav-landing" id="masthead-landing-nav" aria-label="Landing Navigation">
+        <a href="#problem" class="landing-nav-anchor">The Problem</a>
+        <a href="#workflow" class="landing-nav-anchor">How It Works</a>
+        <a href="#showcase" class="landing-nav-anchor">Interactive Demo</a>
+        <button class="btn-masthead-launch" data-view="dashboard">
+          <span>Launch FairFlow</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+        </button>
+      </nav>
+
+      <!-- Segmented Navigation: Workbench Mode (Toggled via JS) -->
+      <nav class="masthead-nav workbench-nav" id="masthead-workbench-nav" style="display: none;" aria-label="Workbench Navigation">
+        <button class="nav-tab nav-tab-overview" data-view="landing">
+          <span class="tab-icon">←</span>
+          <span class="tab-label">Overview</span>
+        </button>
         <button class="nav-tab active" data-view="dashboard">
           <span class="tab-num">01</span>
           <span class="tab-label">Workbench</span>
@@ -79,9 +94,465 @@
 
     <!-- Main Viewport Container -->
     <main id="app-viewport" class="workbench-viewport">
-      
+
+      <!-- ════════════════ VIEW 0: REFERENCE-DRIVEN PUBLIC LANDING EXPERIENCE ════════════════ -->
+      <section id="view-landing" class="app-view active" aria-label="Public Landing Page">
+        
+        <!-- SECTION 1: HERO & INTERACTIVE PRODUCT SHOWCASE -->
+        <section class="landing-hero-block" id="hero">
+          <div class="landing-container">
+            <div class="landing-hero-split">
+              
+              <!-- LEFT COLUMN: EDITORIAL TYPOGRAPHY & CTAs -->
+              <div class="landing-hero-copy">
+                <div class="landing-pill-kicker">
+                  <span class="live-pulse"></span>
+                  <span class="kicker-text">FAIRFLOW AI · PAYPAL AI HACKATHON 2026</span>
+                </div>
+                
+                <h1 class="landing-main-title">
+                  Every Change<br>
+                  <span class="title-serif-italic">Deserves Fair Pay.</span>
+                </h1>
+                
+                <p class="landing-main-subtext">
+                  Turn project briefs into clear agreements, detect scope creep with AI, and manage payments with PayPal.
+                </p>
+                
+                <div class="landing-cta-cluster">
+                  <button class="btn-landing-primary" data-view="dashboard" id="btn-hero-launch-workbench">
+                    <span>Launch FairFlow</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                  </button>
+                  <a href="#showcase" class="btn-landing-secondary" id="btn-hero-see-how">
+                    <span>See How It Works</span>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>
+                  </a>
+                </div>
+                
+                <!-- Trust & Metric Ribbon -->
+                <div class="landing-trust-bar">
+                  <div class="trust-stat">
+                    <span class="stat-value">100%</span>
+                    <span class="stat-label">Milestone Sum Math</span>
+                  </div>
+                  <div class="trust-sep"></div>
+                  <div class="trust-stat">
+                    <span class="stat-value">$0</span>
+                    <span class="stat-label">Unbilled Scope Leakage</span>
+                  </div>
+                  <div class="trust-sep"></div>
+                  <div class="trust-stat">
+                    <span class="stat-value">Orders v2</span>
+                    <span class="stat-label">PayPal Server-Verified</span>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- RIGHT COLUMN: INTERACTIVE PRODUCT SHOWCASE -->
+              <div class="landing-hero-visual" id="showcase">
+                <div class="showcase-window-card">
+                  <!-- Browser/Window Header -->
+                  <div class="showcase-window-bar">
+                    <div class="window-dots">
+                      <span class="w-dot dot-red"></span>
+                      <span class="w-dot dot-yellow"></span>
+                      <span class="w-dot dot-green"></span>
+                    </div>
+                    <div class="window-title">
+                      <span class="window-icon">✦</span>
+                      <span>FAIRFLOW SCOPE INTELLIGENCE // SIMULATION</span>
+                    </div>
+                    <div class="window-status" id="showcase-status-indicator">STAGE 03 / 04 · AI ANALYSIS</div>
+                  </div>
+
+                  <!-- 4-Stage Scrubber Navigation -->
+                  <div class="showcase-scrubber-nav" role="tablist" aria-label="Demo Stage Scrubber">
+                    <button class="scrubber-tab" data-stage="1" role="tab" aria-selected="false">
+                      <span class="scrub-idx">01</span>
+                      <span class="scrub-txt">Baseline Scope</span>
+                    </button>
+                    <button class="scrubber-tab" data-stage="2" role="tab" aria-selected="false">
+                      <span class="scrub-idx">02</span>
+                      <span class="scrub-txt">Client Request</span>
+                    </button>
+                    <button class="scrubber-tab active" data-stage="3" role="tab" aria-selected="true">
+                      <span class="scrub-idx">03</span>
+                      <span class="scrub-txt">AI Analysis</span>
+                    </button>
+                    <button class="scrubber-tab" data-stage="4" role="tab" aria-selected="false">
+                      <span class="scrub-idx">04</span>
+                      <span class="scrub-txt">Approved PayPal</span>
+                    </button>
+                  </div>
+
+                  <!-- Dynamic Stage Slides -->
+                  <div class="showcase-viewport">
+                    
+                    <!-- STAGE 1: BASELINE SCOPE -->
+                    <div class="showcase-slide" data-slide="1">
+                      <div class="slide-badge-row">
+                        <span class="badge-verified">LOCKED BASELINE CONTRACT</span>
+                        <span class="badge-date">Agreement #FF-2026-08</span>
+                      </div>
+                      <h3 class="slide-title">Boutique E-Commerce Store</h3>
+                      <div class="slide-amount-box">
+                        <span class="amount-label">Agreed Contract Value</span>
+                        <span class="amount-value">$2,850.00 <span class="currency">USD</span></span>
+                      </div>
+                      <div class="slide-milestones-list">
+                        <div class="milestone-row">
+                          <span class="m-name">01. Architecture &amp; UI Mockups</span>
+                          <span class="m-split">30% ($855.00)</span>
+                        </div>
+                        <div class="milestone-row">
+                          <span class="m-name">02. Store Catalog &amp; Cart Engine</span>
+                          <span class="m-split">40% ($1,140.00)</span>
+                        </div>
+                        <div class="milestone-row">
+                          <span class="m-name">03. Testing &amp; PayPal Integration</span>
+                          <span class="m-split">20% ($570.00)</span>
+                        </div>
+                        <div class="milestone-row">
+                          <span class="m-name">04. Final Launch &amp; Handover</span>
+                          <span class="m-split">10% ($285.00)</span>
+                        </div>
+                      </div>
+                      <div class="slide-footer-note">
+                        <span class="check-icon">✓</span> Mathematically balanced to exactly 100%. No unassigned funds.
+                      </div>
+                    </div>
+
+                    <!-- STAGE 2: NEW CLIENT REQUEST -->
+                    <div class="showcase-slide" data-slide="2">
+                      <div class="slide-badge-row">
+                        <span class="badge-warning">UNBILLED EXPANSION DETECTED</span>
+                        <span class="badge-time">Client Slack • 2:14 PM</span>
+                      </div>
+                      <div class="client-quote-bubble">
+                        <div class="client-avatar">
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                          <span>Client Feedback</span>
+                        </div>
+                        <p class="client-quote-text">
+                          “Hey! Love the store designs. Can we also quickly add a multi-vendor marketplace where 3rd-party sellers create accounts and get automated split payouts? Also need seller analytics!”
+                        </p>
+                      </div>
+                      <div class="scope-hazard-alert">
+                        <div class="hazard-icon">⚠️</div>
+                        <div class="hazard-details">
+                          <strong>Unbudgeted Architectural Creep</strong>
+                          <p>Multi-vendor ledgers and split disbursements require substantial backend, auth, and database architecture not included in the 5-page shop baseline.</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- STAGE 3: AI SCOPE ANALYSIS (ACTIVE DEFAULT) -->
+                    <div class="showcase-slide active" data-slide="3">
+                      <div class="slide-badge-row">
+                        <span class="badge-gemini">✦ GOOGLE GEMINI 3.8 FLASH</span>
+                        <span class="badge-severity">HIGH SEVERITY (+49%)</span>
+                      </div>
+                      <div class="diff-matrix-box">
+                        <div class="diff-stat-col">
+                          <span class="diff-label">Calculated Cost Delta</span>
+                          <span class="diff-value-positive">+$1,400.00 USD</span>
+                        </div>
+                        <div class="diff-sep-vertical"></div>
+                        <div class="diff-stat-col">
+                          <span class="diff-label">Timeline Extension</span>
+                          <span class="diff-value-neutral">+2.5 Weeks</span>
+                        </div>
+                      </div>
+                      <div class="ai-rationale-box">
+                        <strong>AI Technical Finding:</strong>
+                        <p>“Multi-tenant seller accounts, commission splits, and escrow holdbacks represent a distinct transactional domain. FairFlow automatically generates Change Order #02 with defensible rationale to preserve revenue.”</p>
+                      </div>
+                      <div class="diff-badge-pills">
+                        <span class="pill-tag">+ 3 New Deliverables</span>
+                        <span class="pill-tag">+ 2 New Milestones</span>
+                        <span class="pill-tag">Automated Change Order</span>
+                      </div>
+                    </div>
+
+                    <!-- STAGE 4: HUMAN APPROVED PAYPAL SETTLEMENT -->
+                    <div class="showcase-slide" data-slide="4">
+                      <div class="slide-badge-row">
+                        <span class="badge-success">✓ HUMAN SIGNED &amp; APPROVED</span>
+                        <span class="badge-paypal">PAYPAL ORDERS V2</span>
+                      </div>
+                      <div class="settlement-summary">
+                        <div class="contract-breakdown">
+                          <div class="breakdown-line">
+                            <span>Baseline Project</span>
+                            <span>$2,850.00</span>
+                          </div>
+                          <div class="breakdown-line highlight">
+                            <span>Change Order #02 (Marketplace)</span>
+                            <span>+$1,400.00</span>
+                          </div>
+                          <div class="breakdown-total">
+                            <span>Revised Contract Total</span>
+                            <strong>$4,250.00 USD</strong>
+                          </div>
+                        </div>
+                        <div class="paypal-preview-btn">
+                          <div class="paypal-mock-pill">
+                            <span class="paypal-italic">PayPal</span>
+                            <span class="checkout-word">Checkout</span>
+                          </div>
+                          <span class="sandbox-stamp">SANDBOX VERIFIED</span>
+                        </div>
+                      </div>
+                      <button class="btn-demo-test-workbench" data-view="dashboard">
+                        <span>Launch Live In Workbench</span>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                      </button>
+                    </div>
+
+                  </div>
+
+                  <!-- Interactive Showcase Controls -->
+                  <div class="showcase-controls-bar">
+                    <button class="btn-showcase-nav" id="showcase-prev-btn" aria-label="Previous Demo Stage">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+                      <span>Previous</span>
+                    </button>
+                    <div class="showcase-step-dots" id="showcase-dots">
+                      <span class="showcase-dot" data-stage="1"></span>
+                      <span class="showcase-dot" data-stage="2"></span>
+                      <span class="showcase-dot active" data-stage="3"></span>
+                      <span class="showcase-dot" data-stage="4"></span>
+                    </div>
+                    <button class="btn-showcase-nav" id="showcase-next-btn" aria-label="Next Demo Stage">
+                      <span>Next Step</span>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+                    </button>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 2: THE FREELANCER SCOPE-CREEP PROBLEM -->
+        <section class="landing-section-problem" id="problem">
+          <div class="landing-container">
+            <div class="problem-editorial-header">
+              <span class="section-kicker">02 // THE INDUSTRY REALITY</span>
+              <h2 class="problem-title">The Unpaid "Quick Favor" Trap</h2>
+              <p class="problem-subtitle">Why most freelance developers and agencies under-earn despite working 50+ hours a week.</p>
+            </div>
+
+            <div class="problem-asymmetric-grid">
+              
+              <!-- BIG STAT CARD -->
+              <div class="problem-stat-card">
+                <div class="stat-big-number">73%</div>
+                <h3 class="stat-card-heading">of independent developers absorb unpaid revisions.</h3>
+                <p class="stat-card-text">
+                  You know the message: <em>“Can we just add one small thing?”</em> You want to keep the client relationship positive, so you agree without hesitation.
+                </p>
+                <p class="stat-card-subtext">
+                  Two weeks later, you have built half a new product without an extra dime. The problem is not malice — it is the absence of an objective contract referee.
+                </p>
+                <div class="stat-pill-footer">
+                  <span class="pill-dot"></span> Source: Industry Freelance Revenue Benchmark 2026
+                </div>
+              </div>
+
+              <!-- SCOPE TRAP ANATOMY -->
+              <div class="problem-trap-card">
+                <div class="trap-column-head">
+                  <span class="trap-tag">THE ANATOMY OF UNBILLED WORK</span>
+                  <h4>Perception vs. Engineering Reality</h4>
+                </div>
+
+                <div class="trap-comparison-table">
+                  <div class="trap-side innocent">
+                    <span class="trap-label">The Casual Client Request</span>
+                    <p class="trap-quote">“Can we just tweak the checkout to add recurring subscriptions?”</p>
+                    <div class="trap-meta">Client perceived effort: <strong>15 minutes</strong></div>
+                  </div>
+
+                  <div class="trap-divider-arrow">→</div>
+
+                  <div class="trap-side reality">
+                    <span class="trap-label">The Technical Reality</span>
+                    <ul class="trap-checklist">
+                      <li>Webhook retries and idempotency logic</li>
+                      <li>Customer portal for credit card updates</li>
+                      <li>Failed payment dunning workflow</li>
+                      <li>Database schema and billing migrations</li>
+                    </ul>
+                    <div class="trap-loss">Actual time: <strong>28 unbilled hours (~$2,240 USD)</strong></div>
+                  </div>
+                </div>
+
+                <div class="fairflow-referee-banner">
+                  <div class="referee-icon">⚖️</div>
+                  <div class="referee-text">
+                    <strong>The FairFlow Solution:</strong>
+                    <span>Google Gemini acts as an impartial AI referee that calculates exact financial variance without emotion, preserving client goodwill while protecting your bank account.</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 3: 4-STEP TECHNICAL WORKFLOW -->
+        <section class="landing-section-workflow" id="workflow">
+          <div class="landing-container">
+            <div class="workflow-editorial-header">
+              <span class="section-kicker">03 // SYSTEM ARCHITECTURE</span>
+              <h2 class="workflow-title">From Conversational Brief to Verified Settlement.</h2>
+              <p class="workflow-subtitle">Four deliberate stages engineered to preserve client trust and prevent unbilled engineering.</p>
+            </div>
+
+            <div class="workflow-quad-grid">
+              
+              <!-- STEP 1 -->
+              <div class="workflow-card step-01">
+                <div class="step-badge">STEP 01</div>
+                <div class="step-card-visual intake-visual">
+                  <div class="mock-tag-bar">
+                    <span class="token-blue">DELIVERABLES</span>
+                    <span class="token-amber">TECH STACK</span>
+                    <span class="token-red">RISKS</span>
+                  </div>
+                  <div class="mock-code-box">
+                    <code>&gt; gemini-3.8-flash: parsing client brief...</code>
+                  </div>
+                </div>
+                <h3 class="step-card-title">Conversational Brief Intake</h3>
+                <p class="step-card-text">
+                  Paste messy client Slack chats, emails, or bullet points. Google Gemini 3.8 structures them into clear deliverables, technical assumptions, and risk items.
+                </p>
+              </div>
+
+              <!-- STEP 2 -->
+              <div class="workflow-card step-02">
+                <div class="step-badge">STEP 02</div>
+                <div class="step-card-visual math-visual">
+                  <div class="math-bar-track">
+                    <div class="m-segment m-30" title="30% Kickoff">30%</div>
+                    <div class="m-segment m-40" title="40% Build">40%</div>
+                    <div class="m-segment m-20" title="20% QA">20%</div>
+                    <div class="m-segment m-10" title="10% Launch">10%</div>
+                  </div>
+                  <div class="math-seal">✓ STRICT 100% SUM GUARANTEE</div>
+                </div>
+                <h3 class="step-card-title">100% Milestone Math</h3>
+                <p class="step-card-text">
+                  Zero financial leakage. Server-side validation enforces that milestone percentages sum mathematically to 100% before any quotation is locked.
+                </p>
+              </div>
+
+              <!-- STEP 3 -->
+              <div class="workflow-card step-03">
+                <div class="step-badge">STEP 03</div>
+                <div class="step-card-visual guard-visual">
+                  <div class="guard-diff-preview">
+                    <div class="diff-chip base">ORIGINAL: $2,850</div>
+                    <div class="diff-arrow">+</div>
+                    <div class="diff-chip delta">DELTA: +$1,400</div>
+                  </div>
+                  <div class="guard-pill-live">AUTOMATED CHANGE ORDER #02</div>
+                </div>
+                <h3 class="step-card-title">Autonomous Scope Guard</h3>
+                <p class="step-card-text">
+                  When new requests arrive, Scope Guard compares them against the approved baseline, generating an itemized change order with cost delta and timeline impact.
+                </p>
+              </div>
+
+              <!-- STEP 4 -->
+              <div class="workflow-card step-04">
+                <div class="step-badge">STEP 04</div>
+                <div class="step-card-visual paypal-visual">
+                  <div class="paypal-badge-box">
+                    <span class="paypal-bold">PayPal</span>
+                    <span class="badge-v2">Orders API v2</span>
+                  </div>
+                  <div class="receipt-pill-box">
+                    <span>DIGITAL RECEIPT GENERATED</span>
+                  </div>
+                </div>
+                <h3 class="step-card-title">PayPal Server Settlement</h3>
+                <p class="step-card-text">
+                  Client authorizes via PayPal Sandbox. Funds are captured and verified server-side, preventing duplicate charges and issuing cryptographic digital receipts.
+                </p>
+              </div>
+
+            </div>
+          </div>
+        </section>
+
+        <!-- SECTION 4: HIGH-IMPACT FINAL CALL TO ACTION -->
+        <section class="landing-section-cta" id="cta">
+          <div class="landing-container">
+            <div class="cta-editorial-card">
+              <div class="cta-kicker">04 // FAIRFLOW FOR FREELANCERS &amp; AGENCIES</div>
+              <h2 class="cta-headline">Stop working for free on unbilled changes.</h2>
+              <p class="cta-subhead">
+                Generate your first human-approved project agreement in under 60 seconds with Google Gemini and PayPal Sandbox.
+              </p>
+              
+              <div class="cta-buttons-row">
+                <button class="btn-cta-launch" data-view="dashboard">
+                  <span>Launch FairFlow Workbench</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+                </button>
+                <button class="btn-cta-secondary" data-view="new-project">
+                  <span>+ Draft New Agreement</span>
+                </button>
+              </div>
+
+              <div class="cta-trust-ribbon">
+                <span>PayPal AI Hackathon 2026 Submission</span>
+                <span class="ribbon-sep">•</span>
+                <span>Powered by Gemini 3.8 Flash</span>
+                <span class="ribbon-sep">•</span>
+                <span>PayPal Orders API v2</span>
+                <span class="ribbon-sep">•</span>
+                <span>MIT Open Source License</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- LANDING PAGE FOOTER -->
+        <footer class="landing-master-footer">
+          <div class="landing-container">
+            <div class="footer-split-row">
+              <div class="footer-brand">
+                <div class="brand-monogram">FF</div>
+                <div class="footer-brand-info">
+                  <strong>FairFlow AI</strong>
+                  <span>The Editorial Fintech Workbench for Freelancers</span>
+                </div>
+              </div>
+              <div class="footer-nav-links">
+                <a href="#hero">Top</a>
+                <a href="#problem">Problem</a>
+                <a href="#workflow">Workflow</a>
+                <a href="#showcase">Demo</a>
+                <a href="https://github.com/keerthiprakash18/fairflow-ai" target="_blank" rel="noopener">GitHub</a>
+              </div>
+              <div class="footer-license-note">
+                <span>© 2026 FairFlow AI · MIT License · PayPal Sandbox Mode</span>
+              </div>
+            </div>
+          </div>
+        </footer>
+
+      </section>
+
       <!-- ════════════════ VIEW 1: THE THREE-ZONE WORKBENCH ════════════════ -->
-      <section id="view-dashboard" class="app-view active" aria-label="Dashboard Overview">
+      <section id="view-dashboard" class="app-view" aria-label="Dashboard Overview">
         <div class="workbench-three-col">
           
           <!-- ── ZONE 1: LEFT RAIL (WORKFLOW ROADMAP) ── -->

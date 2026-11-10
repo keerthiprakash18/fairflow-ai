@@ -6,7 +6,7 @@
 
 // ─── STATE MANAGEMENT ───
 const state = {
-  currentView: 'dashboard',
+  currentView: 'landing',
   currentStep: 'brief',
   quoteId: null,
   quote: null,
@@ -75,18 +75,45 @@ const SCOPE_TEMPLATES = {
 function showView(viewName) {
   if (state.currentView !== viewName) haptic('light');
   state.currentView = viewName;
-  qsa('.app-view').forEach(v => v.classList.remove('active'));
-  qsa('.nav-pill, .mobile-btn').forEach(t => {
-    const isTarget = t.dataset.view === viewName;
-    t.classList.toggle('active', isTarget);
-    t.setAttribute('aria-current', isTarget ? 'page' : 'false');
-  });
 
+  // Toggle active view pane
+  qsa('.app-view').forEach(v => v.classList.remove('active'));
   const target = $(`view-${viewName}`);
   if (target) {
     target.classList.add('active');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
+
+  // Toggle masthead navigation bar modes
+  const landingNav = $('masthead-landing-nav');
+  const workbenchNav = $('masthead-workbench-nav');
+
+  if (viewName === 'landing') {
+    document.body.classList.add('on-landing');
+    if (landingNav) landingNav.style.display = '';
+    if (workbenchNav) workbenchNav.style.display = 'none';
+    try { history.replaceState(null, '', '#landing'); } catch {}
+  } else {
+    document.body.classList.remove('on-landing');
+    if (landingNav) landingNav.style.display = 'none';
+    if (workbenchNav) workbenchNav.style.display = '';
+    if (viewName === 'dashboard') try { history.replaceState(null, '', '#workbench'); } catch {}
+    if (viewName === 'new-project') try { history.replaceState(null, '', '#new-project'); } catch {}
+    if (viewName === 'history') try { history.replaceState(null, '', '#history'); } catch {}
+  }
+
+  // Update active state on tab buttons
+  qsa('.nav-tab', workbenchNav || document).forEach(t => {
+    const isTarget = t.dataset.view === viewName;
+    t.classList.toggle('active', isTarget);
+    t.setAttribute('aria-current', isTarget ? 'page' : 'false');
+  });
+
+  // Update mobile nav buttons
+  qsa('.mobile-nav-item').forEach(t => {
+    const isTarget = t.dataset.view === viewName;
+    t.classList.toggle('active', isTarget);
+  });
 
   if (viewName === 'dashboard') loadDashboard();
   if (viewName === 'history') loadHistory();
@@ -1228,6 +1255,106 @@ $('btn-watch-flow')?.addEventListener('click', () => {
   showView('new-project');
 });
 
+// ─── INTERACTIVE SHOWCASE CONTROLLER ───
+let currentDemoStage = 3;
+let demoInterval = null;
+let autoPlayPaused = false;
+let pauseTimeout = null;
+
+const STAGE_LABELS = {
+  1: 'STAGE 01 / 04 · BASELINE SCOPE',
+  2: 'STAGE 02 / 04 · CLIENT REQUEST',
+  3: 'STAGE 03 / 04 · AI SCOPE ANALYSIS',
+  4: 'STAGE 04 / 04 · PAYPAL SETTLEMENT',
+};
+
+function setDemoStage(stageNum) {
+  currentDemoStage = stageNum;
+  const ind = $('showcase-status-indicator');
+  if (ind) ind.textContent = STAGE_LABELS[stageNum] || `STAGE 0${stageNum} / 04`;
+
+  qsa('.scrubber-tab').forEach(t => {
+    const isMatch = Number(t.dataset.stage) === stageNum;
+    t.classList.toggle('active', isMatch);
+    t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+  });
+
+  qsa('.showcase-slide').forEach(s => {
+    s.classList.toggle('active', Number(s.dataset.slide) === stageNum);
+  });
+
+  qsa('.showcase-dot').forEach(d => {
+    d.classList.toggle('active', Number(d.dataset.stage) === stageNum);
+  });
+}
+
+function pauseDemoAutoPlay() {
+  autoPlayPaused = true;
+  clearTimeout(pauseTimeout);
+  pauseTimeout = setTimeout(() => { autoPlayPaused = false; }, 15000);
+}
+
+function startDemoAutoPlay() {
+  if (demoInterval) clearInterval(demoInterval);
+  demoInterval = setInterval(() => {
+    if (state.currentView !== 'landing' || autoPlayPaused) return;
+    let next = currentDemoStage + 1;
+    if (next > 4) next = 1;
+    setDemoStage(next);
+  }, 6000);
+}
+
+function initShowcaseDemo() {
+  qsa('.scrubber-tab, .showcase-dot').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const st = Number(btn.dataset.stage);
+      if (st) {
+        haptic('light');
+        setDemoStage(st);
+        pauseDemoAutoPlay();
+      }
+    });
+  });
+
+  $('showcase-prev-btn')?.addEventListener('click', () => {
+    haptic('light');
+    let prev = currentDemoStage - 1;
+    if (prev < 1) prev = 4;
+    setDemoStage(prev);
+    pauseDemoAutoPlay();
+  });
+
+  $('showcase-next-btn')?.addEventListener('click', () => {
+    haptic('light');
+    let next = currentDemoStage + 1;
+    if (next > 4) next = 1;
+    setDemoStage(next);
+    pauseDemoAutoPlay();
+  });
+
+  const showcaseCard = $('showcase');
+  if (showcaseCard) {
+    showcaseCard.addEventListener('mouseenter', pauseDemoAutoPlay);
+    showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; });
+  }
+
+  // Smooth scroll for in-page anchor links
+  qsa('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', e => {
+      const href = anchor.getAttribute('href');
+      if (href && href.length > 1) {
+        const targetEl = document.querySelector(href);
+        if (targetEl) {
+          e.preventDefault();
+          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }
+    });
+  });
+
+  startDemoAutoPlay();
+}
+
 // ─── GLOBAL VIEW BUTTON BINDINGS ───
 function bindViewButtons(ctx = document) {
   qsa('[data-view]', ctx).forEach(b => {
@@ -1238,7 +1365,19 @@ function bindViewButtons(ctx = document) {
 // ─── INITIALIZATION ───
 function init() {
   bindViewButtons();
-  loadDashboard();
+  initShowcaseDemo();
+
+  // Check initial URL hash for direct deep links
+  const hash = window.location.hash.toLowerCase();
+  if (hash === '#workbench' || hash === '#dashboard') {
+    showView('dashboard');
+  } else if (hash === '#new-project' || hash === '#create') {
+    showView('new-project');
+  } else if (hash === '#history' || hash === '#audit') {
+    showView('history');
+  } else {
+    showView('landing');
+  }
 }
 
 init();
