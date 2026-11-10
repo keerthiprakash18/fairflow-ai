@@ -190,9 +190,11 @@ async function loadDashboard() {
     state.projects = Array.isArray(data.projects) ? data.projects : [];
     renderDashboardStats(state.projects);
     renderDashboardRecent(state.projects);
-    sync.textContent = state.projects.length
-      ? 'Updated from local ledger · amounts are PayPal Sandbox test funds.'
-      : 'No saved agreements yet · ready for your first project.';
+    sync.textContent = state.offlineDemo
+      ? 'OFFLINE SIMULATION: synthetic local records, NOT PayPal transactions.'
+      : state.projects.length
+        ? 'Updated from local ledger · amounts are PayPal Sandbox test funds.'
+        : 'No saved agreements yet · ready for your first project.';
   } catch (err) {
     if (loadId !== dashboardLoadSerial) return;
     console.error('Failed to load dashboard:', err);
@@ -219,8 +221,16 @@ function projectCounts(projects) {
 function renderDashboardStats(projects) {
   const counts = projectCounts(projects);
   const pending = counts.total - counts.paid;
+  const simulated = state.offlineDemo || projects.some(p => p.offlineDemo);
   const volume = projects.filter(p => p.status === 'paid')
     .reduce((sum, p) => sum + (Number(p.amountUSD) || 0), 0);
+  const paymentSubtitle = document.querySelector('.metric-line-item .metric-sub');
+  if (paymentSubtitle) paymentSubtitle.textContent = simulated
+    ? 'Mock USD amount · NO PayPal funds' : 'Captured Sandbox USD · test funds only';
+  const paidTags = document.querySelectorAll('.metric-mini-tile .mini-tag.tag-success');
+  paidTags.forEach(tag => tag.textContent = simulated ? 'Local mock only' : 'PayPal verified');
+  const miniLabel = $('stat-paid')?.previousElementSibling;
+  if (miniLabel) miniLabel.textContent = simulated ? 'SIMULATED CHECKOUTS' : 'SETTLED PAYMENTS';
   $('stat-total').textContent = counts.total;
   $('stat-pending').textContent = pending;
   $('stat-paid').textContent = counts.paid;
@@ -228,9 +238,14 @@ function renderDashboardStats(projects) {
     style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2
   });
 
-  $('dashboard-pulse-title').textContent = counts.total
-    ? counts.total + (counts.total === 1 ? ' saved agreement' : ' saved agreements') + ' tracked'
-    : 'No saved agreements yet';
+  $('dashboard-pulse-title').textContent = simulated
+    ? counts.total + (counts.total === 1 ? ' simulated agreement' : ' simulated agreements') + ' · no provider payments'
+    : counts.total
+      ? counts.total + (counts.total === 1 ? ' saved agreement' : ' saved agreements') + ' tracked'
+      : 'No saved agreements yet';
+  const paidLegend = $('dashboard-paid-count')?.previousSibling;
+  if (paidLegend && paidLegend.nodeType === Node.TEXT_NODE)
+    paidLegend.textContent = simulated ? ' Simulated ' : ' Captured ';
   $('dashboard-review-count').textContent = counts.review;
   $('dashboard-checkout-count').textContent = counts.checkout;
   $('dashboard-paid-count').textContent = counts.paid;
@@ -239,8 +254,8 @@ function renderDashboardStats(projects) {
   $('dashboard-filter-paid').textContent = counts.paid;
   const track = $('dashboard-status-track');
   track.setAttribute('aria-label',
-    counts.total + ' saved agreements: ' + counts.review +
-    ' in review, ' + counts.checkout + ' in checkout, ' + counts.paid + ' paid');
+    counts.total + (simulated ? ' simulated' : ' saved') + ' agreements: ' + counts.review +
+    ' in review, ' + counts.checkout + ' in checkout, ' + counts.paid + (simulated ? ' simulated' : ' paid'));
   for (const [segment, amount] of [
     ['review', counts.review], ['checkout', counts.checkout], ['paid', counts.paid]
   ]) {
@@ -293,8 +308,9 @@ function renderDashboardRecent(projects) {
     draft:'Draft · awaiting review'
   };
   for (const p of showing) {
-    const paid = p.status === 'paid';
-    const label = statusText[p.status] || 'Needs review';
+    const paid = p.status === 'paid', mocked = Boolean(p.offlineDemo);
+    const label = mocked && paid ? 'Simulated · NO PayPal payment'
+      : statusText[p.status] || 'Needs review';
     container.appendChild(el('div', {
       cls: 'pipeline-item dashboard-project-row',
       children: [
@@ -302,8 +318,8 @@ function renderDashboardRecent(projects) {
           cls: 'item-left',
           children: [
             el('div', {
-              cls: 'item-status-icon ' + (paid ? 'status-paid-bg' : 'status-draft-bg'),
-              text: paid ? '✓' : '◈', attr:{'aria-hidden':'true'}
+              cls: 'item-status-icon ' + (paid && !mocked ? 'status-paid-bg' : 'status-draft-bg'),
+              text: mocked ? '≈' : paid ? '✓' : '◈', attr:{'aria-hidden':'true'}
             }),
             el('div', {
               cls: 'item-details',
@@ -325,7 +341,7 @@ function renderDashboardRecent(projects) {
                 }) + ' USD'
                 : '—'
             }),
-            el('span', { cls:'dashboard-project-status ' + (paid ? 'is-paid' : 'is-pending'), text:label })
+            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label })
           ]
         })
       ]
