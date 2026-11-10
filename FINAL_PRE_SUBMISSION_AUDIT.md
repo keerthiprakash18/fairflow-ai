@@ -1,0 +1,36 @@
+# FairFlow AI — Final Pre-Submission Audit Sign-Off
+**Audit date:** 2026-11-10 · **Scope:** Local single-user hackathon prototype, not production fintech.
+
+## Source-level findings and dispositions
+| Finding | Resolution | Verification method |
+|---|---|---|
+| Normal successful PayPal capture validated only selected fields | Reused the strict completed-capture verifier for normal capture (one purchase unit, matching order, USD amount, optional quote ownership references, exactly one completed capture) | Offline tests including wrong-quote owner and mismatched amount |
+| Upstream error response could be exposed to UI/logs | Replaced raw provider response logs with generic status/error; Gemini fallback logs omit provider error bodies | Node syntax + regression suite |
+| Private real receipt lacked repeatable PayPal-side evidence | Added `npm run verify:payments`, a read-only lookup against real PayPal Sandbox for every saved non-mock paid receipt; no new charge and no printed order/capture ID | Mocked success + forged capture rejection tests; owner must run real command locally |
+| Receipt had excess whitespace in desktop screenshot | Tightened receipt vertical spacing, preserving state/payment text and print semantics | Chromium Browser QA |
+| Documentation contradicted November 10 verification | Updated README, judge guide, security audit, release guide and Devpost kit with confirmed owner-run real Gemini fallback / scope checks | Docs review |
+
+## Verified from owner's November 10 console
+- `npm run verify:submission`: **32/32 offline tests**, real Gemini generated usable JSON via `gemini-flash-lite-latest` fallback, real Gemini quote/approval/scope comparison passed, real PayPal Sandbox OAuth passed. This test performs **no payment capture**.
+- Owner's screenshot shows an existing **$3,500.00 USD test-funds** receipt with `COMPLETED` status, order/capture IDs and Sandbox endpoint. The screenshot alone is not independent live API confirmation.
+- The repository includes MIT `LICENSE`, public source, local setup and credential-free **SIMULATED** walkthrough. Judges must distinguish that simulation from the owner's real-provider recording.
+
+## Mandatory exact-release gates
+- [ ] GitHub CI and Chromium Browser QA both green on **the exact final head SHA** before merge/release. CI mocks upstream providers.
+- [ ] On owner's private Windows checkout after `git pull --ff-only origin main`: `npm run verify:submission` (no payment).
+- [ ] On same Windows machine, where existing private `data/projects.json` holds actual receipt: `npm run verify:payments` (READ-ONLY; no create/capture). It must print `PASS` for the saved capture. **Do not upload private ledger or tokens**. If local private ledger is missing, use PayPal Sandbox merchant dashboard instead.
+- [ ] In GitHub's rendered About panel, confirm it visibly identifies the MIT license. Root `LICENSE` exists; About rendering is a GitHub UI check.
+- [ ] Owner records/upload a **real** running-app video under 3 minutes, public on YouTube; the simulation must be identified as such if shown.
+- [ ] Owner enters project copy, source URL, run instructions and video link in Devpost and verifies final **Submitted** state before 2026-11-13 01:30 IST.
+
+## Scope of sign-off
+**Development implementation and offline regression are release candidates, subject to exact-SHA CI and local final commands.** No reviewer may represent these as a full penetration test, production security approval, remote merchant capture proof, hosted multi-user service, digital contract signature, escrow or scheduled milestone payments. Video recording and Devpost final submission are owner-controlled actions following technical release.
+
+## Run locally (Windows PowerShell)
+```powershell
+git status --short
+git pull --ff-only origin main
+npm run verify:submission
+npm run verify:payments
+```
+`verify:payments` reads private paid receipt data and performs only GET PayPal Orders v2 lookups after obtaining an OAuth token; it has **no payment-creating endpoints**. It is intentionally not included in CI or default submission test, because the private completed receipt is never committed.
