@@ -16,6 +16,8 @@
 
 **Design system:** [DESIGN.md](DESIGN.md) documents brand tokens, dashboard interaction rules, motion constraints, accessibility targets, and release gates.
 
+**Final quality release:** [Performance, accessibility and error-recovery gate](FINAL_QUALITY_GATE.md) documents the test evidence, measured limitations and safe no-payment verification steps.
+
 ## Table of Contents
 
 1. [The Problem & The Solution](#the-problem--the-solution)
