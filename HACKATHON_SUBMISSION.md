@@ -95,3 +95,8 @@ _This kit is documentation; it does not certify that external provider connectiv
 
 
 **Fast final local gate (no new payment):** `npm run verify:submission`. This runs offline checks, REAL provider connectivity and REAL Gemini Scope Guard with private `.env` credentials, using a temporary ledger. It does **not** execute any PayPal order or capture.
+
+
+### Reviewer-first entry point
+
+The short, security-conscious [JUDGES_START_HERE.md](JUDGES_START_HERE.md) explains how to run and test the app locally, why there is no fake login, what works without credentials and what needs the judge's own private Gemini/PayPal Sandbox keys. Put this guide in your final Devpost functionality / setup instructions.

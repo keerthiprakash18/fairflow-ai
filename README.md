@@ -12,6 +12,8 @@
 
 ---
 
+**Reviewing for the PayPal AI Hackathon?** Start with the [2-minute Judges Quick Start](JUDGES_START_HERE.md) for safe localhost setup, the real AI workflow, the difference between mocked and real Sandbox verification, and the important no-escrow boundaries.
+
 ## Table of Contents
 
 1. [The Problem & The Solution](#the-problem--the-solution)

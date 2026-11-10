@@ -36,3 +36,8 @@
 5. Devpost submission has complete English description, technologies and real functional access instructions, MIT public GitHub repo, video link; owner clicks final Submit by **November 13, 2026, 01:30 IST**.
 
 **Not certified:** public network safety, legal contract signatures, escrow, multi-user privacy, production payments, exhaustive OWASP testing, or guaranteed hackathon award.
+
+
+## Final UX assurance (post-audit)
+
+The app now includes a labeled, copyable DRAFT change-order summary with an explicit NOT APPROVED flag and an unchanged original checkout amount, plus stronger coral-button text contrast, readable neutral metadata, keyboard-operated demo tabs, and modal focus trapping/return. These refinements do not change the PayPal capture endpoints. See [Judges Quick Start](JUDGES_START_HERE.md).
