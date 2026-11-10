@@ -14,5 +14,6 @@ data/
 # Verification screenshots
 *.png
 screenshots/
+FairFlow_Design_Reference_Pack/*.png
 
 
