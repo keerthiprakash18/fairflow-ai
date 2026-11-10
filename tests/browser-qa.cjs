@@ -132,6 +132,7 @@ async function waitForHealth(url, server) {
     assert.match(draft,/AI-estimated extra cost:/);
     assert.match(draft,/Current payment remains the original approved amount/);
     assert.match(await page.locator('.scope-payment-boundary').innerText(),/original approved quote/);
+    await page.locator('#toast').waitFor({state:'hidden',timeout:8000});
     await page.screenshot({ path: path.join(out, 'scope-guard-desktop.png'), fullPage: true });
     await page.locator('#btn-skip-scope').click();
     await page.locator('#step-checkout:not(.hidden-step)').waitFor({ timeout: 10000 });

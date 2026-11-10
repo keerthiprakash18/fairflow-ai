@@ -4152,3 +4152,9 @@ body.on-landing .mobile-nav-bar {
     padding-right:16px;
   }
 }
+
+
+/* Let the live Scope Guard's input sheet retain its own natural height;
+   an analysis with a change-order draft should not stretch the input into an empty column. */
+#step-scope .editorial-wizard-grid { align-items:start; }
+#step-scope #scope-result-container { min-width:0; }
