@@ -43,11 +43,20 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
     ]},201);
   }
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900' && options.method==='GET') {
-    return reply({id:'MOCK-ORDER-900',status:captureCompleted?'COMPLETED':'CREATED',
-      purchase_units:captureCompleted?[{amount:{currency_code:'USD',value:currentAmount},payments:{captures:[{id:'MOCK-CAPTURE-900',status:'COMPLETED',amount:{currency_code:'USD',value:currentAmount}}]}}]:[{amount:{currency_code:'USD',value:currentAmount}}],
+    const completed = captureCompleted || process.env.FAIRFLOW_MOCK_ALREADY_CAPTURED === '1';
+    const bad = process.env.FAIRFLOW_MOCK_RECONCILE_MISMATCH === '1' || process.env.FAIRFLOW_MOCK_MISMATCH === '1';
+    return reply({id:'MOCK-ORDER-900',status:completed?'COMPLETED':'CREATED',
+      purchase_units:completed?[{
+        amount:{currency_code:'USD',value:currentAmount},
+        reference_id:process.env.FAIRFLOW_MOCK_BAD_OWNER==='1'?'wrong-quote-id':undefined,
+        payments:{captures:[{id:'MOCK-CAPTURE-900',status:'COMPLETED',
+          amount:{currency_code:'USD',value:bad?'0.01':currentAmount}}]}
+      }]:[{amount:{currency_code:'USD',value:currentAmount}}],
       links:[{rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=MOCK-ORDER-900'}]});
   }
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900/capture') {
+    if (process.env.FAIRFLOW_MOCK_ALREADY_CAPTURED==='1')
+      return reply({message:'Duplicate capture forbidden in this offline simulation'},409);
     captureCompleted = true;
     return reply({
       id:'MOCK-ORDER-900',status:'COMPLETED',purchase_units:[{payments:{captures:[{

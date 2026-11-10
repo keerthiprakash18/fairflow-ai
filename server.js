@@ -466,6 +466,38 @@ function safePayPalApprovalUrl(links) {
   return null;
 }
 
+// Verify only an already-completed PayPal Sandbox capture. No capture API call.
+function verifiedExistingCapture(order, orderId, entry, quote) {
+  if (order?.id !== orderId || order.status !== 'COMPLETED') return null;
+  const units = order.purchase_units;
+  if (!Array.isArray(units) || units.length !== 1)
+    throw Object.assign(new Error('Invalid PayPal purchase units; no local change.'), {httpStatus:502});
+  const unit=units[0], amount=Number(unit.amount?.value);
+  if ((unit.reference_id && unit.reference_id !== entry.quoteId) ||
+      (unit.custom_id && unit.custom_id !== entry.quoteId) ||
+      unit.amount?.currency_code !== 'USD' || !Number.isFinite(amount) ||
+      Math.abs(amount-quote.amountUSD)>0.001)
+    throw Object.assign(new Error('PayPal order amount or ownership mismatch; no local change.'),{httpStatus:502});
+  const captures=unit.payments?.captures;
+  if (!Array.isArray(captures) || captures.length !== 1)
+    throw Object.assign(new Error('Cannot confirm exactly one PayPal capture.'),{httpStatus:502});
+  const capture=captures[0],capturedAmount=Number(capture.amount?.value);
+  if (!capture.id || capture.status !== 'COMPLETED' ||
+      capture.amount?.currency_code !== 'USD' || !Number.isFinite(capturedAmount) ||
+      Math.abs(capturedAmount-quote.amountUSD)>0.001)
+    throw Object.assign(new Error('PayPal capture verification failed; no local change.'),{httpStatus:502});
+  return capture.id;
+}
+async function persistVerifiedCapture(orderId, entry, quote, captureId) {
+  const paidAt = new Date().toISOString();
+  await saveProject({ quoteId:entry.quoteId, title:quote.title, amountUSD:quote.amountUSD,
+    status:'paid', orderId, captureId, paidAt });
+  entry.captured=true;
+  quote.paid=true;
+  return { status:'COMPLETED', orderId, captureId, amount:quote.amountUSD.toFixed(2),
+    currency:'USD', projectTitle:quote.title, paidAt, sandbox:true };
+}
+
 // ─── Main request handler ─────────────────────────────────────────────────────
 async function handle(req, res) {
   const url   = new URL(req.url, 'http://localhost');
@@ -693,6 +725,27 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
         : 'PayPal did not provide a usable direct-approval link. Check the Sandbox merchant configuration.' });
   }
 
+  // Read-only reconciliation: recover a verified PayPal capture if local save failed.
+  // This route NEVER issues another PayPal capture request.
+  if (req.method === 'POST' && route === '/api/paypal/reconcile-order') {
+    const { quoteId } = await readBody(req);
+    const quote = await getQuote(quoteId);
+    if (!quote?.orderId) return send(res,404,{error:'No PayPal order for this agreement.'});
+    if (quote.paid) return send(res,409,{error:'Already recorded as paid. Open Audit Trail.'});
+    const entry = await getOrder(quote.orderId);
+    if (!entry || entry.capturing) return send(res,409,{error:'Payment operation in progress.'});
+    entry.capturing=true;
+    try {
+      const token=await paypalToken();
+      const order=await paypalApi('GET','/v2/checkout/orders/'+encodeURIComponent(quote.orderId),
+        null,token,'reconcile-'+quote.orderId);
+      if (order.status !== 'COMPLETED') return send(res,409,{error:'No completed PayPal capture to reconcile.'});
+      const captureId=verifiedExistingCapture(order,quote.orderId,entry,quote);
+      if (!captureId) return send(res,502,{error:'Could not verify existing PayPal capture.'});
+      return send(res,200,await persistVerifiedCapture(quote.orderId,entry,quote,captureId));
+    } finally { entry.capturing=false; }
+  }
+
   // ── Capture PayPal order ──────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/paypal/capture-order') {
     const { orderId } = await readBody(req);
@@ -704,25 +757,41 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
     if (!quote) return send(res, 404, { error: 'Original quote expired. Verify PayPal before restarting checkout.' });
     entry.capturing = true;
     try {
-      const token = await paypalToken();
-      const data = await paypalApi('POST', '/v2/checkout/orders/' + encodeURIComponent(orderId) + '/capture', {}, token, 'capture-' + orderId);
-      const captured = data.purchase_units?.[0]?.payments?.captures?.[0];
-      const amount = Number(captured?.amount?.value);
+      const token=await paypalToken();
+      // Before any POST capture, check whether an earlier attempt already succeeded.
+      const current=await paypalApi('GET','/v2/checkout/orders/'+encodeURIComponent(orderId),
+        null,token,'before-capture-'+orderId);
+      if (current.status === 'COMPLETED') {
+        const id=verifiedExistingCapture(current,orderId,entry,quote);
+        if (!id) return send(res,502,{error:'Cannot confirm already-completed capture.'});
+        return send(res,200,await persistVerifiedCapture(orderId,entry,quote,id));
+      }
+      let data;
+      try {
+        data=await paypalApi('POST','/v2/checkout/orders/'+encodeURIComponent(orderId)+'/capture',
+          {},token,'capture-'+orderId);
+      } catch (err) {
+        // Network timeout/5xx is ambiguous: read PayPal state before permitting retry.
+        try {
+          const after=await paypalApi('GET','/v2/checkout/orders/'+encodeURIComponent(orderId),
+            null,token,'post-capture-check-'+orderId);
+          if (after.status === 'COMPLETED') {
+            const id=verifiedExistingCapture(after,orderId,entry,quote);
+            if (id) return send(res,200,await persistVerifiedCapture(orderId,entry,quote,id));
+          }
+        } catch (inspectionError) {
+          console.warn('PayPal recovery read failed:',inspectionError.message);
+        }
+        throw err;
+      }
+      const captured=data.purchase_units?.[0]?.payments?.captures?.[0];
+      const amount=Number(captured?.amount?.value);
       if (data.id !== orderId || data.status !== 'COMPLETED' || captured?.status !== 'COMPLETED'
           || captured?.amount?.currency_code !== 'USD' || !captured?.id
-          || !Number.isFinite(amount) || Math.abs(amount-quote.amountUSD)>0.001) {
-        throw Object.assign(new Error('Sandbox payment could not be verified. Check the PayPal transaction record.'), { httpStatus: 502 });
-      }
-      const paidAt = new Date().toISOString();
-      await saveProject({quoteId:entry.quoteId,title:quote.title,amountUSD:quote.amountUSD,
-        status:'paid',orderId,captureId:captured.id,paidAt});
-      entry.captured = true;
-      quote.paid = true;
-      return send(res, 200, {
-        status:'COMPLETED',orderId:data.id,captureId:captured.id,amount:amount.toFixed(2),
-        currency:'USD',projectTitle:quote.title,paidAt,sandbox:true
-      });
-    } finally { entry.capturing = false; }
+          || !Number.isFinite(amount) || Math.abs(amount-quote.amountUSD)>0.001)
+        throw Object.assign(new Error('Sandbox capture mismatch. Inspect PayPal before retrying.'),{httpStatus:502});
+      return send(res,200,await persistVerifiedCapture(orderId,entry,quote,captured.id));
+    } finally { entry.capturing=false; }
   }
 
   // ── Static files ──────────────────────────────────────────────────────────

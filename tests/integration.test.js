@@ -22,7 +22,10 @@ async function startApp(port,dir,opts={}){
     ...process.env,PORT:String(port),FAIRFLOW_DATA_DIR:dir,
     PAYPAL_CLIENT_ID:'offline-mock-merchant',PAYPAL_CLIENT_SECRET:'offline-mock-secret',
     GEMINI_API_KEY:'offline-mock-gemini',GEMINI_MODEL:'gemini-3.8-flash',
-    FAIRFLOW_MOCK_MISMATCH:opts.mismatch?'1':'0'
+    FAIRFLOW_MOCK_MISMATCH:opts.mismatch?'1':'0',
+    FAIRFLOW_MOCK_ALREADY_CAPTURED:opts.alreadyCaptured?'1':'0',
+    FAIRFLOW_MOCK_RECONCILE_MISMATCH:opts.reconcileMismatch?'1':'0',
+    FAIRFLOW_MOCK_BAD_OWNER:opts.badOwner?'1':'0'
   },stdio:'ignore'});
   for(let i=0;i<100;i++){
     if(proc.exitCode!==null)throw Error('App exited while starting');
@@ -125,4 +128,33 @@ test('offline mocked mismatched capture is rejected without marking ledger paid'
   } finally {
     await stopApp(proc);await rm(dataDir,{recursive:true,force:true});
   }
+});
+
+test('reconcile completed remote capture safely without issuing another charge',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'ff-safe-recovery-')),p=await freePort(),base='http://127.0.0.1:'+p;
+ let server;
+ try{
+  server=await startApp(p,dir,{alreadyCaptured:true});
+  const q=await post(base,'/api/quote',{description:'Build a responsive boutique catalog with checkout and an admin panel.'});
+  assert.equal(q.status,200);
+  assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+  assert.equal((await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId})).status,200);
+  const res=await post(base,'/api/paypal/reconcile-order',{quoteId:q.data.quoteId});
+  assert.equal(res.status,200);
+  assert.equal(res.data.captureId,'MOCK-CAPTURE-900');
+  assert.equal((await (await fetch(base+'/api/projects')).json()).projects[0].status,'paid');
+  assert.equal((await post(base,'/api/paypal/reconcile-order',{quoteId:q.data.quoteId})).status,409);
+ }finally{await stopApp(server);await rm(dir,{recursive:true,force:true});}
+});
+test('reject reconciliation if PayPal says wrong capture amount',async()=>{
+ const dir=await mkdtemp(path.join(os.tmpdir(),'ff-safe-reject-')),p=await freePort(),base='http://127.0.0.1:'+p;
+ let server;
+ try{
+  server=await startApp(p,dir,{alreadyCaptured:true,reconcileMismatch:true});
+  const q=await post(base,'/api/quote',{description:'Create a website with inventory management and payment checkout.'});
+  assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+  assert.equal((await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId})).status,200);
+  assert.equal((await post(base,'/api/paypal/reconcile-order',{quoteId:q.data.quoteId})).status,502);
+  assert.equal((await (await fetch(base+'/api/projects')).json()).projects[0].status,'checkout-started');
+ }finally{await stopApp(server);await rm(dir,{recursive:true,force:true});}
 });

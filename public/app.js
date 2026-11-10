@@ -1094,7 +1094,29 @@ function showPayPalTroubleshooting() {
     result.textContent = 'Checking the actual Sandbox order status...';
     try {
       const d = await api('/api/paypal/order-status', { quoteId: state.quoteId });
-      if (d.capturedAtPayPal || d.status === 'COMPLETED') result.textContent = 'PayPal reports COMPLETED. Stop retrying checkout; reconcile this transaction before another attempt.';
+      if (d.capturedAtPayPal || d.status === 'COMPLETED') {
+        result.textContent = d.recordedPaidLocally
+          ? 'The receipt is already stored in Audit Trail. Do not pay again.'
+          : 'PayPal reports a completed capture missing from the local ledger. Restore without charging again.';
+        if (d.capturedAtPayPal && !d.recordedPaidLocally) {
+          const recovery = el('button', { cls:'btn-landing-primary',
+            text:'Verify & restore saved capture — NO new charge',
+            attr:{type:'button',style:'margin-top:10px;padding:10px 14px;'} });
+          recovery.onclick = async () => {
+            recovery.disabled=true;
+            try {
+              const receipt=await api('/api/paypal/reconcile-order',{quoteId:state.quoteId});
+              renderReceipt(receipt);
+              showStep('receipt');
+              toast('Existing Sandbox capture restored. No additional charge.', 'success');
+            } catch(error) {
+              toast('Reconciliation not verified: '+error.message, 'error');
+              recovery.disabled=false;
+            }
+          };
+          result.appendChild(recovery);
+        }
+      }
       else if (d.status === 'APPROVED') {
         result.textContent = 'PayPal reports APPROVED. If the exact amount matches, you can explicitly capture this Sandbox order.';
         if (d.approvedAmountMatches && d.orderId && !d.recordedPaidLocally) {
@@ -1172,8 +1194,9 @@ function renderPayPalButtons() {
         toast('Sandbox transaction captured and verified!', 'success');
         setTimeout(loadDashboard, 1000);
       } catch (err) {
-        toast(`Capture failed: ${err.message}`, 'error');
+        toast(`Capture not confirmed: ${err.message}. Check PayPal order status first.`, 'error');
         state.paypalRendered = false;
+        showPayPalTroubleshooting();
       }
     },
 
