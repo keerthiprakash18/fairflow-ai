@@ -20,7 +20,7 @@ test('all CSS variable references resolve to known tokens',()=>{
   assert.deepEqual([...new Set(referenced.filter(x=>!defined.has(x)))],[]);
 });
 test('animation accessibility and required payment APIs remain',()=>{
-  assert.match(html,/aria-label="Pause demo animation"/);
+  assert.match(html,/id="showcase-playback-toggle"[^>]+aria-pressed="false"/);
   assert.match(css,/@media\(prefers-reduced-motion:reduce\)/);
   assert.match(js,/prefers-reduced-motion: reduce/);
   const server=fs.readFileSync(path.join(root,'server.js'),'utf8');

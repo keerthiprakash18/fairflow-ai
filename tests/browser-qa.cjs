@@ -57,8 +57,7 @@ async function auditAccessibility(page, context, scenario) {
   await fs.writeFile(path.join(out,'accessibility-audit.json'),
     JSON.stringify(accessibilityReports,null,2));
   const serious = report.violations.filter(v=>['critical','serious'].includes(v.impact));
-  assert.deepEqual(serious,[],
-    'WCAG accessibility findings in '+scenario+': '+JSON.stringify(serious));
+  if (serious.length) console.warn('WCAG issues in '+scenario+': '+JSON.stringify(serious));
 }
 
 (async () => {
@@ -451,6 +450,12 @@ async function auditAccessibility(page, context, scenario) {
       assert.equal(sdkLoads,2);
       await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});
     } finally { await errorPage.close(); }
+
+    const unresolvedA11y = accessibilityReports.flatMap(r => r.violations
+      .filter(v=>['serious','critical'].includes(v.impact))
+      .map(v=>({scenario:r.scenario,id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target).slice(0,12)})));
+    await fs.writeFile(path.join(out,'accessibility-audit.json'),JSON.stringify(accessibilityReports,null,2));
+    assert.deepEqual(unresolvedA11y,[],'Serious/critical WCAG issues: '+JSON.stringify(unresolvedA11y));
 
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,

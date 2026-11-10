@@ -4387,3 +4387,14 @@ body.on-landing .mobile-nav-bar {
 @media (prefers-reduced-motion:reduce) {
   .showcase-dot::before {transition:none!important;}
 }
+
+
+/* Secondary axe scan: editorial red/amber/green labels must meet small-text contrast. */
+.trap-loss, .trap-loss strong { color:#AA3426; }
+.token-amber { color:#82500A; }
+.token-red { color:#A1372B; }
+.m-segment.m-20 { background-color:#0B6540; color:#FFFFFF; }
+.m-segment.m-10 { background-color:#9F3225; color:#FFFFFF; }
+.math-seal,.receipt-pill-box > span {color:#0E6641;}
+.diff-chip.delta { color:#9F3225; }
+.guard-pill-live { color:#AA3426; }
