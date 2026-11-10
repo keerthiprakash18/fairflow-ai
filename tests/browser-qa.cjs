@@ -99,6 +99,8 @@ async function waitForHealth(url, server) {
     const reducedMotion = await page.locator('#dashboard-track-review').evaluate(node => getComputedStyle(node).transitionDuration);
     assert.equal(reducedMotion, '0s', 'Snapshot should not animate under reduced-motion preference');
     await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
+    await page.waitForTimeout(120);
     await page.screenshot({path:path.join(out,'dashboard-empty-desktop.png'),fullPage:true});
     await page.goto(url, {waitUntil:'domcontentloaded'});
     await page.locator('#view-landing.active').waitFor();
@@ -202,9 +204,13 @@ async function waitForHealth(url, server) {
     await page.locator('#btn-dashboard-refresh').click();
     await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('Updated from local ledger'));
     assert.equal(await page.locator('.dashboard-project-row').count(),1);
+    await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
+    await page.waitForTimeout(120);
     await page.screenshot({path:path.join(out,'dashboard-paid-desktop.png'),fullPage:true});
     await page.setViewportSize({width:390,height:844});
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),true,'Dashboard V2 has no mobile overflow');
+    await page.evaluate(() => window.scrollTo({top:0,behavior:'instant'}));
+    await page.waitForTimeout(120);
     await page.screenshot({path:path.join(out,'dashboard-paid-mobile.png'),fullPage:true});
     await page.setViewportSize({width:1440,height:900});
     await page.locator('.nav-tab[data-view="new-project"]').click();
