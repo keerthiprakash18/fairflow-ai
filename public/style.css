@@ -3623,3 +3623,23 @@ body.on-landing .mobile-nav-bar {
     min-width: 0;
   }
 }
+
+
+/* Fixed-width masthead viewport on phones; flex min-content must not enlarge the page. */
+@media (max-width: 640px) {
+  .workbench-masthead {
+    box-sizing: border-box;
+    width: calc(100% + 48px);
+    max-width: calc(100% + 48px);
+    min-width: 0;
+    overflow: hidden;
+  }
+  .brand-tagline {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .masthead-right {
+    flex: 0 0 auto;
+  }
+}
