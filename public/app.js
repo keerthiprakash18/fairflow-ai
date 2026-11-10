@@ -40,25 +40,63 @@ let toastTimer;
 function toast(msg, type = 'info') {
   toastEl.textContent = msg;
   toastEl.className = `show ${type}`;
+  toastEl.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toastEl.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 6000);
 }
 
-// ─── API CLIENT ───
+function setInlineError(id, message = '') {
+  const region = $(id);
+  if (!region) return;
+  region.textContent = message;
+  region.hidden = !message;
+}
+
+// ─── BOUNDED API CLIENT: avoid indefinite spinners on unreliable connections ───
+function requestTimeout(route) {
+  if (/^\/api\/(quote|scope-change|enhance-brief)$/.test(route)) return 140000;
+  if (/^\/api\/paypal\/(create-order|capture-order|reconcile-order)$/.test(route)) return 110000;
+  return 30000;
+}
+async function requestApi(route, body, method = 'POST') {
+  const options = { method, headers: { 'Accept': 'application/json' } };
+  if (body !== undefined) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(body);
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), requestTimeout(route));
+  options.signal = controller.signal;
+  try {
+    const response = await fetch(route, options);
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error('FairFlow received an unreadable server response. Check the server console and retry.'); }
+    if (!response.ok) {
+      if (response.status === 429) {
+        const seconds = Number(response.headers.get('Retry-After'));
+        throw new Error('Request limit reached. ' +
+          (Number.isFinite(seconds) && seconds > 0 ? 'Retry after ' + seconds + ' seconds.' : 'Retry shortly.'));
+      }
+      throw new Error(data?.error || 'Request failed (HTTP ' + response.status + ').');
+    }
+    return data;
+  } catch (err) {
+    if (controller.signal.aborted)
+      throw new Error('Request timed out. Check the server connection. If this was a payment, check PayPal order status before retrying.');
+    if (err instanceof TypeError)
+      throw new Error('Could not reach the FairFlow server. Check that npm start is running and your connection is working.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function api(route, body, method = 'POST') {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body !== undefined) opts.body = JSON.stringify(body);
-  const r = await fetch(route, opts);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
-  return data;
+  return requestApi(route, body, method);
 }
-
 async function apiGet(route) {
-  const r = await fetch(route);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
-  return data;
+  return requestApi(route, undefined, 'GET');
 }
 
 // ─── 1-CLICK DEMO TEMPLATES ───
@@ -600,6 +638,7 @@ function renderScopeSkeleton() {
 // ─── PROPOSAL GENERATION ───
 $('btn-generate').addEventListener('click', async () => {
   const description = descEl.value.trim();
+  setInlineError('brief-error');
   if (description.length < 20) {
     toast('Please write at least 20 characters describing your project requirements.', 'error');
     return;
@@ -622,8 +661,9 @@ $('btn-generate').addEventListener('click', async () => {
     haptic('success');
     toast('AI Proposal generated with 100% milestone math!', 'success');
   } catch (err) {
-    toast(err.message, 'error');
     showStep('brief');
+    setInlineError('brief-error', err.message + ' Your project brief is preserved; retry Generate when ready.');
+    toast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span> <span class="btn-arrow">→</span>';
@@ -979,6 +1019,7 @@ function renderScopeStep() {
 
   $('btn-analyze-scope').onclick = async () => {
     const request = $('scope-request').value.trim();
+    setInlineError('scope-error');
     if (request.length < 10) {
       toast('Please describe the client\'s change request in at least 10 characters.', 'error');
       return;
@@ -996,6 +1037,15 @@ function renderScopeStep() {
       haptic('success');
       toast('Scope variance detected! See analysis on the right.', 'success');
     } catch (err) {
+      const message = err.message + ' Your scope request is preserved; you can retry this analysis.';
+      setInlineError('scope-error', message);
+      const result = $('scope-result-container');
+      result.replaceChildren(el('section', { cls:'scope-retry-card', attr:{role:'alert'},
+        children:[
+          el('strong', { text:'Scope analysis interrupted' }),
+          el('p', { text:message })
+        ]
+      }));
       toast(err.message, 'error');
     } finally {
       btn.disabled = false;

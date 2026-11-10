@@ -938,10 +938,11 @@
               </div>
 
               <div class="action-footer-editorial">
-                <button type="button" class="btn-cobalt btn-large" id="btn-generate">
+                <button type="button" class="btn-cobalt btn-large" id="btn-generate" aria-describedby="brief-error">
                   <span>✦ Generate Scoping Agreement with Gemini</span>
                   <span class="btn-arrow">→</span>
                 </button>
+                <p id="brief-error" class="inline-api-error" role="alert" hidden></p>
               </div>
             </div>
 
@@ -1037,10 +1038,11 @@
               </div>
 
               <div class="action-footer-editorial">
-                <button type="button" class="btn-vermilion btn-full" id="btn-analyze-scope">
+                <button type="button" class="btn-vermilion btn-full" id="btn-analyze-scope" aria-describedby="scope-error">
                   <span>🔍 Analyze Variance &amp; Price Impact</span>
                   <span class="btn-arrow">→</span>
                 </button>
+                <p id="scope-error" class="inline-api-error" role="alert" hidden></p>
               </div>
             </div>
 

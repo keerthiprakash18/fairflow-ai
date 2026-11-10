@@ -4318,3 +4318,16 @@ body.on-landing .mobile-nav-bar {
 }
 .offline-demo-pay { min-height:48px; width:100%; }
 .offline-demo-pay:disabled {opacity:.6;cursor:progress;}
+
+
+/* Durable form error messages: visual and screen-reader feedback after transient toasts. */
+.inline-api-error, .scope-retry-card {
+  font-size:13px; line-height:1.65; color:#8B3027;
+  background:#FFF3F0; border:1px solid #E8BFB8;
+  border-left:4px solid #A53D31; border-radius:7px;
+}
+.inline-api-error { margin:12px 0 0; padding:10px 13px; }
+.inline-api-error[hidden] {display:none!important;}
+.scope-retry-card {padding:20px 22px; min-height:135px;}
+.scope-retry-card strong {font-size:15px; font-weight:750;}
+.scope-retry-card p {margin:8px 0 0; font-size:13px; line-height:1.65;}
