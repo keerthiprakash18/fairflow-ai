@@ -119,3 +119,15 @@ test('Design system and motion contracts are checked in',()=>{
   assert.match(css,/@media \(prefers-reduced-motion:reduce\)/);
   assert.match(css,/\.dashboard-filter\.active\s*\{/);
 });
+
+test('offline judge walkthrough never misrepresents a simulated receipt as PayPal verification',()=>{
+ const runner=fs.readFileSync(path.join(root,'scripts/demo-offline.cjs'),'utf8');
+ assert.match(runner,/FAIRFLOW_MOCK_STRICT/);
+ assert.match(runner,/FAIRFLOW_DATA_DIR/);
+ assert.match(runner,/offline-demo-fake-client/);
+ assert.match(js,/function renderOfflineDemoCheckout/);
+ assert.match(js,/No PayPal Sandbox API call/);
+ assert.match(js,/NOT independent PayPal verification/);
+ assert.match(js,/FAKE DEMO DATA · NOT A PAYMENT RECEIPT/);
+ assert.match(html,/id="paypal-buttons"/);
+});
