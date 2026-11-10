@@ -1,0 +1,110 @@
+'use strict';
+// Browser quality gate: runs against the real FairFlow HTTP server with mocked upstream AI/PayPal.
+// Captures desktop/mobile screenshots. This is NOT live provider verification.
+const assert = require('node:assert/strict');
+const { spawn } = require('node:child_process');
+const fs = require('node:fs/promises');
+const os = require('node:os');
+const path = require('node:path');
+const net = require('node:net');
+const { chromium } = require('playwright');
+
+const root = path.resolve(__dirname, '..');
+const out = path.join(root, 'browser-artifacts');
+async function freePort() {
+  return new Promise((resolve, reject) => {
+    const s = net.createServer();
+    s.once('error', reject);
+    s.listen(0, '127.0.0.1', () => {
+      const port = s.address().port;
+      s.close(() => resolve(port));
+    });
+  });
+}
+async function waitForHealth(url, server) {
+  for (let i = 0; i < 120; i++) {
+    if (server.exitCode !== null) throw Error('FairFlow server exited during browser test');
+    try {
+      const res = await fetch(url + '/api/health', { signal: AbortSignal.timeout(400) });
+      if (res.ok) return;
+    } catch {}
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+  throw Error('FairFlow did not become healthy');
+}
+(async () => {
+  await fs.mkdir(out, { recursive: true });
+  const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fairflow-browser-'));
+  const port = await freePort();
+  const url = 'http://127.0.0.1:' + port;
+  const server = spawn(process.execPath, ['--require', path.join(root, 'tests/mock-upstream.cjs'), 'server.js'], {
+    cwd: root,
+    env: {
+      ...process.env, HOST: '127.0.0.1', PORT: String(port), FAIRFLOW_DATA_DIR: dataDir,
+      GEMINI_API_KEY: 'offline-mock-gemini', GEMINI_MODEL: 'gemini-3.8-flash',
+      PAYPAL_CLIENT_ID: 'offline-mock-merchant', PAYPAL_CLIENT_SECRET: 'offline-mock-secret'
+    },
+    stdio: 'pipe'
+  });
+  let browser;
+  try {
+    await waitForHealth(url, server);
+    browser = await chromium.launch({ headless: true });
+    const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    const exceptions = [];
+    page.on('pageerror', error => exceptions.push(error.message));
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.locator('#view-landing.active').waitFor();
+    await page.screenshot({ path: path.join(out, 'landing-desktop.png'), fullPage: true });
+    const desktop = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      content: document.documentElement.scrollWidth,
+      heading: document.querySelector('.landing-main-title')?.textContent.trim()
+    }));
+    assert.match(desktop.heading || '', /Every Change/);
+    assert.ok(desktop.content <= desktop.viewport + 24, 'Desktop horizontal overflow: ' + JSON.stringify(desktop));
+
+    // Product scenario: sample -> actual workbench -> mocked Gemini quote -> scoped change.
+    await page.locator('[data-lab-scenario="assistant"]').click();
+    await page.locator('#btn-lab-open-scenario').click();
+    await page.locator('#view-new-project.active').waitFor();
+    assert.match(await page.locator('#description').inputValue(), /e-commerce website/);
+    await page.locator('#btn-generate').click();
+    await page.locator('#btn-approve-quote').waitFor({ timeout: 15000 });
+    await page.screenshot({ path: path.join(out, 'proposal-desktop.png'), fullPage: true });
+    await page.locator('#btn-approve-quote').click();
+    await page.locator('#step-scope:not(.hidden-step)').waitFor({ timeout: 15000 });
+    assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
+    await page.locator('#btn-analyze-scope').click();
+    await page.waitForTimeout(800);
+    await page.screenshot({ path: path.join(out, 'scope-guard-desktop.png'), fullPage: true });
+
+    // Mobile layout - check for unintended horizontal page scrolling and capture evidence.
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+    await page.locator('#view-landing.active').waitFor();
+    const mobile = await page.evaluate(() => ({
+      viewport: window.innerWidth,
+      content: document.documentElement.scrollWidth,
+      heading: document.querySelector('.landing-main-title')?.textContent.trim()
+    }));
+    await page.screenshot({ path: path.join(out, 'landing-mobile.png'), fullPage: true });
+    assert.match(mobile.heading || '', /Every Change/);
+    assert.ok(mobile.content <= mobile.viewport + 24, 'Mobile horizontal overflow: ' + JSON.stringify(mobile));
+    assert.deepEqual(exceptions, [], 'Unexpected browser JavaScript exceptions');
+    await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
+      simulatedProviders: true,
+      screenshotViewport: { desktop: [1440, 900], mobile: [390, 844] },
+      desktop, mobile, exceptions,
+      checks: ['landing visible', 'responsive overflow', 'Scope Lab handoff',
+        'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward']
+    }, null, 2));
+    console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
+    console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +
+      ', mobile width ' + mobile.content + '/' + mobile.viewport);
+  } finally {
+    if (browser) await browser.close();
+    server.kill();
+    await fs.rm(dataDir, { recursive: true, force: true });
+  }
+})().catch(error => { console.error(error); process.exitCode = 1; });
