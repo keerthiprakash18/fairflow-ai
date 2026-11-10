@@ -213,5 +213,25 @@ test('read-only existing Sandbox capture audit compares saved receipt with PayPa
     assert.equal(output.code,0,output.stderr);
     assert.match(output.stdout,/1 existing real Sandbox capture\(s\) match/);
     assert.doesNotMatch(output.stdout,/MOCK-ORDER-900|MOCK-CAPTURE-900/);
+    // Prove a forged local capture identifier is never accepted as a live match.
+    await writeFile(path.join(dir,'projects.json'),JSON.stringify([{
+      quoteId:'audit-quote-1',status:'paid',amountUSD:900,
+      paymentEnvironment:'paypal-sandbox',orderId:'MOCK-ORDER-900',captureId:'FORGED-CAPTURE-ID'
+    }]));
+    const bad=spawn(process.execPath,['--require',path.join(__dirname,'mock-upstream.cjs'),command],{
+      cwd:root,env:{...process.env,FAIRFLOW_DATA_DIR:dir,
+        PAYPAL_CLIENT_ID:'offline-mock-merchant',PAYPAL_CLIENT_SECRET:'offline-mock-secret',
+        FAIRFLOW_MOCK_ALREADY_CAPTURED:'1',FAIRFLOW_MOCK_STRICT:'1'},
+      stdio:['ignore','pipe','pipe']
+    });
+    const rejection=await new Promise((resolve,reject)=>{
+      let stderr='';
+      bad.stderr.on('data',chunk=>stderr+=chunk);
+      bad.once('error',reject);
+      bad.once('exit',code=>resolve({code,stderr}));
+    });
+    assert.equal(rejection.code,1);
+    assert.match(rejection.stderr,/capture mismatch/);
+    assert.doesNotMatch(rejection.stderr,/FORGED-CAPTURE-ID/);
   }finally{await rm(dir,{recursive:true,force:true});}
 });
