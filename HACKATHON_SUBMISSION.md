@@ -75,3 +75,20 @@ Record the running application itself; do not substitute static mockups for the 
 - PayPal Orders v2: https://developer.paypal.com/docs/api/orders/v2/
 
 _This kit is documentation; it does not certify that external provider connectivity, Devpost registration, or the YouTube upload has been completed._
+
+
+## Final engineering verification / owner actions
+
+- [x] Local-only binding, basic origin, security header, body-size and rate-limit controls.
+- [x] Corrupt-ledger fail-closed handling and last-valid-ledger backup.
+- [x] Safe completed-capture PayPal reconciliation without issuing another capture.
+- [x] Misleading signed agreement / exact estimate claims and invalid computer-local README links corrected.
+- [x] Automated security, integration and browser QA coverage added. **Mocked** provider responses are not new real transactions.
+- [ ] On owner's laptop: `npm run verify:scope` with private credentials — real Gemini quote/approval/scope API verification.
+- [ ] On owner's laptop: recheck `npm run verify:integrations` after pulling latest code.
+- [ ] Verify actual Sandbox capture in the merchant activity dashboard; keep sensitive IDs private.
+- [ ] Record and publicly upload an actual **under-three-minute** running-product demo to YouTube. Recording cannot be replaced by animated mockups.
+- [ ] Enter the public GitHub link, functional run instructions, complete English description, tools-used details and real video URL into Devpost.
+- [ ] **Click Submit before November 13, 2026 at 01:30 IST** and confirm Devpost shows the submission as submitted, not merely saved as draft.
+
+**Important:** There is intentionally no fake login screen for local demo. Public hosting would require real backend login, user-scoped permissions and secure persistence; in-memory request limits are not sufficient.

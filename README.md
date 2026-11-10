@@ -2,13 +2,13 @@
 
 [![Built for PayPal AI Hackathon 2026](https://img.shields.io/badge/PayPal_AI_Hackathon-2026-003087?style=for-the-badge&logo=paypal&logoColor=white)](https://paypalaihackathon.devpost.com/)
 [![Node.js 22+](https://img.shields.io/badge/Node.js-22.16+-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![Google Gemini 3.8 Flash](https://img.shields.io/badge/Gemini_API-3.8_Flash-8E75C2?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
+[![Google Gemini API](https://img.shields.io/badge/Gemini_API-Connected-8E75C2?style=for-the-badge&logo=google&logoColor=white)](https://aistudio.google.com/)
 [![PayPal Sandbox Orders v2](https://img.shields.io/badge/PayPal_API-Orders_v2-00457C?style=for-the-badge&logo=paypal&logoColor=white)](https://developer.paypal.com/docs/api/orders/v2/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
 [![Zero NPM Dependencies](https://img.shields.io/badge/Dependencies-Zero_NPM-success?style=for-the-badge)](#architecture)
 
 > **"From Project Agreement to Secure Payments, Powered by AI."**  
-> FairFlow AI bridges the critical trust gap between freelancers and clients. By combining Google Gemini's cognitive analysis with PayPal's global payments infrastructure, FairFlow turns conversational project briefs into structured agreements, guards against scope creep, and executes secure milestone payments.
+> FairFlow AI bridges the critical trust gap between freelancers and clients. By combining Google Gemini's cognitive analysis with PayPal's global payments infrastructure, FairFlow turns conversational project briefs into structured agreements, guards against scope creep, and uses PayPal Sandbox to capture one full approved quote amount; milestones remain planning percentages.
 
 ---
 
@@ -33,7 +33,7 @@
 | The Freelancer Nightmare | The FairFlow AI Solution |
 | :--- | :--- |
 | **Vague Scope & Disagreements:** Scope changes and unbilled revisions can lead to pricing disagreements and lost income. | **Gemini Scoping Engine:** AI structures informal briefs into itemized deliverables, milestone timelines, assumptions, and proactive risk audits. |
-| **Silent Scope Creep:** Clients add "just one small feature" mid-project, leading to unpaid labor and resentment. | **AI Scope-Change Detector:** Real-time diff analysis comparing new requests against baseline scope, computing exact financial impact (+$USD) and timeline shifts. |
+| **Silent Scope Creep:** Clients add "just one small feature" mid-project, leading to unpaid labor and resentment. | **AI Scope-Change Detector:** Real-time diff analysis comparing new requests against baseline scope, estimating the potential additional cost (+$USD) and schedule impact for human review. |
 | **Payment Friction & Insecurity:** Sending raw invoices with no milestone protection leaves both parties exposed. | **PayPal Sandbox Orders v2:** Server-side order creation and capture with sandbox checkout, server-side payment verification, and printable test receipts. |
 | **Lack of Human Agency:** Fully automated AI pricing can hallucinate unrealistic budgets. | **Human-in-the-Loop Approval:** The freelancer retains absolute authority. AI advises; humans approve; PayPal Sandbox processes test payments. |
 
@@ -41,10 +41,10 @@
 
 ## Key Innovations & Features
 
-### 1. Multi-Model Gemini 3.8 Scoping Engine
+### 1. Multi-Model Gemini Scoping Engine
 * Analyzes messy client messages or brief descriptions into structured scopes.
 * Generates itemized deliverables, percentage-based milestone breakdowns (Deposit, Alpha, Final Review), risk watchouts, and clarification questions.
-* **Resilient Cascade Architecture:** Automatically falls back across `gemini-3.8-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` to help handle unavailable models.
+* **Resilient Cascade Architecture:** Tries the configured Gemini model, then configured fallback models. The owner verified successful real generation with `gemini-3.1-flash-lite` on November 10, 2026.
 
 ### 2. 1-Click AI Prompt Enhancer
 * Turns 5-word ideas (e.g. *"build an online coffee store"*) into comprehensive technical briefs specifying tech stack, authentication, database schema, payment gateways, and security requirements.
@@ -55,7 +55,7 @@
 
 ### 4. AI Scope-Change Detector (Scope Creep Guard)
 * Pinpoints differences between the signed scope and new mid-project requests.
-* Estimates exact financial delta (e.g. *+$1,200 USD*) and delivery timeline expansion.
+* Suggests an **estimated** financial delta (e.g. *+$1,200 USD*) and possible delivery time change, both subject to human approval.
 * Drafts a polite, professional client-facing adjustment letter ready to copy and send.
 
 ### 5. Server-Verified PayPal Sandbox Orders API v2 Integration
@@ -301,8 +301,8 @@ npm test
 * **Project Name:** FairFlow AI
 * **Tagline:** *From Project Agreement to Secure Payments, Powered by AI.*
 * **GitHub Repository:** [`keerthiprakash18/fairflow-ai`](https://github.com/keerthiprakash18/fairflow-ai) (Public, MIT Licensed)
-* **Devpost Video Pitch Guide:** Available in workspace artifact [`DEVPOST_SUBMISSION_PACKAGE.md`](file:///C:/Users/micha/.gemini/antigravity/brain/1008a506-d26d-43f8-833b-330edeb6cf83/DEVPOST_SUBMISSION_PACKAGE.md)
-* **Technical Audit Report:** Available in workspace artifact [`HACKATHON_READINESS_AUDIT.md`](file:///C:/Users/micha/.gemini/antigravity/brain/1008a506-d26d-43f8-833b-330edeb6cf83/HACKATHON_READINESS_AUDIT.md)
+* **Demo Video Script & Devpost Copy:** [DEMO_VIDEO_SCRIPT.md](DEMO_VIDEO_SCRIPT.md).
+* **Security Audit & Outstanding Risks:** [SECURITY_AUDIT.md](SECURITY_AUDIT.md).
 
 ---
 
@@ -353,3 +353,14 @@ Stop repeatedly recreating accounts. Under **PayPal error? Check order status** 
 - [Full submission kit and owner confirmation checklist](HACKATHON_SUBMISSION.md)
 - The verified Sandbox receipt can be reopened from **Audit Trail → View saved receipt**, including after restarting the local server, without a new payment.
 - Owner testing on Nov 10, 2026 showed an actual Gemini API PASS, PayPal Sandbox OAuth PASS, and a completed real Sandbox capture/receipt. GitHub Actions intentionally use **mocked** payment responses and do not prove a new real transaction.
+
+
+## Pre-Submission Security & Verification (November 10, 2026)
+
+**Local demo only.** FairFlow deliberately has no login because it is a single-user hackathon prototype. The backend now refuses public network binds; start using `HOST=127.0.0.1`. It implements same-origin POST checks, request size limits, in-memory endpoint rate limits, basic security response headers, server-side quote approval, Sandbox-only PayPal integration and completed-capture verification. `data/projects.json` is local-only and the previous valid ledger is saved to `data/projects.json.bak` before updates. Invalid JSON ledgers **fail closed** instead of being overwritten. These are mitigations, not a production security certification.
+
+If a capture succeeds at PayPal but FairFlow fails before saving it, open **PayPal error? Check order status** and, only if PayPal confirms a matching COMPLETED capture, use **Verify & restore saved capture — NO new charge**. It reads PayPal's order and repairs the local record without submitting another payment. Never repeat or delete a payment to fix an out-of-sync receipt.
+
+**Actual Gemini Scope Guard smoke check (owner laptop):** with a private `.env`, run `npm run verify:scope`. It runs real Gemini quote and scope requests against an ephemeral local test ledger; it **never** creates/captures any PayPal payment. Automated GitHub CI still uses provider mocks. For the actual video, show the real API response on your laptop and distinguish it from mock screenshots.
+
+**Public hosting warning:** Do not expose `/api/projects` or AI/PayPal routes on the internet without authenticated user accounts, per-user authorization, secure database storage and production payment controls. A cosmetic login screen would not solve those problems. Public hosting is **not required** for this hackathon; judges may use the repository's documented local setup. See [Security audit](SECURITY_AUDIT.md), [demo video materials](DEMO_VIDEO_SCRIPT.md) and [submission checklist](HACKATHON_SUBMISSION.md).

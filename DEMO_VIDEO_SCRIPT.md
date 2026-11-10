@@ -86,3 +86,8 @@ A hosted URL is **not mandatory**: the official rules permit a public code repos
 - https://ai.google.dev/gemini-api/docs/models
 
 **Truthfulness note:** This file is an editable pitch/narration and an owner checklist. It is **not** an uploaded video, a deployed production system, or a completed Devpost submission.
+
+
+### Ready-to-import subtitles
+
+[DEMO_VIDEO_SUBTITLES.srt](DEMO_VIDEO_SUBTITLES.srt) contains a 2:40 English caption timeline for the **actual screen recording**. Adjust cue boundaries to match your real footage before uploading. Never imply that an archived receipt is a newly executed charge.
