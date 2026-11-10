@@ -2,7 +2,23 @@
 
 **FairFlow AI** demonstrates human-reviewed AI scoping, scope-change analysis and **PayPal Sandbox Orders v2** payment verification. It is a **local-only, single-user hackathon prototype**, not a hosted production app, not legal e-signature and not escrow.
 
-## 1. Open the interactive product overview (no credentials)
+## 1. Try the complete simulation without credentials
+
+**Run this first if you are judging.** It exercises the full working UI without API keys or a PayPal buyer account. Every AI and payment response is **MOCKED**, clearly labelled as a simulation, and **not proof of real API integration**. Real provider instructions follow below.
+
+```bash
+git clone https://github.com/keerthiprakash18/fairflow-ai.git
+cd fairflow-ai
+npm run demo:offline
+```
+
+Open **http://127.0.0.1:3000** (or choose another local port with `PORT=3100 npm run demo:offline` on Unix; on Windows PowerShell, set `$env:PORT="3100"` before the command). Use **New Agreement → Generate → Approve → Scope Guard → Simulate buyer approval → Simulated Receipt → Audit Trail**.
+
+The offline mode does **not** load `.env` or use real Gemini/PayPal credentials. It forcibly uses fake keys and a temporary local ledger, removes records when stopped, and rejects unexpected external provider calls. Its receipt explicitly says **NOT A PAYMENT RECEIPT**.
+
+For independently verified Gemini/PayPal integration, see the real API mode in Step 3 below and the actual Sandbox capture evidence in the project demonstration.
+
+## 2. Open the interactive product overview (no credentials)
 
 After the app starts, visit **http://127.0.0.1:3000**. The homepage contains an explicitly labelled illustrative **4-stage Scope Intelligence preview** and an interactive Scope Lab with three client-request scenarios. These illustrations work even if you don't have external API keys.
 
