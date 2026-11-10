@@ -67,3 +67,11 @@ test('actual verified receipt markup has matching premium styles and no escrow c
   assert.match(css,/@media print\s*\{/);
   assert.ok(js.includes('No real money transferred'));
 });
+
+test('paid history can replay a saved receipt without a second PayPal capture',()=>{
+  assert.match(js,/function openStoredReceipt\(project\)/);
+  assert.match(js,/project\.status !== 'paid'/);
+  assert.match(js,/Saved record of a previously/i);
+  assert.match(js,/history-receipt-button/);
+  assert.match(css,/\.history-receipt-button\s*\{/);
+});

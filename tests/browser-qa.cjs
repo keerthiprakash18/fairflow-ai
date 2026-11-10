@@ -125,6 +125,16 @@ async function waitForHealth(url, server) {
     assert.notEqual(receiptStyle.radius, '0px', 'Receipt must have styled card corners');
     assert.notEqual(receiptStyle.padding, '0px', 'Receipt hero must have layout spacing');
     await page.screenshot({ path: path.join(out, 'mocked-payment-receipt.png'), fullPage: true });
+    // Reopen the saved receipt from persistent project history without a second payment.
+    await page.getByRole('button', { name: 'View audit trail' }).click();
+    await page.locator('#view-history.active').waitFor();
+    const savedReceipt = page.locator('.history-receipt-button').first();
+    await savedReceipt.waitFor({ timeout: 10000 });
+    await savedReceipt.click();
+    await page.locator('#step-receipt:not(.hidden-step)').waitFor();
+    assert.match(await page.locator('.receipt-subheading').innerText(), /No new payment has been made/);
+    assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
+    await page.screenshot({ path: path.join(out, 'saved-receipt-desktop.png'), fullPage: true });
     await page.emulateMedia({ media: 'print' });
     assert.equal(await page.locator('.workbench-masthead').evaluate(node => getComputedStyle(node).display), 'none');
     assert.notEqual(await page.locator('.receipt-card-styled').evaluate(node => getComputedStyle(node).display), 'none');
@@ -173,7 +183,8 @@ async function waitForHealth(url, server) {
       checks: ['landing visible', 'responsive overflow', 'Scope Lab handoff',
         'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward',
         'mocked PayPal SDK checkout', 'server mock capture', 'premium receipt styled',
-        'mobile receipt responsive', 'receipt print stylesheet']
+        'mobile receipt responsive', 'receipt print stylesheet',
+        'saved receipt reopened from history with no extra capture']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +

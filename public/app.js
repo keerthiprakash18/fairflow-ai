@@ -314,14 +314,42 @@ function renderHistory(projects) {
           children: [
             el('span', {
               cls: 'item-amount',
-              text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)} USD` : '—'
-            })
-          ]
+              text: p.amountUSD ? `${Number(p.amountUSD).toFixed(2)} USD` : '—'
+            }),
+            isPaid && p.captureId && p.orderId ? (() => {
+              const button = el('button', {
+                cls: 'history-receipt-button',
+                text: 'View saved receipt ↗',
+                attr: { type: 'button', 'aria-label': 'View saved receipt for ' + (p.title || 'project') }
+              });
+              button.onclick = () => openStoredReceipt(p);
+              return button;
+            })() : null
+          ].filter(Boolean)
         })
       ]
     });
     container.appendChild(row);
   });
+}
+
+function openStoredReceipt(project) {
+  // Only paid local ledger entries have a capture ID. This is a re-display, NOT a new capture.
+  if (!project || project.status !== 'paid' || !project.orderId || !project.captureId) {
+    toast('This agreement has no completed payment receipt.', 'error');
+    return;
+  }
+  renderReceipt({
+    projectTitle: project.title || 'Freelance Agreement',
+    status: 'COMPLETED',
+    amount: String(project.amountUSD),
+    orderId: project.orderId,
+    captureId: project.captureId,
+    paidAt: project.paidAt,
+    archived: true
+  });
+  showView('new-project');
+  showStep('receipt');
 }
 
 // ─── CHAR COUNTER & ENHANCE TOOL ───
@@ -1204,7 +1232,9 @@ function renderReceipt(confirmed) {
           el('div', { cls: 'receipt-check-ring', text: '✓', attr: { 'aria-hidden': 'true' } }),
           el('span', { cls: 'receipt-eyebrow', text: 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
           el('h1', { cls: 'receipt-status-title', text: 'Payment complete.' }),
-          el('p', { cls: 'receipt-subheading', text: 'The Sandbox capture was verified by FairFlow against the approved order.' }),
+          el('p', { cls: 'receipt-subheading', text: confirmed.archived
+            ? 'Saved record of a previously server-verified Sandbox capture. No new payment has been made.'
+            : 'The Sandbox capture was verified by FairFlow against the approved order.' }),
           el('div', {
             cls: 'receipt-amount-panel',
             children: [
@@ -1255,7 +1285,9 @@ function renderReceipt(confirmed) {
         cls: 'receipt-footnote',
         children: [
           el('span', { text: 'FAIRFLOW  /  EVERY CHANGE DESERVES FAIR PAY.' }),
-          el('span', { text: 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
+          el('span', { text: confirmed.archived
+            ? 'SAVED SANDBOX RECORD · NO NEW CAPTURE'
+            : 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
         ]
       })
     ]

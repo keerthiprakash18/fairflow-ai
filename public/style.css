@@ -4029,3 +4029,36 @@ body.on-landing .mobile-nav-bar {
   .stepper-title { white-space: nowrap; }
   .stepper-divider { flex: 0 0 20px; margin: 0 8px; }
 }
+
+
+/* Paid agreements can re-open their saved receipt without another checkout. */
+#history-list .pipeline-item { min-width: 0; gap: 15px; }
+#history-list .item-left, #history-list .item-details { min-width: 0; }
+#history-list .item-meta { overflow-wrap: anywhere; }
+#history-list .item-right {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  flex-shrink: 0;
+}
+.history-receipt-button {
+  border: 1px solid #bbd5c7;
+  border-radius: 6px;
+  padding: 8px 11px;
+  background: #eff8f1;
+  color: #14623f;
+  font-size: 11px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.history-receipt-button:hover { background: #dff2e5; }
+@media (max-width: 640px) {
+  #history-list .pipeline-item { flex-wrap: wrap; margin-inline: 12px !important; }
+  #history-list .item-right {
+    flex: 1 1 100%;
+    align-items: flex-start;
+    padding-left: 40px;
+  }
+}
