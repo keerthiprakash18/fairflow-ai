@@ -129,5 +129,5 @@ test('offline judge walkthrough never misrepresents a simulated receipt as PayPa
  assert.match(js,/No PayPal Sandbox API call/);
  assert.match(js,/NOT independent PayPal verification/);
  assert.match(js,/FAKE DEMO DATA · NOT A PAYMENT RECEIPT/);
- assert.match(html,/id="paypal-buttons"/);
+ assert.match(js,/id: 'paypal-buttons'/);
 });
