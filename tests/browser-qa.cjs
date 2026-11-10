@@ -383,6 +383,75 @@ async function auditAccessibility(page, context, scenario) {
       demoServer.kill('SIGTERM');
     }
 
+    // Fault injection on the running local app: failures must be safe, accessible,
+    // retain the user's input, and never attempt a second PayPal capture.
+    const errorPage = await browser.newPage({viewport:{width:1280,height:900}});
+    errorPage.on('pageerror',error => exceptions.push(error.message));
+    try {
+      await errorPage.goto(url+'/#new-project',{waitUntil:'domcontentloaded'});
+      await errorPage.locator('#view-new-project.active').waitFor();
+      const brief = 'Build a responsive local boutique e-commerce store with cart, catalog and admin dashboard.';
+      await errorPage.locator('#description').fill(brief);
+      let blockQuoteOnce = true;
+      await errorPage.route('**/api/quote', route => {
+        if (!blockQuoteOnce) return route.continue();
+        blockQuoteOnce = false;
+        return route.fulfill({status:429,contentType:'application/json',
+          headers:{'Retry-After':'15'},body:JSON.stringify({error:'Too many requests'})});
+      });
+      await errorPage.locator('#btn-generate').click();
+      await errorPage.locator('#brief-error:visible').waitFor({timeout:10000});
+      assert.match(await errorPage.locator('#brief-error').innerText(),/Retry after 15 seconds/);
+      assert.equal(await errorPage.locator('#description').inputValue(),brief);
+      assert.equal(await errorPage.locator('#toast').getAttribute('role'),'alert');
+      assert.equal(await errorPage.locator('#btn-generate').isEnabled(),true);
+      await errorPage.screenshot({path:path.join(out,'error-rate-limited.png'),fullPage:true});
+
+      await errorPage.locator('#btn-generate').click();
+      await errorPage.locator('#btn-approve-quote').waitFor({timeout:14000});
+      await errorPage.locator('#btn-approve-quote').click();
+      await errorPage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:12000});
+      const request = 'Client requests a separate seller portal, external marketplace and revenue splitting.';
+      await errorPage.locator('#scope-request').fill(request);
+      let blockScopeOnce = true;
+      await errorPage.route('**/api/scope-change',route=>{
+        if(!blockScopeOnce)return route.continue();
+        blockScopeOnce=false;
+        return route.fulfill({status:503,contentType:'application/json',
+          body:JSON.stringify({error:'Gemini temporarily unavailable'})});
+      });
+      await errorPage.locator('#btn-analyze-scope').click();
+      await errorPage.locator('.scope-retry-card').waitFor({timeout:10000});
+      assert.match(await errorPage.locator('#scope-error').innerText(),/temporarily unavailable/);
+      assert.equal(await errorPage.locator('#scope-request').inputValue(),request);
+      assert.equal(await errorPage.locator('#btn-analyze-scope').isEnabled(),true);
+      assert.equal(await errorPage.locator('.skeleton-shimmer').count(),0,
+        'Scope skeleton must be replaced after failed AI request');
+      await errorPage.locator('#btn-analyze-scope').click();
+      await errorPage.locator('.scope-change-order-card').waitFor({timeout:12000});
+
+      // Simulate one PayPal SDK network failure, then a successful SDK-only retry.
+      // The retry must not call the create or capture endpoints.
+      let sdkLoads=0,orderCalls=0;
+      await errorPage.route('**/api/paypal/create-order',route=>{orderCalls++;return route.continue();});
+      await errorPage.route('**/api/paypal/capture-order',route=>{orderCalls++;return route.continue();});
+      await errorPage.route('https://www.paypal.com/sdk/js?**',route=>{
+        sdkLoads++;
+        if(sdkLoads===1)return route.abort('failed');
+        return route.fulfill({status:200,contentType:'application/javascript',
+          body:'window.paypal={Buttons:function(){return {render:function(selector){var b=document.createElement("button");b.id="recovered-sdk";b.textContent="PayPal test SDK ready";document.querySelector(selector).appendChild(b);return Promise.resolve();}};}};'});
+      });
+      await errorPage.locator('#btn-skip-scope').click();
+      await errorPage.locator('#btn-retry-paypal-sdk').waitFor({timeout:12000});
+      assert.match(await errorPage.locator('.paypal-load-error').innerText(),/checkout could not load/);
+      assert.equal(orderCalls,0,'SDK failure must not trigger payment');
+      await errorPage.locator('#btn-retry-paypal-sdk').click();
+      await errorPage.locator('#recovered-sdk').waitFor({timeout:12000});
+      assert.equal(orderCalls,0,'SDK retry must not create/capture a payment');
+      assert.equal(sdkLoads,2);
+      await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});
+    } finally { await errorPage.close(); }
+
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,
       screenshotViewport: { desktop: [1440, 900], mobile: [390, 844] },
@@ -395,7 +464,10 @@ async function auditAccessibility(page, context, scenario) {
         'Scope Guard human-review draft', 'keyboard tabs and modal focus management',
         'responsive 320px / 375px / 768px widths',
         'dashboard V2 truthful empty/paid states', 'accessible live filters and refresh',
-        'dashboard paid mobile screenshot', 'dashboard reduced-motion compliance']
+        'dashboard paid mobile screenshot', 'dashboard reduced-motion compliance',
+        'axe-core automated WCAG scans on six routes', 'local first-render resource snapshot',
+        '429 AI rate-limit retry', '503 Scope Guard recovery with preserved input',
+        'PayPal SDK load failure and safe SDK-only retry']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +
