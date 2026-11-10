@@ -4,7 +4,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
-const { mkdtemp, rm } = require('node:fs/promises');
+const { mkdtemp, rm, writeFile } = require('node:fs/promises');
 const path = require('node:path');
 const net = require('node:net');
 const os = require('node:os');
@@ -187,4 +187,31 @@ test('capture rejects a completed payment with another quote ownership reference
     assert.notEqual(record.status,'paid');
     assert.equal(record.captureId,null);
   } finally {await stopApp(server);await rm(dir,{recursive:true,force:true});}
+});
+
+test('read-only existing Sandbox capture audit compares saved receipt with PayPal remote record',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-live-payment-audit-mock-'));
+  try{
+    await writeFile(path.join(dir,'projects.json'),JSON.stringify([{
+      quoteId:'audit-quote-1',status:'paid',amountUSD:900,
+      paymentEnvironment:'paypal-sandbox',orderId:'MOCK-ORDER-900',captureId:'MOCK-CAPTURE-900'
+    }]));
+    const command=path.join(root,'scripts','verify-existing-payments.js');
+    const proc=spawn(process.execPath,['--require',path.join(__dirname,'mock-upstream.cjs'),command],{
+      cwd:root,env:{...process.env,FAIRFLOW_DATA_DIR:dir,
+        PAYPAL_CLIENT_ID:'offline-mock-merchant',PAYPAL_CLIENT_SECRET:'offline-mock-secret',
+        FAIRFLOW_MOCK_ALREADY_CAPTURED:'1',FAIRFLOW_MOCK_STRICT:'1'},
+      stdio:['ignore','pipe','pipe']
+    });
+    const output=await new Promise((resolve,reject)=>{
+      let stdout='',stderr='';
+      proc.stdout.on('data',chunk=>stdout+=chunk);
+      proc.stderr.on('data',chunk=>stderr+=chunk);
+      proc.once('error',reject);
+      proc.once('exit',code=>resolve({code,stdout,stderr}));
+    });
+    assert.equal(output.code,0,output.stderr);
+    assert.match(output.stdout,/1 existing real Sandbox capture\(s\) match/);
+    assert.doesNotMatch(output.stdout,/MOCK-ORDER-900|MOCK-CAPTURE-900/);
+  }finally{await rm(dir,{recursive:true,force:true});}
 });
