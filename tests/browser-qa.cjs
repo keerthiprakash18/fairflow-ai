@@ -81,6 +81,24 @@ async function waitForHealth(url, server) {
     assert.match(desktop.heading || '', /Every Change/);
     assert.ok(desktop.content <= desktop.viewport + 2, 'Desktop horizontal overflow: ' + JSON.stringify(desktop));
 
+    // Keyboard navigation: focus-managed Sandbox help modal and 4-stage demo tabs.
+    await page.locator('#btn-quick-helper').click();
+    await page.locator('#helper-modal:not(.hidden)').waitFor();
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'btn-close-helper');
+    await page.keyboard.press('Shift+Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'btn-got-it', 'Modal Shift+Tab must wrap to last control');
+    await page.keyboard.press('Tab');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'btn-close-helper', 'Modal Tab must wrap to first control');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.locator('#helper-modal').getAttribute('class').then(x => x.includes('hidden')), true);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'btn-quick-helper', 'Modal should restore focus');
+    await page.locator('.scrubber-tab[data-stage="3"]').focus();
+    await page.keyboard.press('ArrowRight');
+    assert.equal(await page.locator('.scrubber-tab[data-stage="4"]').getAttribute('aria-selected'), 'true');
+    assert.equal(await page.evaluate(() => document.activeElement?.dataset.stage), '4');
+    await page.keyboard.press('Home');
+    assert.equal(await page.locator('.scrubber-tab[data-stage="1"]').getAttribute('aria-selected'), 'true');
+
     // Product scenario: sample -> actual workbench -> mocked Gemini quote -> scoped change.
     await page.locator('[data-lab-scenario="assistant"]').click();
     await page.locator('#btn-lab-open-scenario').click();
@@ -107,7 +125,13 @@ async function waitForHealth(url, server) {
     }
     assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
     await page.locator('#btn-analyze-scope').click();
-    await page.waitForTimeout(800);
+    await page.locator('.scope-change-order-card').waitFor({timeout:12000});
+    const draft = await page.locator('.change-order-textarea').inputValue();
+    assert.match(draft,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
+    assert.match(draft,/Original approved amount:/);
+    assert.match(draft,/AI-estimated extra cost:/);
+    assert.match(draft,/Current payment remains the original approved amount/);
+    assert.match(await page.locator('.scope-payment-boundary').innerText(),/original approved quote/);
     await page.screenshot({ path: path.join(out, 'scope-guard-desktop.png'), fullPage: true });
     await page.locator('#btn-skip-scope').click();
     await page.locator('#step-checkout:not(.hidden-step)').waitFor({ timeout: 10000 });
@@ -177,6 +201,16 @@ async function waitForHealth(url, server) {
     await page.screenshot({ path: path.join(out, 'landing-mobile.png'), fullPage: true });
     assert.match(mobile.heading || '', /Every Change/);
     assert.ok(mobile.content <= mobile.viewport + 2, 'Mobile horizontal overflow: ' + JSON.stringify(mobile));
+    for (const width of [320, 375, 768]) {
+      await page.setViewportSize({width,height:900});
+      await page.waitForTimeout(100);
+      const screen = await page.evaluate(() => ({
+        width:innerWidth,scrollWidth:document.documentElement.scrollWidth
+      }));
+      assert.ok(screen.scrollWidth <= screen.width + 2,
+        'Responsive viewport ' + width + 'px is horizontally scrollable: ' + JSON.stringify(screen));
+    }
+    await page.setViewportSize({width:390,height:844});
     assert.deepEqual(exceptions, [], 'Unexpected browser JavaScript exceptions');
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,
@@ -186,7 +220,9 @@ async function waitForHealth(url, server) {
         'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward',
         'mocked PayPal SDK checkout', 'server mock capture', 'premium receipt styled',
         'mobile receipt responsive', 'receipt print stylesheet',
-        'saved receipt reopened from history with no extra capture']
+        'saved receipt reopened from history with no extra capture',
+        'Scope Guard human-review draft', 'keyboard tabs and modal focus management',
+        'responsive 320px / 375px / 768px widths']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +
