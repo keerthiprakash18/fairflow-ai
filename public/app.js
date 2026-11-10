@@ -1181,6 +1181,8 @@ function renderScopeAnalysis(data) {
     'AI-estimated extra cost: +$' + Number(analysis.additionalCostUSD || 0).toFixed(2) + ' USD',
     'AI-suggested total: $' + Number(analysis.newTotalUSD || approved).toFixed(2) + ' USD',
     'Estimated time impact: ' + (analysis.timelineImpact || 'To be agreed'),
+    ...(basis.length ? ['Estimate drivers:', ...basis.map((reason,i) => (i + 1) + '. ' + reason)] : []),
+    ...(unknowns.length ? ['Questions to confirm:', ...unknowns.map((question,i) => (i + 1) + '. ' + question)] : []),
     'Recommendation: ' + (analysis.recommendation || 'Review with client'),
     '',
     'NOT APPROVED: No additional charges have been authorized.',
