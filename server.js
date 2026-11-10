@@ -306,9 +306,8 @@ async function geminiJson(prompt) {
       });
       const data = await res.json();
       if (!res.ok) {
-        const msg = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`[FairFlow AI] Model ${model} returned ${res.status}: ${msg.slice(0, 100)}`);
-        lastErr = new Error(msg);
+        console.warn(`[FairFlow AI] Gemini model ${model} returned HTTP ${res.status}`);
+        lastErr = new Error('Provider returned HTTP ' + res.status);
         continue;
       }
       let rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
@@ -316,11 +315,11 @@ async function geminiJson(prompt) {
       rawText = rawText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
       return rawText;
     } catch (err) {
-      console.warn(`[FairFlow AI] Model ${model} request error: ${err.message}`);
-      lastErr = err;
+      console.warn(`[FairFlow AI] Gemini model ${model} request failed (${err?.name || 'network error'})`);
+      lastErr = new Error('Provider request failed');
     }
   }
-  throw Object.assign(new Error(lastErr?.message || 'AI generation temporarily unavailable. Please try again.'), { httpStatus: 502 });
+  throw Object.assign(new Error('AI generation temporarily unavailable. Please try again or check provider quota.'), { httpStatus: 502 });
 }
 
 
