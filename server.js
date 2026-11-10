@@ -399,6 +399,19 @@ function validateAmount(amountUSD) {
   return amount;
 }
 
+// Validate PayPal-provided buyer approval URL. Never follow an untrusted redirect.
+function safePayPalApprovalUrl(links) {
+  const action = Array.isArray(links) && links.find(x => x &&
+    ['approve', 'payer-action'].includes(x.rel) && typeof x.href === 'string');
+  if (!action) return null;
+  try {
+    const u = new URL(action.href);
+    if (u.protocol === 'https:' &&
+        (u.hostname === 'paypal.com' || u.hostname.endsWith('.paypal.com'))) return u.href;
+  } catch {}
+  return null;
+}
+
 // ─── Main request handler ─────────────────────────────────────────────────────
 async function handle(req, res) {
   const url   = new URL(req.url, 'http://localhost');
@@ -556,12 +569,15 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
         user_action: 'PAY_NOW',
         shipping_preference: 'NO_SHIPPING',
         landing_page: 'LOGIN',
+        return_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=approved',
+        cancel_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=cancelled',
       } } },
     }, token, idempotencyKey);
     if (!data.id) throw new Error('PayPal order could not be created');
+    const approvalUrl = safePayPalApprovalUrl(data.links);
     orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false, capturing: false });
     quote.orderId = data.id;
-    await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, createdAt: new Date().toISOString() });
+    await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, paypalApprovalUrl: approvalUrl, createdAt: new Date().toISOString() });
     return send(res, 200, { id: data.id });
   }
 
@@ -580,8 +596,34 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
       status: order.status || 'UNKNOWN',
       amountUSD: quote.amountUSD,
       capturedAtPayPal: Boolean(matchingCapture),
-      recordedPaidLocally: Boolean(quote.paid)
+      recordedPaidLocally: Boolean(quote.paid),
+      orderId: order.status === 'APPROVED' ? quote.orderId : null,
+      approvedAmountMatches: order.status === 'APPROVED' &&
+        (order.purchase_units || []).some(u => u.amount?.currency_code === 'USD' &&
+          Math.abs(Number(u.amount?.value) - quote.amountUSD) < 0.001)
     });
+  }
+
+  // Read-only PayPal-provided approval link: isolates popup failures from merchant failures.
+  if (req.method === 'POST' && route === '/api/paypal/approval-link') {
+    const { quoteId } = await readBody(req);
+    const quote = await getQuote(quoteId);
+    if (!quote?.orderId) return send(res, 404, { error: 'No Sandbox order for this agreement.' });
+    const token = await paypalToken();
+    const order = await paypalApi('GET', '/v2/checkout/orders/' +
+      encodeURIComponent(quote.orderId), null, token, 'approval-' + quote.orderId);
+    const status = order.status || 'UNKNOWN';
+    if (!['CREATED','PAYER_ACTION_REQUIRED'].includes(status))
+      return send(res, 200, { status, available:false,
+        message:'This order no longer awaits buyer approval. Check its status first.' });
+    const record = (await loadProjects()).find(p => p.quoteId === quoteId);
+    const saved = record?.paypalApprovalUrl
+      ? [{rel:'payer-action',href:record.paypalApprovalUrl}] : [];
+    const approvalUrl = safePayPalApprovalUrl(order.links) || safePayPalApprovalUrl(saved);
+    return send(res, 200, { status, available:Boolean(approvalUrl), approvalUrl,
+      message:approvalUrl
+        ? 'Open PayPal directly in another tab; return to the original FairFlow checkout to inspect the order.'
+        : 'PayPal did not provide a usable direct-approval link. Check the Sandbox merchant configuration.' });
   }
 
   // ── Capture PayPal order ──────────────────────────────────────────────────

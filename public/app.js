@@ -1067,13 +1067,54 @@ function showPayPalTroubleshooting() {
     try {
       const d = await api('/api/paypal/order-status', { quoteId: state.quoteId });
       if (d.capturedAtPayPal || d.status === 'COMPLETED') result.textContent = 'PayPal reports COMPLETED. Stop retrying checkout; reconcile this transaction before another attempt.';
-      else if (d.status === 'APPROVED') result.textContent = 'PayPal reports APPROVED, but capture has not been confirmed. Do not create a new payment before reconciliation.';
+      else if (d.status === 'APPROVED') {
+        result.textContent = 'PayPal reports APPROVED. If the exact amount matches, you can explicitly capture this Sandbox order.';
+        if (d.approvedAmountMatches && d.orderId && !d.recordedPaidLocally) {
+          const captureButton = el('button', { cls:'btn-landing-primary',
+            text:'Capture this APPROVED Sandbox order',
+            attr:{ type:'button', style:'margin-top:10px;padding:10px 14px;' } });
+          captureButton.onclick = async () => {
+            captureButton.disabled = true;
+            try {
+              const confirmed = await api('/api/paypal/capture-order', { orderId:d.orderId });
+              renderReceipt(confirmed);
+              showStep('receipt');
+              toast('Approved Sandbox transaction captured and verified.', 'success');
+            } catch (error) {
+              toast('Could not confirm capture: ' + error.message, 'error');
+              captureButton.disabled = false;
+            }
+          };
+          result.appendChild(captureButton);
+        } else result.textContent += ' Cannot capture: amount mismatch or already recorded locally.';
+      }
       else if (d.status === 'CREATED' || d.status === 'PAYER_ACTION_REQUIRED') result.textContent = 'PayPal order is ' + d.status + ': buyer approval has not completed. Log in with a different Personal Sandbox buyer, not the Business seller. A fresh agreement generates a fresh order.';
       else result.textContent = 'PayPal order status: ' + d.status + '. Do not retry until this status is understood.';
     } catch (err) { result.textContent = 'Could not inspect Sandbox order: ' + err.message; }
     finally { button.disabled = false; }
   };
-  area.append(button, result);
+  const directButton = el('button', { cls:'btn-landing-secondary',
+    text:'Try direct PayPal approval (bypass popup)',
+    attr:{ type:'button', style:'margin-top:10px;padding:9px 13px;' } });
+  const directResult = el('p', { attr:{ style:'margin-top:9px;overflow-wrap:anywhere;' } });
+  directButton.onclick = async () => {
+    directButton.disabled = true;
+    directResult.textContent = 'Asking PayPal for a direct buyer-approval URL...';
+    try {
+      const d = await api('/api/paypal/approval-link', { quoteId:state.quoteId });
+      directResult.textContent = d.message || 'Direct approval is unavailable.';
+      if (d.available && d.approvalUrl) {
+        directResult.appendChild(document.createElement('br'));
+        directResult.appendChild(el('a', { cls:'btn-landing-primary',
+          text:'Open secure PayPal approval page ↗',
+          attr:{ href:d.approvalUrl, target:'_blank', rel:'noopener noreferrer',
+            style:'display:inline-flex;margin-top:10px;padding:10px 14px;' }
+        }));
+      }
+    } catch (err) { directResult.textContent = 'Could not check PayPal link: ' + err.message; }
+    finally { directButton.disabled = false; }
+  };
+  area.append(button, result, directButton, directResult);
 }
 
 function renderPayPalButtons() {
@@ -1462,6 +1503,8 @@ function bindViewButtons(ctx = document) {
 
 // ─── INITIALIZATION ───
 function init() {
+  if (new URLSearchParams(window.location.search).has('paypal_return'))
+    setTimeout(() => toast('PayPal returned here. Switch to the ORIGINAL FairFlow checkout tab and check the order status. This page did not capture payment.', 'info'), 250);
   bindViewButtons();
   initShowcaseDemo();
   initScopeLab();

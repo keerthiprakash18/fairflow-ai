@@ -81,6 +81,10 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     assert.equal(beforeCapture.data.status,'CREATED');
     assert.equal(beforeCapture.data.capturedAtPayPal,false);
     assert.equal(beforeCapture.data.recordedPaidLocally,false);
+    const approvalLink=await post(base,'/api/paypal/approval-link',{quoteId});
+    assert.equal(approvalLink.status,200);
+    assert.equal(approvalLink.data.available,true);
+    assert.ok(approvalLink.data.approvalUrl.startsWith('https://www.sandbox.paypal.com/'));
     await stopApp(proc);proc=null;
     proc=await startApp(port,dataDir);
     const captured=await post(base,'/api/paypal/capture-order',{orderId:order.data.id});

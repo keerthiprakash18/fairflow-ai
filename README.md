@@ -340,3 +340,8 @@ Use two **different** Sandbox accounts: a **Business** seller associated with yo
 The current Orders v2 payload uses the modern `payment_source.paypal.experience_context` structure and a PayPal login-first experience. These changes improve sandbox consistency and diagnostics, but cannot fix a PayPal-hosted service outage or bad buyer credentials.
 
 Official references: https://developer.paypal.com/sdk/js/configuration/ and https://developer.paypal.com/api/rest/integration/orders-api
+
+
+### Repeated PayPal Sandbox `genericError` despite using a different buyer
+
+Stop repeatedly recreating accounts. Under **PayPal error? Check order status** there is now **Try direct PayPal approval (bypass popup)**, which fetches a HTTPS PayPal-hosted buyer approval URL from the Orders API (no payment created or captured by the lookup). Use it with a fresh, preferably $1 Sandbox agreement; old orders expire. If the direct approval page fails with the same error, the problem is PayPal-hosted or merchant-specific, not the popup code—check sandbox merchant restrictions and contact PayPal technical support. If the direct page succeeds, switch back to the original FairFlow checkout, choose **Check PayPal order status**, and only when PayPal reports **APPROVED** and the USD amount matches use **Capture this APPROVED Sandbox order**. Never retry if PayPal reports **COMPLETED**. Redirecting back does not auto-capture.

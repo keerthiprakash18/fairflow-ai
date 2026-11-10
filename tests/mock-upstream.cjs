@@ -38,11 +38,14 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
     if (process.env.FAIRFLOW_MOCK_MISMATCH !== '1' && data?.payment_source?.paypal?.experience_context?.shipping_preference !== 'NO_SHIPPING')
       return reply({message:'Expected modern PayPal experience_context in mock checkout'},400);
     captureCompleted = false;
-    return reply({id:'MOCK-ORDER-900'},201);
+    return reply({id:'MOCK-ORDER-900', links:[
+      {rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=MOCK-ORDER-900'}
+    ]},201);
   }
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900' && options.method==='GET') {
     return reply({id:'MOCK-ORDER-900',status:captureCompleted?'COMPLETED':'CREATED',
-      purchase_units:captureCompleted?[{payments:{captures:[{id:'MOCK-CAPTURE-900',status:'COMPLETED',amount:{currency_code:'USD',value:currentAmount}}]}}]:[]});
+      purchase_units:captureCompleted?[{amount:{currency_code:'USD',value:currentAmount},payments:{captures:[{id:'MOCK-CAPTURE-900',status:'COMPLETED',amount:{currency_code:'USD',value:currentAmount}}]}}]:[{amount:{currency_code:'USD',value:currentAmount}}],
+      links:[{rel:'payer-action',href:'https://www.sandbox.paypal.com/checkoutnow?token=MOCK-ORDER-900'}]});
   }
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900/capture') {
     captureCompleted = true;
