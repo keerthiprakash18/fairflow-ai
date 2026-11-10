@@ -230,9 +230,10 @@ async function requestJson(url, options) {
   let result;
   try { result = JSON.parse(responseText); } catch { result = { message: responseText.slice(0, 300) }; }
   if (!resp.ok) {
-    console.error('Upstream API error:', resp.status, JSON.stringify(result).slice(0, 600));
-    const detail = result?.error?.message || result?.error?.details?.[0]?.description || result?.message || resp.statusText;
-    throw Object.assign(new Error(`API error ${resp.status}: ${String(detail).slice(0, 200)}`), { httpStatus: 502 });
+    // Do not echo third-party response bodies to browsers or logs: upstream errors
+    // may contain sensitive request diagnostics or user-supplied brief fragments.
+    console.error('[FairFlow] Upstream provider returned HTTP', resp.status);
+    throw Object.assign(new Error(`External provider returned HTTP ${resp.status}. Check the connection and retry safely.`), { httpStatus: 502 });
   }
   return result;
 }
@@ -305,9 +306,8 @@ async function geminiJson(prompt) {
       });
       const data = await res.json();
       if (!res.ok) {
-        const msg = data?.error?.message || `HTTP ${res.status}`;
-        console.warn(`[FairFlow AI] Model ${model} returned ${res.status}: ${msg.slice(0, 100)}`);
-        lastErr = new Error(msg);
+        console.warn(`[FairFlow AI] Gemini model ${model} returned HTTP ${res.status}`);
+        lastErr = new Error('Provider returned HTTP ' + res.status);
         continue;
       }
       let rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
@@ -315,11 +315,11 @@ async function geminiJson(prompt) {
       rawText = rawText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
       return rawText;
     } catch (err) {
-      console.warn(`[FairFlow AI] Model ${model} request error: ${err.message}`);
-      lastErr = err;
+      console.warn(`[FairFlow AI] Gemini model ${model} request failed (${err?.name || 'network error'})`);
+      lastErr = new Error('Provider request failed');
     }
   }
-  throw Object.assign(new Error(lastErr?.message || 'AI generation temporarily unavailable. Please try again.'), { httpStatus: 502 });
+  throw Object.assign(new Error('AI generation temporarily unavailable. Please try again or check provider quota.'), { httpStatus: 502 });
 }
 
 
@@ -816,13 +816,12 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
         }
         throw err;
       }
-      const captured=data.purchase_units?.[0]?.payments?.captures?.[0];
-      const amount=Number(captured?.amount?.value);
-      if (data.id !== orderId || data.status !== 'COMPLETED' || captured?.status !== 'COMPLETED'
-          || captured?.amount?.currency_code !== 'USD' || !captured?.id
-          || !Number.isFinite(amount) || Math.abs(amount-quote.amountUSD)>0.001)
-        throw Object.assign(new Error('Sandbox capture mismatch. Inspect PayPal before retrying.'),{httpStatus:502});
-      return send(res,200,await persistVerifiedCapture(orderId,entry,quote,captured.id));
+      // Verify the full PayPal capture payload, not just the first capture.
+      // This also rejects unexpected purchase units and wrong quote references.
+      const verifiedCaptureId=verifiedExistingCapture(data,orderId,entry,quote);
+      if (!verifiedCaptureId)
+        throw Object.assign(new Error('Sandbox capture could not be verified. Inspect PayPal before retrying.'),{httpStatus:502});
+      return send(res,200,await persistVerifiedCapture(orderId,entry,quote,verifiedCaptureId));
     } finally { entry.capturing=false; }
   }
 

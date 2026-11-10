@@ -3733,7 +3733,7 @@ body.on-landing .mobile-nav-bar {
   letter-spacing: .055em;
 }
 .receipt-hero {
-  padding: 46px clamp(22px, 5vw, 60px) 36px;
+  padding: 36px clamp(22px, 5vw, 60px) 22px;
   text-align: center;
   background: radial-gradient(circle at 50% -80%, #e5f1ee, #fff 62%);
 }
@@ -3742,7 +3742,7 @@ body.on-landing .mobile-nav-bar {
   height: 67px;
   display: grid;
   place-items: center;
-  margin: 0 auto 20px;
+  margin: 0 auto 16px;
   border-radius: 50%;
   border: 1px solid #badbc9;
   background: #ecf8ef;
@@ -3770,7 +3770,7 @@ body.on-landing .mobile-nav-bar {
   color: #68747a;
 }
 .receipt-amount-panel {
-  margin: 31px auto 0;
+  margin: 23px auto 0;
   padding: 25px clamp(18px, 4vw, 38px) 23px;
   max-width: 590px;
   background: #182b34;
@@ -3813,7 +3813,7 @@ body.on-landing .mobile-nav-bar {
   color: #b3c4ca;
 }
 .receipt-details {
-  padding: 28px clamp(22px, 5vw, 54px) 20px;
+  padding: 21px clamp(22px, 5vw, 54px) 20px;
 }
 .receipt-section-heading {
   display: flex;

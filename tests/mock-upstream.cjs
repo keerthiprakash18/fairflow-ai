@@ -61,10 +61,14 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
       return reply({message:'Duplicate capture forbidden in this offline simulation'},409);
     captureCompleted = true;
     return reply({
-      id:'MOCK-ORDER-900',status:'COMPLETED',purchase_units:[{payments:{captures:[{
-        id:'MOCK-CAPTURE-900',status:'COMPLETED',
-        amount:{currency_code:'USD',value:process.env.FAIRFLOW_MOCK_MISMATCH==='1'?'0.01':currentAmount}
-      }]}}]
+      id:'MOCK-ORDER-900',status:'COMPLETED',purchase_units:[{
+        reference_id:process.env.FAIRFLOW_MOCK_BAD_OWNER==='1'?'wrong-quote-id':undefined,
+        amount:{currency_code:'USD',value:currentAmount},
+        payments:{captures:[{
+          id:'MOCK-CAPTURE-900',status:'COMPLETED',
+          amount:{currency_code:'USD',value:process.env.FAIRFLOW_MOCK_MISMATCH==='1'?'0.01':currentAmount}
+        }]}
+      }]
     },201);
   }
   if (process.env.FAIRFLOW_MOCK_STRICT === '1')

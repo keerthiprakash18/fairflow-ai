@@ -53,9 +53,11 @@ npm run check
 npm test
 npm run verify:integrations
 npm run verify:scope
+# Optional owner-only proof of previously saved real Sandbox captures (read-only):
+npm run verify:payments
 ```
 
-`npm test` runs fully offline, with **mocked** Gemini and PayPal responses. `verify:integrations` tests real Gemini generation + Sandbox OAuth only. `verify:scope` uses a temporary ledger for **real Gemini quote, human confirmation and Scope Guard**, and **does not initiate a PayPal charge**. `npm run verify:submission` combines them. The live commands need your own private credentials.
+`verify:payments` requires a private local ledger with a completed real Sandbox capture; a fresh GitHub clone has no private receipts. It uses read-only PayPal Orders API lookups, and does not create/capture orders or print transaction IDs. `npm test` runs fully offline, with **mocked** Gemini and PayPal responses. `verify:integrations` tests real Gemini generation + Sandbox OAuth only. `verify:scope` uses a temporary ledger for **real Gemini quote, human confirmation and Scope Guard**, and **does not initiate a PayPal charge**. `npm run verify:submission` combines them. The live commands need your own private credentials.
 
 Desktop/mobile visual browser QA also runs on each commit via **GitHub Actions** and uploads screenshots. It mocks upstream providers, not the real PayPal buyer approval.
 

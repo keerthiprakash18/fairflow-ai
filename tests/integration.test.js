@@ -4,7 +4,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { spawn } = require('node:child_process');
-const { mkdtemp, rm } = require('node:fs/promises');
+const { mkdtemp, rm, writeFile } = require('node:fs/promises');
 const path = require('node:path');
 const net = require('node:net');
 const os = require('node:os');
@@ -168,4 +168,70 @@ test('reject reconciliation if PayPal says wrong capture amount',async()=>{
   assert.equal((await post(base,'/api/paypal/reconcile-order',{quoteId:q.data.quoteId})).status,502);
   assert.equal((await (await fetch(base+'/api/projects')).json()).projects[0].status,'checkout-started');
  }finally{await stopApp(server);await rm(dir,{recursive:true,force:true});}
+});
+
+test('capture rejects a completed payment with another quote ownership reference',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-owner-reject-'));
+  const p=await freePort(),base='http://127.0.0.1:'+p;
+  let server;
+  try{
+    server=await startApp(p,dir,{badOwner:true});
+    const q=await post(base,'/api/quote',{description:'Build a responsive online boutique with catalog, checkout and inventory management.'});
+    assert.equal(q.status,200);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    const order=await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId});
+    assert.equal(order.status,200);
+    const captured=await post(base,'/api/paypal/capture-order',{orderId:order.data.id});
+    assert.equal(captured.status,502);
+    const record=(await (await fetch(base+'/api/projects')).json()).projects[0];
+    assert.notEqual(record.status,'paid');
+    assert.equal(record.captureId,null);
+  } finally {await stopApp(server);await rm(dir,{recursive:true,force:true});}
+});
+
+test('read-only existing Sandbox capture audit compares saved receipt with PayPal remote record',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-live-payment-audit-mock-'));
+  try{
+    await writeFile(path.join(dir,'projects.json'),JSON.stringify([{
+      quoteId:'audit-quote-1',status:'paid',amountUSD:900,
+      paymentEnvironment:'paypal-sandbox',orderId:'MOCK-ORDER-900',captureId:'MOCK-CAPTURE-900'
+    }]));
+    const command=path.join(root,'scripts','verify-existing-payments.js');
+    const proc=spawn(process.execPath,['--require',path.join(__dirname,'mock-upstream.cjs'),command],{
+      cwd:root,env:{...process.env,FAIRFLOW_DATA_DIR:dir,
+        PAYPAL_CLIENT_ID:'offline-mock-merchant',PAYPAL_CLIENT_SECRET:'offline-mock-secret',
+        FAIRFLOW_MOCK_ALREADY_CAPTURED:'1',FAIRFLOW_MOCK_STRICT:'1'},
+      stdio:['ignore','pipe','pipe']
+    });
+    const output=await new Promise((resolve,reject)=>{
+      let stdout='',stderr='';
+      proc.stdout.on('data',chunk=>stdout+=chunk);
+      proc.stderr.on('data',chunk=>stderr+=chunk);
+      proc.once('error',reject);
+      proc.once('exit',code=>resolve({code,stdout,stderr}));
+    });
+    assert.equal(output.code,0,output.stderr);
+    assert.match(output.stdout,/1 existing real Sandbox capture\(s\) match/);
+    assert.doesNotMatch(output.stdout,/MOCK-ORDER-900|MOCK-CAPTURE-900/);
+    // Prove a forged local capture identifier is never accepted as a live match.
+    await writeFile(path.join(dir,'projects.json'),JSON.stringify([{
+      quoteId:'audit-quote-1',status:'paid',amountUSD:900,
+      paymentEnvironment:'paypal-sandbox',orderId:'MOCK-ORDER-900',captureId:'FORGED-CAPTURE-ID'
+    }]));
+    const bad=spawn(process.execPath,['--require',path.join(__dirname,'mock-upstream.cjs'),command],{
+      cwd:root,env:{...process.env,FAIRFLOW_DATA_DIR:dir,
+        PAYPAL_CLIENT_ID:'offline-mock-merchant',PAYPAL_CLIENT_SECRET:'offline-mock-secret',
+        FAIRFLOW_MOCK_ALREADY_CAPTURED:'1',FAIRFLOW_MOCK_STRICT:'1'},
+      stdio:['ignore','pipe','pipe']
+    });
+    const rejection=await new Promise((resolve,reject)=>{
+      let stderr='';
+      bad.stderr.on('data',chunk=>stderr+=chunk);
+      bad.once('error',reject);
+      bad.once('exit',code=>resolve({code,stderr}));
+    });
+    assert.equal(rejection.code,1);
+    assert.match(rejection.stderr,/capture mismatch/);
+    assert.doesNotMatch(rejection.stderr,/FORGED-CAPTURE-ID/);
+  }finally{await rm(dir,{recursive:true,force:true});}
 });

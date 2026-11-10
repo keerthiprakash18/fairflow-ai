@@ -59,9 +59,9 @@ Record the running application itself; do not substitute static mockups for the 
 
 ## Required owner-only submission steps
 
-- [x] **Owner-verified November 10, 2026:** `npm run verify:integrations` returned PASS for real Gemini generation (`gemini-3.1-flash-lite`) and PayPal Sandbox OAuth.
+- [x] **Owner-verified November 10, 2026:** full `npm run verify:submission` passed (32/32 offline automated tests, real Gemini generation via `gemini-flash-lite-latest` fallback after `gemini-3.1-flash-lite` returned HTTP 503, real Gemini proposal + Scope Guard, and PayPal Sandbox OAuth). No new PayPal charge occurred.
 - [x] **Owner-verified November 10, 2026:** FairFlow displayed a real PayPal Sandbox verified receipt with status `COMPLETED`, an order ID, a capture ID and a $3,500.00 USD **test** capture. No real funds transferred. This confirmation is from the owner's local screenshot; it has not been independently reproduced in GitHub CI.
-- [ ] Check the same capture in the PayPal Sandbox activity dashboard and retain private evidence for the submission.
+- [ ] Independently verify the saved real capture against the live PayPal Sandbox Orders API with `npm run verify:payments` on the owner's laptop (or confirm in the PayPal merchant Sandbox activity dashboard). Do not commit or publish private receipt IDs.
 - [ ] Record the actual running product, less than 3 minutes, and upload a public YouTube video.
 - [ ] Complete the Devpost text, tools-used fields, project access instructions, public GitHub repository URL, and video link.
 - [ ] Ensure the public repo MIT license is visible in the GitHub About panel, and check official eligibility/rules.
@@ -84,9 +84,9 @@ _This kit is documentation; it does not certify that external provider connectiv
 - [x] Safe completed-capture PayPal reconciliation without issuing another capture.
 - [x] Misleading signed agreement / exact estimate claims and invalid computer-local README links corrected.
 - [x] Automated security, integration and browser QA coverage added. **Mocked** provider responses are not new real transactions.
-- [ ] On owner's laptop: `npm run verify:scope` with private credentials — real Gemini quote/approval/scope API verification.
-- [ ] On owner's laptop: recheck `npm run verify:integrations` after pulling latest code.
-- [ ] Verify actual Sandbox capture in the merchant activity dashboard; keep sensitive IDs private.
+- [x] On owner's laptop, November 10: `npm run verify:scope` passed — real Gemini quote/approval/scope API verification; no payment.
+- [x] On owner's laptop, November 10: `npm run verify:integrations` passed via Gemini fallback plus real PayPal Sandbox OAuth.
+- [ ] Run `npm run verify:payments` against saved local receipt or verify it in the PayPal merchant Sandbox activity dashboard; keep sensitive IDs private.
 - [ ] Record and publicly upload an actual **under-three-minute** running-product demo to YouTube. Recording cannot be replaced by animated mockups.
 - [ ] Enter the public GitHub link, functional run instructions, complete English description, tools-used details and real video URL into Devpost.
 - [ ] **Click Submit before November 13, 2026 at 01:30 IST** and confirm Devpost shows the submission as submitted, not merely saved as draft.

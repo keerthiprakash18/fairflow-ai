@@ -41,7 +41,7 @@ npm test
 npm run verify:submission
 ```
 
-`verify:submission` needs your own local private `.env`, performs **real Gemini** quote/scope checks and **PayPal Sandbox OAuth only**, and initiates **no new payments**. Avoid resetting the local `data/` folder, and never commit `.env`.
+`verify:submission` needs your own local private `.env`, performs **real Gemini** quote/scope checks and **PayPal Sandbox OAuth only**, and initiates **no new payments**. The owner's November 10 run passed with the configured Gemini fallback; after code changes, run it again. Separately, `npm run verify:payments` reads the existing local real paid ledger and checks its capture records against PayPal's read-only Sandbox Orders API, without making a payment. Avoid resetting the local `data/` folder, and never commit `.env`.
 
 Credential-free reviewer flow: `npm run demo:offline` uses **clearly marked mock responses** in an isolated temporary ledger; it is not independent proof of live providers.
 
