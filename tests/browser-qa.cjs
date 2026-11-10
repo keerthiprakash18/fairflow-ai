@@ -446,6 +446,12 @@ async function auditAccessibility(page, context, scenario) {
       assert.equal(orderCalls,0,'SDK failure must not trigger payment');
       await errorPage.locator('#btn-retry-paypal-sdk').click();
       await errorPage.locator('#recovered-sdk').waitFor({timeout:12000});
+      assert.equal(await errorPage.locator('.paypal-load-error').count(),0,
+        'Recovered checkout must clear stale error alert');
+      assert.equal(await errorPage.locator('#btn-retry-paypal-sdk').count(),0,
+        'Recovered checkout must remove obsolete retry control');
+      assert.equal(await errorPage.locator('#paypal-troubleshooting').isVisible(),false,
+        'Recovered checkout should collapse outdated error help');
       assert.equal(orderCalls,0,'SDK retry must not create/capture a payment');
       assert.equal(sdkLoads,2);
       await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});

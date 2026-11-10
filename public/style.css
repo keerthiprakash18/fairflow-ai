@@ -4409,3 +4409,11 @@ body.on-landing .mobile-nav-bar {
 .receipt-brand-caption {color:#50616A;}
 .receipt-meta-label {color:#50616A;}
 .receipt-footnote > span {color:#4D6169;}
+
+
+/* API failure guidance is a separate full-width row, never squeezes the primary CTA. */
+.action-footer-editorial {flex-wrap:wrap;}
+.action-footer-editorial > .inline-api-error:not([hidden]) {
+  flex:1 0 100%; width:100%; max-width:100%; min-width:0;
+  margin-top:12px;
+}

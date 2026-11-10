@@ -1292,6 +1292,11 @@ async function loadAndRenderPayPal() {
     }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
+    // A failed SDK attempt leaves an alert + retry button in the container.
+    // Once the SDK is healthy, remove these stale controls before rendering it.
+    $('paypal-buttons')?.replaceChildren();
+    const previousErrorHelp = $('paypal-troubleshooting');
+    if (previousErrorHelp) previousErrorHelp.hidden = true;
     await renderPayPalButtons();
   } catch (err) {
     const target = $('paypal-buttons');
