@@ -96,3 +96,10 @@ test('oversized requests are rejected with 413 and CSP is present',()=>withServe
  assert.equal(r.headers.get('x-frame-options'),'DENY');
  assert.match(r.headers.get('content-security-policy'),/frame-ancestors/);
 }));
+
+test('rejects hostile Host header to prevent local DNS rebinding access',()=>withServer(async base=>{
+ const res=await fetch(base+'/api/projects',{headers:{Host:'untrusted.attacker.example'}});
+ assert.equal(res.status,403);
+ const valid=await fetch(base+'/api/health');
+ assert.equal(valid.status,200);
+}));

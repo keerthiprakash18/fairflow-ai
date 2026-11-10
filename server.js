@@ -508,7 +508,17 @@ async function handle(req, res) {
   const route = url.pathname;
   cleanStore();
 
-  // CORS headers for local dev
+  // Protect localhost APIs from DNS-rebinding requests using an attacker Host.
+  // Never use a browser-supplied Host header to bypass local-only service isolation.
+  let hostAllowed = false;
+  try {
+    const hostUrl = new URL('http://' + String(req.headers.host || ''));
+    hostAllowed = ['127.0.0.1','localhost','[::1]'].includes(hostUrl.hostname) &&
+      Number(hostUrl.port || 80) === PORT;
+  } catch {}
+  if (!hostAllowed) return send(res, 403, { error:'FairFlow only accepts local Host headers.' });
+
+  // Local-only security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
