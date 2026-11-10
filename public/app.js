@@ -16,6 +16,7 @@ const state = {
   pendingScopeScenario: null,
   projects: [],
   dashboardFilter: 'all',
+  offlineDemo: false,
 };
 
 // ─── DOM SELECTORS & UTILITIES ───
@@ -1205,6 +1206,11 @@ async function loadAndRenderPayPal() {
   if (state.paypalRendered) return;
   try {
     const config = await apiGet('/api/config');
+    if (config.offlineDemo) {
+      state.offlineDemo = true;
+      renderOfflineDemoCheckout();
+      return;
+    }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
     renderPayPalButtons();
@@ -1215,6 +1221,38 @@ async function loadAndRenderPayPal() {
       showPayPalTroubleshooting();
     }
   }
+}
+
+function renderOfflineDemoCheckout() {
+  const host = $('paypal-buttons');
+  if (!host || state.paypalRendered) return;
+  state.paypalRendered = true;
+  const card = host.closest('.paypal-buttons-container');
+  const heading = card?.querySelector('h4'), info = card?.querySelector('p');
+  if (heading) heading.textContent = 'OFFLINE SIMULATION — no PayPal transaction';
+  if (info) info.textContent = 'Judge walkthrough with local synthetic responses. No real Gemini or PayPal API is contacted.';
+  const help = $('btn-show-paypal-help');
+  if (help) help.hidden = true;
+  const note = el('p', {cls:'offline-demo-notice', attr:{role:'status'},
+    text:'SIMULATED BUYER APPROVAL · NO REAL OR SANDBOX FUNDS TRANSFERRED'});
+  const button = el('button', {cls:'btn-primary-glow offline-demo-pay',
+    text:'Simulate buyer approval (no payment)', attr:{type:'button'}});
+  button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try {
+      const order=await api('/api/paypal/create-order',{quoteId:state.quoteId});
+      const receipt=await api('/api/paypal/capture-order',{orderId:order.id});
+      if (!receipt.offlineDemo) throw new Error('Mock provider flag missing');
+      renderReceipt(receipt);
+      showStep('receipt');
+      toast('Simulated workflow complete. No PayPal call made.','success');
+    } catch(err) {
+      toast('Offline demo failed: '+err.message,'error');
+      button.disabled=false;
+      state.paypalRendered=false;
+    }
+  });
+  host.replaceChildren(note,button);
 }
 
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
@@ -1786,6 +1824,15 @@ async function refreshIntegrationStatus() {
     const s = await apiGet('/api/health');
     chip.classList.remove('status-checking');
     chip.classList.toggle('status-needs-setup', !s.paypalConfigured || !s.aiConfigured);
+    state.offlineDemo = Boolean(s.offlineDemo);
+    if (state.offlineDemo) {
+      paypal.textContent = 'PAYPAL MOCK';
+      gemini.textContent = 'AI MOCK';
+      chip.title = 'Offline simulation: no external provider APIs or payment.';
+      const modelStatus = $('ai-current-model');
+      if (modelStatus) modelStatus.textContent = 'Offline model mock — NOT real Gemini';
+      return;
+    }
     paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
     gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
     chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';
