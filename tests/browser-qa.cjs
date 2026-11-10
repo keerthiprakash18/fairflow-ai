@@ -8,6 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 const { chromium } = require('playwright');
+const axePath = require.resolve('axe-core/axe.min.js');
 
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, 'browser-artifacts');
@@ -32,6 +33,36 @@ async function waitForHealth(url, server) {
   }
   throw Error('FairFlow did not become healthy');
 }
+const accessibilityReports = [];
+async function auditAccessibility(page, context, scenario) {
+  // The editorial SPA fades cards into view. Axe must measure the settled
+  // foreground/background, not a transient 70%-opacity animation frame.
+  await page.waitForTimeout(700);
+  if (!await page.evaluate(() => typeof window.axe !== 'undefined')) {
+    await page.addScriptTag({ path: axePath });
+  }
+  const report = await page.evaluate(async selector => {
+    const root = document.querySelector(selector);
+    if (!root) throw Error('Missing accessibility scan root: '+selector);
+    const result = await window.axe.run(root, {
+      runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}
+    });
+    return {
+      passes:result.passes.length,
+      violations:result.violations.map(v=>({
+        id:v.id,impact:v.impact,description:v.description,
+        nodes:v.nodes.slice(0,12).map(n=>({target:n.target,html:n.html.slice(0,240),
+          summary:n.failureSummary?.slice(0,340)}))
+      }))
+    };
+  },context);
+  accessibilityReports.push({scenario,context,...report});
+  await fs.writeFile(path.join(out,'accessibility-audit.json'),
+    JSON.stringify(accessibilityReports,null,2));
+  const serious = report.violations.filter(v=>['critical','serious'].includes(v.impact));
+  if (serious.length) console.warn('WCAG issues in '+scenario+': '+JSON.stringify(serious));
+}
+
 (async () => {
   await fs.mkdir(out, { recursive: true });
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fairflow-browser-'));
@@ -51,6 +82,16 @@ async function waitForHealth(url, server) {
     await waitForHealth(url, server);
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    await page.addInitScript(() => {
+      window.__ffLayoutShift = 0;
+      try {
+        const observer = new PerformanceObserver(list => {
+          for (const item of list.getEntries())
+            if (!item.hadRecentInput) window.__ffLayoutShift += item.value;
+        });
+        observer.observe({type:'layout-shift',buffered:true});
+      } catch {}
+    });
     const exceptions = [];
     page.on('pageerror', error => exceptions.push(error.message));
     // PayPal SDK is mocked only for this browser test; no provider credentials or money used.
@@ -72,6 +113,20 @@ async function waitForHealth(url, server) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.locator('#view-landing.active').waitFor();
     await page.waitForTimeout(1100); // Wait for editorial entrance animation to finish before visual capture.
+    const performanceSnapshot = await page.evaluate(() => ({
+      fcpMs:Math.round(performance.getEntriesByType('paint')
+        .find(x=>x.name==='first-contentful-paint')?.startTime || 0),
+      domContentLoadedMs:Math.round(performance.getEntriesByType('navigation')[0]?.domContentLoadedEventEnd || 0),
+      clsObserved:Number((window.__ffLayoutShift || 0).toFixed(4)),
+      eagerConfettiRequests:performance.getEntriesByType('resource')
+        .filter(x=>/canvas-confetti|confetti\.browser|min\.js/.test(x.name)).length
+    }));
+    assert.equal(performanceSnapshot.eagerConfettiRequests,0,'No third-party animation JS should load during startup');
+    await fs.writeFile(path.join(out,'performance-snapshot.json'),JSON.stringify({
+      context:'Local Chromium smoke test; NOT a field Core Web Vitals or Lighthouse score',
+      ...performanceSnapshot
+    },null,2));
+    await auditAccessibility(page,'#view-landing','desktop landing');
     await page.screenshot({ path: path.join(out, 'landing-desktop.png'), fullPage: true });
     const desktop = await page.evaluate(() => ({
       viewport: window.innerWidth,
@@ -85,6 +140,7 @@ async function waitForHealth(url, server) {
     await page.locator('#btn-hero-launch-workbench').click();
     await page.locator('#view-dashboard.active').waitFor();
     await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('No saved agreements'));
+    await auditAccessibility(page,'#view-dashboard','empty dashboard');
     assert.equal(await page.locator('#stat-total').innerText(), '0');
     assert.equal(await page.locator('#stat-revenue').innerText(), '$0.00');
     assert.equal(await page.locator('#dashboard-pulse-title').innerText(), 'No saved agreements yet');
@@ -130,6 +186,7 @@ async function waitForHealth(url, server) {
     assert.match(await page.locator('#description').inputValue(), /e-commerce website/);
     await page.locator('#btn-generate').click();
     await page.locator('#btn-approve-quote').waitFor({ timeout: 15000 });
+    await auditAccessibility(page,'#step-proposal','generated proposal');
     await page.screenshot({ path: path.join(out, 'proposal-desktop.png'), fullPage: true });
     const confirmation = page.waitForResponse(response => response.url().endsWith('/api/confirm-quote'), { timeout: 10000 });
     await page.locator('#btn-approve-quote').click();
@@ -150,6 +207,7 @@ async function waitForHealth(url, server) {
     assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
     await page.locator('#btn-analyze-scope').click();
     await page.locator('.scope-change-order-card').waitFor({timeout:12000});
+    await auditAccessibility(page,'#step-scope','scope guard analysis');
     const draft = await page.locator('.change-order-textarea').inputValue();
     assert.match(draft,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
     assert.match(draft,/Original approved amount:/);
@@ -163,6 +221,7 @@ async function waitForHealth(url, server) {
     await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
     await page.locator('#mock-paypal-approve').click();
     await page.locator('#step-receipt:not(.hidden-step)').waitFor({ timeout: 15000 });
+    await auditAccessibility(page,'#step-receipt','receipt');
     assert.match(await page.locator('#step-receipt').innerText(), /Payment complete/);
     assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
     assert.equal(await page.locator('.receipt-meta-row').count(), 6);
@@ -302,6 +361,7 @@ async function waitForHealth(url, server) {
       assert.equal(await demoPage.evaluate(()=>Boolean(window.paypal)),false,'Offline demo must not load live PayPal SDK');
       await offlineButton.click();
       await demoPage.locator('#step-receipt:not(.hidden-step)').waitFor({timeout:10000});
+      await auditAccessibility(demoPage,'#step-receipt','offline simulation receipt');
       assert.match(await demoPage.locator('.receipt-status-title').innerText(),/Simulated checkout complete/);
       assert.match(await demoPage.locator('.receipt-footnote').innerText(),/NOT A PAYMENT RECEIPT/);
       assert.match(await demoPage.locator('.receipt-env-pill').innerText(),/OFFLINE MOCK/);
@@ -325,6 +385,87 @@ async function waitForHealth(url, server) {
       demoServer.kill('SIGTERM');
     }
 
+    // Fault injection on the running local app: failures must be safe, accessible,
+    // retain the user's input, and never attempt a second PayPal capture.
+    const errorPage = await browser.newPage({viewport:{width:1280,height:900}});
+    errorPage.on('pageerror',error => exceptions.push(error.message));
+    try {
+      await errorPage.goto(url+'/#new-project',{waitUntil:'domcontentloaded'});
+      await errorPage.locator('#view-new-project.active').waitFor();
+      const brief = 'Build a responsive local boutique e-commerce store with cart, catalog and admin dashboard.';
+      await errorPage.locator('#description').fill(brief);
+      let blockQuoteOnce = true;
+      await errorPage.route('**/api/quote', route => {
+        if (!blockQuoteOnce) return route.continue();
+        blockQuoteOnce = false;
+        return route.fulfill({status:429,contentType:'application/json',
+          headers:{'Retry-After':'15'},body:JSON.stringify({error:'Too many requests'})});
+      });
+      await errorPage.locator('#btn-generate').click();
+      await errorPage.locator('#brief-error:visible').waitFor({timeout:10000});
+      assert.match(await errorPage.locator('#brief-error').innerText(),/Retry after 15 seconds/);
+      assert.equal(await errorPage.locator('#description').inputValue(),brief);
+      assert.equal(await errorPage.locator('#toast').getAttribute('role'),'alert');
+      assert.equal(await errorPage.locator('#btn-generate').isEnabled(),true);
+      await errorPage.screenshot({path:path.join(out,'error-rate-limited.png'),fullPage:true});
+
+      await errorPage.locator('#btn-generate').click();
+      await errorPage.locator('#btn-approve-quote').waitFor({timeout:14000});
+      await errorPage.locator('#btn-approve-quote').click();
+      await errorPage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:12000});
+      const request = 'Client requests a separate seller portal, external marketplace and revenue splitting.';
+      await errorPage.locator('#scope-request').fill(request);
+      let blockScopeOnce = true;
+      await errorPage.route('**/api/scope-change',route=>{
+        if(!blockScopeOnce)return route.continue();
+        blockScopeOnce=false;
+        return route.fulfill({status:503,contentType:'application/json',
+          body:JSON.stringify({error:'Gemini temporarily unavailable'})});
+      });
+      await errorPage.locator('#btn-analyze-scope').click();
+      await errorPage.locator('.scope-retry-card').waitFor({timeout:10000});
+      assert.match(await errorPage.locator('#scope-error').innerText(),/temporarily unavailable/);
+      assert.equal(await errorPage.locator('#scope-request').inputValue(),request);
+      assert.equal(await errorPage.locator('#btn-analyze-scope').isEnabled(),true);
+      assert.equal(await errorPage.locator('.skeleton-shimmer').count(),0,
+        'Scope skeleton must be replaced after failed AI request');
+      await errorPage.locator('#btn-analyze-scope').click();
+      await errorPage.locator('.scope-change-order-card').waitFor({timeout:12000});
+
+      // Simulate one PayPal SDK network failure, then a successful SDK-only retry.
+      // The retry must not call the create or capture endpoints.
+      let sdkLoads=0,orderCalls=0;
+      await errorPage.route('**/api/paypal/create-order',route=>{orderCalls++;return route.continue();});
+      await errorPage.route('**/api/paypal/capture-order',route=>{orderCalls++;return route.continue();});
+      await errorPage.route('https://www.paypal.com/sdk/js?**',route=>{
+        sdkLoads++;
+        if(sdkLoads===1)return route.abort('failed');
+        return route.fulfill({status:200,contentType:'application/javascript',
+          body:'window.paypal={Buttons:function(){return {render:function(selector){var b=document.createElement("button");b.id="recovered-sdk";b.textContent="PayPal test SDK ready";document.querySelector(selector).appendChild(b);return Promise.resolve();}};}};'});
+      });
+      await errorPage.locator('#btn-skip-scope').click();
+      await errorPage.locator('#btn-retry-paypal-sdk').waitFor({timeout:12000});
+      assert.match(await errorPage.locator('.paypal-load-error').innerText(),/checkout could not load/);
+      assert.equal(orderCalls,0,'SDK failure must not trigger payment');
+      await errorPage.locator('#btn-retry-paypal-sdk').click();
+      await errorPage.locator('#recovered-sdk').waitFor({timeout:12000});
+      assert.equal(await errorPage.locator('.paypal-load-error').count(),0,
+        'Recovered checkout must clear stale error alert');
+      assert.equal(await errorPage.locator('#btn-retry-paypal-sdk').count(),0,
+        'Recovered checkout must remove obsolete retry control');
+      assert.equal(await errorPage.locator('#paypal-troubleshooting').isVisible(),false,
+        'Recovered checkout should collapse outdated error help');
+      assert.equal(orderCalls,0,'SDK retry must not create/capture a payment');
+      assert.equal(sdkLoads,2);
+      await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});
+    } finally { await errorPage.close(); }
+
+    const unresolvedA11y = accessibilityReports.flatMap(r => r.violations
+      .filter(v=>['serious','critical'].includes(v.impact))
+      .map(v=>({scenario:r.scenario,id:v.id,impact:v.impact,nodes:v.nodes.map(n=>n.target).slice(0,12)})));
+    await fs.writeFile(path.join(out,'accessibility-audit.json'),JSON.stringify(accessibilityReports,null,2));
+    assert.deepEqual(unresolvedA11y,[],'Serious/critical WCAG issues: '+JSON.stringify(unresolvedA11y));
+
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,
       screenshotViewport: { desktop: [1440, 900], mobile: [390, 844] },
@@ -337,7 +478,10 @@ async function waitForHealth(url, server) {
         'Scope Guard human-review draft', 'keyboard tabs and modal focus management',
         'responsive 320px / 375px / 768px widths',
         'dashboard V2 truthful empty/paid states', 'accessible live filters and refresh',
-        'dashboard paid mobile screenshot', 'dashboard reduced-motion compliance']
+        'dashboard paid mobile screenshot', 'dashboard reduced-motion compliance',
+        'axe-core automated WCAG scans on six routes', 'local first-render resource snapshot',
+        '429 AI rate-limit retry', '503 Scope Guard recovery with preserved input',
+        'PayPal SDK load failure and safe SDK-only retry']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +

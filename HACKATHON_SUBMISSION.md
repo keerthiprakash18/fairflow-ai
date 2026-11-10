@@ -100,3 +100,8 @@ _This kit is documentation; it does not certify that external provider connectiv
 ### Reviewer-first entry point
 
 The short, security-conscious [JUDGES_START_HERE.md](JUDGES_START_HERE.md) explains how to run and test the app locally, why there is no fake login, what works without credentials and what needs the judge's own private Gemini/PayPal Sandbox keys. Put this guide in your final Devpost functionality / setup instructions.
+
+
+### Final performance, accessibility & reliability gate
+
+See [FINAL_QUALITY_GATE.md](FINAL_QUALITY_GATE.md): test-only axe-core WCAG scans, first-party resource budgets and observed startup timing, reduced-motion behavior, resilient Gemini 429/503 UX, PayPal SDK-only retry with **no payment**, and exact-SHA CI + Chromium QA release gates. Do not confuse these browser tests (mock upstream) with real API verification.

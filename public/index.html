@@ -12,8 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400..800;1,9..144,400..700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- Canvas Confetti for Payment Celebration -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.4/dist/confetti.browser.min.js"></script>
+  <!-- No third-party animation script on first load; receipt feedback uses local CSS. -->
   
   <link rel="stylesheet" href="/style.css">
 </head>
@@ -95,6 +94,7 @@
 
     <!-- Main Viewport Container -->
     <main id="app-viewport" class="workbench-viewport">
+      <span id="wizard-step-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></span>
 
       <!-- ════════════════ VIEW 0: REFERENCE-DRIVEN PUBLIC LANDING EXPERIENCE ════════════════ -->
       <section id="view-landing" class="app-view active" aria-label="Public Landing Page">
@@ -315,7 +315,7 @@
 
                   <!-- Interactive Showcase Controls -->
                   <div class="showcase-controls-bar">
-                    <button type="button" id="showcase-playback-toggle" class="showcase-pause-btn" aria-pressed="false" aria-label="Pause demo animation">Pause preview</button>
+                    <button type="button" id="showcase-playback-toggle" class="showcase-pause-btn" aria-pressed="false">Pause preview</button>
                     <button class="btn-showcase-nav" id="showcase-prev-btn" aria-label="Previous Demo Stage">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                       <span>Previous</span>
@@ -326,7 +326,7 @@
                       <button type="button" class="showcase-dot active" data-stage="3" aria-label="Show scope analysis example"></button>
                       <button type="button" class="showcase-dot" data-stage="4" aria-label="Show checkout preview"></button>
                     </div>
-                    <button class="btn-showcase-nav" id="showcase-next-btn" aria-label="Next Demo Stage">
+                    <button class="btn-showcase-nav" id="showcase-next-btn" aria-label="Next Step in Demo">
                       <span>Next Step</span>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
                     </button>
@@ -938,10 +938,11 @@
               </div>
 
               <div class="action-footer-editorial">
-                <button type="button" class="btn-cobalt btn-large" id="btn-generate">
+                <button type="button" class="btn-cobalt btn-large" id="btn-generate" aria-describedby="brief-error">
                   <span>✦ Generate Scoping Agreement with Gemini</span>
                   <span class="btn-arrow">→</span>
                 </button>
+                <p id="brief-error" class="inline-api-error" role="alert" hidden></p>
               </div>
             </div>
 
@@ -1037,10 +1038,11 @@
               </div>
 
               <div class="action-footer-editorial">
-                <button type="button" class="btn-vermilion btn-full" id="btn-analyze-scope">
+                <button type="button" class="btn-vermilion btn-full" id="btn-analyze-scope" aria-describedby="scope-error">
                   <span>🔍 Analyze Variance &amp; Price Impact</span>
                   <span class="btn-arrow">→</span>
                 </button>
+                <p id="scope-error" class="inline-api-error" role="alert" hidden></p>
               </div>
             </div>
 

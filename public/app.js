@@ -22,6 +22,8 @@ const state = {
 // ─── DOM SELECTORS & UTILITIES ───
 const $ = id => document.getElementById(id);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const scrollBehavior = () => prefersReducedMotion() ? 'instant' : 'smooth';
 
 function el(tag, opts = {}) {
   const e = document.createElement(tag);
@@ -40,25 +42,63 @@ let toastTimer;
 function toast(msg, type = 'info') {
   toastEl.textContent = msg;
   toastEl.className = `show ${type}`;
+  toastEl.setAttribute('role', type === 'error' ? 'alert' : 'status');
+  toastEl.setAttribute('aria-live', type === 'error' ? 'assertive' : 'polite');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 5000);
+  toastTimer = setTimeout(() => toastEl.classList.remove('show'), 6000);
 }
 
-// ─── API CLIENT ───
+function setInlineError(id, message = '') {
+  const region = $(id);
+  if (!region) return;
+  region.textContent = message;
+  region.hidden = !message;
+}
+
+// ─── BOUNDED API CLIENT: avoid indefinite spinners on unreliable connections ───
+function requestTimeout(route) {
+  if (/^\/api\/(quote|scope-change|enhance-brief)$/.test(route)) return 140000;
+  if (/^\/api\/paypal\/(create-order|capture-order|reconcile-order)$/.test(route)) return 110000;
+  return 30000;
+}
+async function requestApi(route, body, method = 'POST') {
+  const options = { method, headers: { 'Accept': 'application/json' } };
+  if (body !== undefined) {
+    options.headers['Content-Type'] = 'application/json';
+    options.body = JSON.stringify(body);
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), requestTimeout(route));
+  options.signal = controller.signal;
+  try {
+    const response = await fetch(route, options);
+    let data;
+    try { data = await response.json(); }
+    catch { throw new Error('FairFlow received an unreadable server response. Check the server console and retry.'); }
+    if (!response.ok) {
+      if (response.status === 429) {
+        const seconds = Number(response.headers.get('Retry-After'));
+        throw new Error('Request limit reached. ' +
+          (Number.isFinite(seconds) && seconds > 0 ? 'Retry after ' + seconds + ' seconds.' : 'Retry shortly.'));
+      }
+      throw new Error(data?.error || 'Request failed (HTTP ' + response.status + ').');
+    }
+    return data;
+  } catch (err) {
+    if (controller.signal.aborted)
+      throw new Error('Request timed out. Check the server connection. If this was a payment, check PayPal order status before retrying.');
+    if (err instanceof TypeError)
+      throw new Error('Could not reach the FairFlow server. Check that npm start is running and your connection is working.');
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
 async function api(route, body, method = 'POST') {
-  const opts = { method, headers: { 'Content-Type': 'application/json' } };
-  if (body !== undefined) opts.body = JSON.stringify(body);
-  const r = await fetch(route, opts);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
-  return data;
+  return requestApi(route, body, method);
 }
-
 async function apiGet(route) {
-  const r = await fetch(route);
-  const data = await r.json();
-  if (!r.ok) throw new Error(data.error || `Request failed (${r.status})`);
-  return data;
+  return requestApi(route, undefined, 'GET');
 }
 
 // ─── 1-CLICK DEMO TEMPLATES ───
@@ -84,7 +124,7 @@ function showView(viewName) {
   const target = $(`view-${viewName}`);
   if (target) {
     target.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 
   // Toggle masthead navigation bar modes
@@ -118,6 +158,7 @@ function showView(viewName) {
     t.classList.toggle('active', isTarget);
   });
 
+  syncDemoAutoPlay();
   if (viewName === 'dashboard') loadDashboard();
   if (viewName === 'history') loadHistory();
   if (viewName === 'new-project' && state.currentStep === 'brief') {
@@ -172,7 +213,14 @@ function showStep(stepName) {
     }
   });
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const announcement = $('wizard-step-announcement');
+  if (announcement) {
+    const stepNameForSpeech = {brief:'Project brief',proposal:'AI proposal',scope:'Scope Guard',
+      checkout:'PayPal Sandbox checkout',receipt:'Payment receipt'};
+    announcement.textContent = 'Step ' + (activeIdx + 1) + ' of ' + STEPS.length +
+      ': ' + (stepNameForSpeech[stepName] || stepName);
+  }
+  window.scrollTo({ top: 0, behavior: scrollBehavior() });
 }
 
 // ─── DASHBOARD RENDERING ───
@@ -600,6 +648,7 @@ function renderScopeSkeleton() {
 // ─── PROPOSAL GENERATION ───
 $('btn-generate').addEventListener('click', async () => {
   const description = descEl.value.trim();
+  setInlineError('brief-error');
   if (description.length < 20) {
     toast('Please write at least 20 characters describing your project requirements.', 'error');
     return;
@@ -622,8 +671,9 @@ $('btn-generate').addEventListener('click', async () => {
     haptic('success');
     toast('AI Proposal generated with 100% milestone math!', 'success');
   } catch (err) {
-    toast(err.message, 'error');
     showStep('brief');
+    setInlineError('brief-error', err.message + ' Your project brief is preserved; retry Generate when ready.');
+    toast(err.message, 'error');
   } finally {
     btn.disabled = false;
     btn.innerHTML = '<span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span> <span class="btn-arrow">→</span>';
@@ -979,6 +1029,7 @@ function renderScopeStep() {
 
   $('btn-analyze-scope').onclick = async () => {
     const request = $('scope-request').value.trim();
+    setInlineError('scope-error');
     if (request.length < 10) {
       toast('Please describe the client\'s change request in at least 10 characters.', 'error');
       return;
@@ -996,6 +1047,15 @@ function renderScopeStep() {
       haptic('success');
       toast('Scope variance detected! See analysis on the right.', 'success');
     } catch (err) {
+      const message = err.message + ' Your scope request is preserved; you can retry this analysis.';
+      setInlineError('scope-error', message);
+      const result = $('scope-result-container');
+      result.replaceChildren(el('section', { cls:'scope-retry-card', attr:{role:'alert'},
+        children:[
+          el('strong', { text:'Scope analysis interrupted' }),
+          el('p', { text:message })
+        ]
+      }));
       toast(err.message, 'error');
     } finally {
       btn.disabled = false;
@@ -1232,11 +1292,31 @@ async function loadAndRenderPayPal() {
     }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
-    renderPayPalButtons();
+    // A failed SDK attempt leaves an alert + retry button in the container.
+    // Once the SDK is healthy, remove these stale controls before rendering it.
+    $('paypal-buttons')?.replaceChildren();
+    const previousErrorHelp = $('paypal-troubleshooting');
+    if (previousErrorHelp) previousErrorHelp.hidden = true;
+    await renderPayPalButtons();
   } catch (err) {
     const target = $('paypal-buttons');
     if (target) {
-      target.replaceChildren();const errEl=document.createElement('div');errEl.style.cssText='padding:16px;border:1px solid #f9a8a8;border-radius:8px;color:var(--red-400);font-size:12px';errEl.textContent='⚠️ '+err.message;target.appendChild(errEl);
+      target.replaceChildren();
+      target.append(
+        el('div', { cls:'paypal-load-error',attr:{role:'alert'},children:[
+          el('strong',{text:'PayPal checkout could not load'}),
+          el('p',{text:err.message + ' No payment has been initiated by this error.'})
+        ]}),
+        (() => {
+          const retry = el('button',{cls:'btn-secondary-glass paypal-sdk-retry',id:'btn-retry-paypal-sdk',
+            text:'Retry loading PayPal checkout',attr:{type:'button'}});
+          retry.addEventListener('click', () => {
+            retry.disabled = true;
+            loadAndRenderPayPal(); // only load the SDK; never captures any existing order
+          });
+          return retry;
+        })()
+      );
       showPayPalTroubleshooting();
     }
   }
@@ -1275,13 +1355,29 @@ function renderOfflineDemoCheckout() {
 }
 
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
-  if (window.paypal) return Promise.resolve();
+  if (window.paypal?.Buttons) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const country = /^[A-Z]{2}$/.test(buyerCountry) ? buyerCountry : 'US';
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&commit=true&components=buttons&buyer-country=${country}`;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Failed to load PayPal JS SDK. Check internet connection.'));
+    script.async = true;
+    let settled = false;
+    const fail = message => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
+      script.remove();
+      reject(new Error(message));
+    };
+    const watchdog = setTimeout(() => fail('PayPal checkout loading timed out. Check internet access and retry.'), 25000);
+    script.onload = () => {
+      if (settled) return;
+      if (!window.paypal?.Buttons) return fail('PayPal SDK loaded without checkout buttons. Retry loading the SDK.');
+      settled = true;
+      clearTimeout(watchdog);
+      resolve();
+    };
+    script.onerror = () => fail('Failed to load the PayPal SDK. Check your internet connection, then retry.');
     document.head.appendChild(script);
   });
 }
@@ -1374,11 +1470,12 @@ function showPayPalTroubleshooting() {
   area.append(button, result, directButton, directResult);
 }
 
-function renderPayPalButtons() {
+async function renderPayPalButtons() {
   if (!window.paypal || !$('paypal-buttons') || state.paypalRendered) return;
   state.paypalRendered = true;
 
-  window.paypal.Buttons({
+  try {
+  await window.paypal.Buttons({
     style: { layout: 'vertical', shape: 'rect', label: 'paypal', color: 'blue', height: 48 },
 
     createOrder: async () => {
@@ -1391,12 +1488,14 @@ function renderPayPalButtons() {
         toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
 
-        // Trigger victory confetti (respecting prefers-reduced-motion)
-        if (typeof confetti === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-        }
-
+        // Celebration stays first-party and GPU-friendly; no third-party animation
+        // download is allowed on initial load or after a verified payment.
         renderReceipt(confirmed);
+        if (!prefersReducedMotion()) {
+          const receiptRoot = $('receipt-container');
+          receiptRoot.classList.add('receipt-just-verified');
+          setTimeout(() => receiptRoot.classList.remove('receipt-just-verified'), 950);
+        }
         showStep('receipt');
         toast('Sandbox transaction captured and verified!', 'success');
         setTimeout(loadDashboard, 1000);
@@ -1420,6 +1519,10 @@ function renderPayPalButtons() {
       showPayPalTroubleshooting();
     }
   }).render('#paypal-buttons');
+  } catch (error) {
+    state.paypalRendered = false;
+    throw new Error('PayPal buttons could not render. ' + (error?.message || 'Reload the checkout'));
+  }
 }
 
 // ─── VERIFIED SANDBOX RECEIPT ───
@@ -1691,6 +1794,7 @@ let demoInterval = null;
 let autoPlayPaused = false;
 let userPausedDemo = false;
 let pauseTimeout = null;
+let showcaseVisible = false;
 
 const STAGE_LABELS = {
   1: '01 / 04 · AGREEMENT EXAMPLE',
@@ -1720,26 +1824,47 @@ function setDemoStage(stageNum) {
   });
 }
 
+function syncDemoAutoPlay() {
+  const shouldPlay = showcaseVisible && !document.hidden && state.currentView === 'landing' &&
+    !autoPlayPaused && !userPausedDemo && !prefersReducedMotion();
+  if (!shouldPlay) {
+    if (demoInterval !== null) clearInterval(demoInterval);
+    demoInterval = null;
+    return;
+  }
+  if (demoInterval !== null) return;
+  demoInterval = setInterval(() => {
+    const next = currentDemoStage === 4 ? 1 : currentDemoStage + 1;
+    setDemoStage(next);
+  }, 6000);
+}
 function pauseDemoAutoPlay() {
   autoPlayPaused = true;
   clearTimeout(pauseTimeout);
-  pauseTimeout = setTimeout(() => { autoPlayPaused = false; }, 15000);
+  syncDemoAutoPlay();
+  pauseTimeout = setTimeout(() => { autoPlayPaused = false; syncDemoAutoPlay(); }, 15000);
 }
 
 function startDemoAutoPlay() {
-  if (demoInterval) clearInterval(demoInterval);
-  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  demoInterval = setInterval(() => {
-    if (state.currentView !== 'landing' || autoPlayPaused || userPausedDemo) return;
-    let next = currentDemoStage + 1;
-    if (next > 4) next = 1;
-    setDemoStage(next);
-  }, 6000);
+  const showcase = $('showcase');
+  if (showcase && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      showcaseVisible = Boolean(entries[0]?.isIntersecting);
+      syncDemoAutoPlay();
+    }, { threshold:0.05 });
+    observer.observe(showcase);
+  } else {
+    showcaseVisible = true;
+  }
+  document.addEventListener('visibilitychange', syncDemoAutoPlay);
+  window.matchMedia('(prefers-reduced-motion: reduce)')
+    .addEventListener('change', syncDemoAutoPlay);
+  syncDemoAutoPlay();
 }
 
 function initShowcaseDemo() {
   const pause=$('showcase-playback-toggle');
-  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));pause.setAttribute('aria-label',userPausedDemo?'Resume demo animation':'Pause demo animation');});
+  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));syncDemoAutoPlay();});
   qsa('.scrubber-tab, .showcase-dot').forEach(btn => {
     btn.addEventListener('click', () => {
       const st = Number(btn.dataset.stage);
@@ -1786,7 +1911,7 @@ function initShowcaseDemo() {
   if (showcaseCard) {
     showcaseCard.addEventListener('mouseenter', pauseDemoAutoPlay);
     showcaseCard.addEventListener('focusin', pauseDemoAutoPlay);
-    showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; });
+    showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; syncDemoAutoPlay(); });
   }
 
   // Smooth scroll for in-page anchor links
@@ -1797,7 +1922,7 @@ function initShowcaseDemo() {
         const targetEl = document.querySelector(href);
         if (targetEl) {
           e.preventDefault();
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          targetEl.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         }
       }
     });

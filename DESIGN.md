@@ -71,3 +71,12 @@ The repository contains `.agents/skills/apple-design/SKILL.md` and an Inspo MCP 
 3. Run Chromium Browser QA at desktop, mobile and keyboard accessibility.
 4. Merge the verified branch; avoid speculative redesign close to hackathon submission.
 5. For live Gemini/PayPal testing, use local private `.env` (do not commit secrets). Repo CI tests use mocks.
+
+## Submission quality gate: performance, accessibility & failure recovery
+
+- Eager third-party celebration JavaScript is removed; a tiny local CSS feedback cue replaces it.
+- The landing showcase pauses its interval entirely while offscreen, in another view, when the document is hidden, or when reduced motion is preferred. Navigation honors reduced motion.
+- AI requests are time-bounded; failures preserve user input and show persistent `role=alert` instructions. A rate-limit response includes server-provided retry guidance.
+- A PayPal JavaScript SDK failure provides a **retry loading the SDK** button that never creates or captures an order. Never auto-retry payment capture after an ambiguous network failure.
+- Chromium QA now uses test-only axe-core to audit accessible names, labels, structure and text contrast on major routes. Automated WCAG scans are valuable but **do not constitute screen-reader certification**.
+- Performance budgets apply to first-party HTML, CSS and JS; recorded browser paint timings are local CI observations, not real-user Core Web Vitals or a Lighthouse score.

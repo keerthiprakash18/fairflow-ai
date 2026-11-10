@@ -4318,3 +4318,107 @@ body.on-landing .mobile-nav-bar {
 }
 .offline-demo-pay { min-height:48px; width:100%; }
 .offline-demo-pay:disabled {opacity:.6;cursor:progress;}
+
+
+/* Durable form error messages: visual and screen-reader feedback after transient toasts. */
+.inline-api-error, .scope-retry-card {
+  font-size:13px; line-height:1.65; color:#8B3027;
+  background:#FFF3F0; border:1px solid #E8BFB8;
+  border-left:4px solid #A53D31; border-radius:7px;
+}
+.inline-api-error { margin:12px 0 0; padding:10px 13px; }
+.inline-api-error[hidden] {display:none!important;}
+.scope-retry-card {padding:20px 22px; min-height:135px;}
+.scope-retry-card strong {font-size:15px; font-weight:750;}
+.scope-retry-card p {margin:8px 0 0; font-size:13px; line-height:1.65;}
+
+
+/* One small composited receipt cue replaces the render-blocking third-party confetti library. */
+@keyframes receipt-confirmation {
+  0% { transform:scale(.992); opacity:.92; }
+  100% { transform:scale(1); opacity:1; }
+}
+#receipt-container.receipt-just-verified .receipt-amount-panel {
+  animation:receipt-confirmation 440ms ease-out both;
+}
+@media (prefers-reduced-motion:reduce) {
+  #receipt-container.receipt-just-verified .receipt-amount-panel { animation:none!important; }
+}
+
+
+/* Feedback remains visible for checkout-SDK failures; retry never captures money. */
+.paypal-load-error {
+  border-left:4px solid #AC4033; border-radius:7px; padding:15px 17px;
+  background:#FFF2EF; color:#84372E; text-align:left;
+}
+.paypal-load-error strong {font-size:14px;font-weight:750;}
+.paypal-load-error p {font-size:12px;line-height:1.65;margin:8px 0 0;}
+.paypal-sdk-retry {margin-top:13px;min-height:44px;width:100%;}
+.sr-only {
+  position:absolute!important;width:1px!important;height:1px!important;
+  padding:0!important;margin:-1px!important;overflow:hidden!important;
+  clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;
+}
+
+
+/* Axe WCAG A/AA corrections from real Chromium: visible contrast + accessible touch targets. */
+.lab-stage-tag {color:#3F5874;font-size:11px;}
+.lab-paper-index span:last-child {color:#8D3C28;font-size:10px;}
+.lab-paper-line {color:#4C6278;font-size:12px;}
+.lab-paper-stamp {color:#32654E;font-size:11px;}
+.lab-stamp-alert {color:#963E2A;}
+.lab-paper-label {color:#3F5D75;font-size:11px;}
+.problem-editorial-header > .section-kicker {color:#A63224;}
+.stat-big-number,.stat-fraction {color:#A93627;}
+/* Keep the appearance as dots without making the ACTUAL button a tiny touch target. */
+.showcase-step-dots {gap:3px;}
+.showcase-dot,.showcase-dot.active {
+  display:inline-grid; place-items:center;
+  width:28px; min-width:28px; height:28px; min-height:28px;
+  background:transparent; border-radius:999px; padding:0;
+}
+.showcase-dot::before {
+  content:""; display:block; width:8px; height:8px;
+  border-radius:999px; background:#738092;
+  transition:width 160ms ease,background-color 160ms ease;
+}
+.showcase-dot.active::before {width:20px;background:#2555F4;}
+.showcase-dot:focus-visible {outline:3px solid #2555F4;outline-offset:1px;}
+@media (prefers-reduced-motion:reduce) {
+  .showcase-dot::before {transition:none!important;}
+}
+
+
+/* Secondary axe scan: editorial red/amber/green labels must meet small-text contrast. */
+.trap-loss, .trap-loss strong { color:#AA3426; }
+.token-amber { color:#82500A; }
+.token-red { color:#A1372B; }
+.m-segment.m-20 { background-color:#0B6540; color:#FFFFFF; }
+.m-segment.m-10 { background-color:#9F3225; color:#FFFFFF; }
+.math-seal,.receipt-pill-box > span {color:#0E6641;}
+.diff-chip.delta { color:#9F3225; }
+.guard-pill-live { color:#AA3426; }
+
+
+/* Axe Chromium WCAG contrast gate: financial labels and receipts need legible ink. */
+#milestone-sum-badge {color:#0F6842;}
+.title-amber > span {color:#85500A;}
+.highlight-kicker, .severity-indicator {color:#A63829;}
+.color-amber {color:#A63829;}
+.color-mint {color:#0B6540;}
+.receipt-brand-caption {color:#50616A;}
+.receipt-meta-label {color:#50616A;}
+.receipt-footnote > span {color:#4D6169;}
+
+
+/* API failure guidance is a separate full-width row, never squeezes the primary CTA. */
+.action-footer-editorial {flex-wrap:wrap;}
+.action-footer-editorial > .inline-api-error:not([hidden]) {
+  flex:1 0 100%; width:100%; max-width:100%; min-width:0;
+  margin-top:12px;
+}
+
+
+/* Axe final dashboard pass: the 9px financial pills must retain AA contrast. */
+.metric-mini-tile .mini-tag {color:#7B490C;}
+.metric-mini-tile .mini-tag.tag-success {color:#0A5F3A;}
