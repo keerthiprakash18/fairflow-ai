@@ -403,7 +403,9 @@ function renderHistory(projects) {
     return;
   }
 
-  container.innerHTML = '<div style="padding: 24px 28px 12px; font-weight: 800; font-size: 16px;">Verified Project Ledger</div>';
+  const mockLedger = state.offlineDemo || projects.some(p => p.offlineDemo);
+  container.innerHTML = '<div style="padding: 24px 28px 12px; font-weight: 800; font-size: 16px;">'
+    + (mockLedger ? 'Offline Simulated Project Ledger — NOT PayPal' : 'Verified Project Ledger') + '</div>';
   projects.forEach(p => {
     const isPaid = p.status === 'paid';
     const row = el('div', {
@@ -414,8 +416,8 @@ function renderHistory(projects) {
           cls: 'item-left',
           children: [
             el('div', {
-              cls: `item-status-icon ${isPaid ? 'status-paid-bg' : 'status-draft-bg'}`,
-              text: isPaid ? '✓' : '◈'
+              cls: `item-status-icon ${isPaid && !p.offlineDemo ? 'status-paid-bg' : 'status-draft-bg'}`,
+              text: p.offlineDemo ? '≈' : isPaid ? '✓' : '◈'
             }),
             el('div', {
               cls: 'item-details',
