@@ -306,6 +306,12 @@ npm test
 
 ---
 
+## Devpost Submission Kit
+
+For the verified feature description, complete demo steps, under-3-minute video outline, and deadline checklist, read [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md). **Actual PayPal buyer checkout and Gemini requests must still be verified privately before submission.**
+
+---
+
 ## License
 
 This project is open-source and licensed under the **[MIT License](LICENSE)** — see the LICENSE file for details.
