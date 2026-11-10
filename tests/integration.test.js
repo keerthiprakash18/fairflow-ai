@@ -169,3 +169,22 @@ test('reject reconciliation if PayPal says wrong capture amount',async()=>{
   assert.equal((await (await fetch(base+'/api/projects')).json()).projects[0].status,'checkout-started');
  }finally{await stopApp(server);await rm(dir,{recursive:true,force:true});}
 });
+
+test('capture rejects a completed payment with another quote ownership reference',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-owner-reject-'));
+  const p=await freePort(),base='http://127.0.0.1:'+p;
+  let server;
+  try{
+    server=await startApp(p,dir,{badOwner:true});
+    const q=await post(base,'/api/quote',{description:'Build a responsive online boutique with catalog, checkout and inventory management.'});
+    assert.equal(q.status,200);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    const order=await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId});
+    assert.equal(order.status,200);
+    const captured=await post(base,'/api/paypal/capture-order',{orderId:order.data.id});
+    assert.equal(captured.status,502);
+    const record=(await (await fetch(base+'/api/projects')).json()).projects[0];
+    assert.notEqual(record.status,'paid');
+    assert.equal(record.captureId,null);
+  } finally {await stopApp(server);await rm(dir,{recursive:true,force:true});}
+});
