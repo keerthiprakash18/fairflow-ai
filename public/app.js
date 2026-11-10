@@ -16,6 +16,7 @@ const state = {
   pendingScopeScenario: null,
   projects: [],
   dashboardFilter: 'all',
+  offlineDemo: false,
 };
 
 // ─── DOM SELECTORS & UTILITIES ───
@@ -189,9 +190,11 @@ async function loadDashboard() {
     state.projects = Array.isArray(data.projects) ? data.projects : [];
     renderDashboardStats(state.projects);
     renderDashboardRecent(state.projects);
-    sync.textContent = state.projects.length
-      ? 'Updated from local ledger · amounts are PayPal Sandbox test funds.'
-      : 'No saved agreements yet · ready for your first project.';
+    sync.textContent = state.offlineDemo
+      ? 'OFFLINE SIMULATION: synthetic local records, NOT PayPal transactions.'
+      : state.projects.length
+        ? 'Updated from local ledger · amounts are PayPal Sandbox test funds.'
+        : 'No saved agreements yet · ready for your first project.';
   } catch (err) {
     if (loadId !== dashboardLoadSerial) return;
     console.error('Failed to load dashboard:', err);
@@ -218,8 +221,16 @@ function projectCounts(projects) {
 function renderDashboardStats(projects) {
   const counts = projectCounts(projects);
   const pending = counts.total - counts.paid;
+  const simulated = state.offlineDemo || projects.some(p => p.offlineDemo);
   const volume = projects.filter(p => p.status === 'paid')
     .reduce((sum, p) => sum + (Number(p.amountUSD) || 0), 0);
+  const paymentSubtitle = document.querySelector('.metric-line-item .metric-sub');
+  if (paymentSubtitle) paymentSubtitle.textContent = simulated
+    ? 'Mock USD amount · NO PayPal funds' : 'Captured Sandbox USD · test funds only';
+  const paidTags = document.querySelectorAll('.metric-mini-tile .mini-tag.tag-success');
+  paidTags.forEach(tag => tag.textContent = simulated ? 'Local mock only' : 'PayPal verified');
+  const miniLabel = $('stat-paid')?.previousElementSibling;
+  if (miniLabel) miniLabel.textContent = simulated ? 'SIMULATED CHECKOUTS' : 'SETTLED PAYMENTS';
   $('stat-total').textContent = counts.total;
   $('stat-pending').textContent = pending;
   $('stat-paid').textContent = counts.paid;
@@ -227,9 +238,14 @@ function renderDashboardStats(projects) {
     style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2
   });
 
-  $('dashboard-pulse-title').textContent = counts.total
-    ? counts.total + (counts.total === 1 ? ' saved agreement' : ' saved agreements') + ' tracked'
-    : 'No saved agreements yet';
+  $('dashboard-pulse-title').textContent = simulated
+    ? counts.total + (counts.total === 1 ? ' simulated agreement' : ' simulated agreements') + ' · no provider payments'
+    : counts.total
+      ? counts.total + (counts.total === 1 ? ' saved agreement' : ' saved agreements') + ' tracked'
+      : 'No saved agreements yet';
+  const paidLegend = $('dashboard-paid-count')?.previousSibling;
+  if (paidLegend && paidLegend.nodeType === Node.TEXT_NODE)
+    paidLegend.textContent = simulated ? ' Simulated ' : ' Captured ';
   $('dashboard-review-count').textContent = counts.review;
   $('dashboard-checkout-count').textContent = counts.checkout;
   $('dashboard-paid-count').textContent = counts.paid;
@@ -238,8 +254,8 @@ function renderDashboardStats(projects) {
   $('dashboard-filter-paid').textContent = counts.paid;
   const track = $('dashboard-status-track');
   track.setAttribute('aria-label',
-    counts.total + ' saved agreements: ' + counts.review +
-    ' in review, ' + counts.checkout + ' in checkout, ' + counts.paid + ' paid');
+    counts.total + (simulated ? ' simulated' : ' saved') + ' agreements: ' + counts.review +
+    ' in review, ' + counts.checkout + ' in checkout, ' + counts.paid + (simulated ? ' simulated' : ' paid'));
   for (const [segment, amount] of [
     ['review', counts.review], ['checkout', counts.checkout], ['paid', counts.paid]
   ]) {
@@ -292,8 +308,9 @@ function renderDashboardRecent(projects) {
     draft:'Draft · awaiting review'
   };
   for (const p of showing) {
-    const paid = p.status === 'paid';
-    const label = statusText[p.status] || 'Needs review';
+    const paid = p.status === 'paid', mocked = Boolean(p.offlineDemo);
+    const label = mocked && paid ? 'Simulated · NO PayPal payment'
+      : statusText[p.status] || 'Needs review';
     container.appendChild(el('div', {
       cls: 'pipeline-item dashboard-project-row',
       children: [
@@ -301,8 +318,8 @@ function renderDashboardRecent(projects) {
           cls: 'item-left',
           children: [
             el('div', {
-              cls: 'item-status-icon ' + (paid ? 'status-paid-bg' : 'status-draft-bg'),
-              text: paid ? '✓' : '◈', attr:{'aria-hidden':'true'}
+              cls: 'item-status-icon ' + (paid && !mocked ? 'status-paid-bg' : 'status-draft-bg'),
+              text: mocked ? '≈' : paid ? '✓' : '◈', attr:{'aria-hidden':'true'}
             }),
             el('div', {
               cls: 'item-details',
@@ -324,7 +341,7 @@ function renderDashboardRecent(projects) {
                 }) + ' USD'
                 : '—'
             }),
-            el('span', { cls:'dashboard-project-status ' + (paid ? 'is-paid' : 'is-pending'), text:label })
+            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label })
           ]
         })
       ]
@@ -386,7 +403,9 @@ function renderHistory(projects) {
     return;
   }
 
-  container.innerHTML = '<div style="padding: 24px 28px 12px; font-weight: 800; font-size: 16px;">Verified Project Ledger</div>';
+  const mockLedger = state.offlineDemo || projects.some(p => p.offlineDemo);
+  container.innerHTML = '<div style="padding: 24px 28px 12px; font-weight: 800; font-size: 16px;">'
+    + (mockLedger ? 'Offline Simulated Project Ledger — NOT PayPal' : 'Verified Project Ledger') + '</div>';
   projects.forEach(p => {
     const isPaid = p.status === 'paid';
     const row = el('div', {
@@ -397,8 +416,8 @@ function renderHistory(projects) {
           cls: 'item-left',
           children: [
             el('div', {
-              cls: `item-status-icon ${isPaid ? 'status-paid-bg' : 'status-draft-bg'}`,
-              text: isPaid ? '✓' : '◈'
+              cls: `item-status-icon ${isPaid && !p.offlineDemo ? 'status-paid-bg' : 'status-draft-bg'}`,
+              text: p.offlineDemo ? '≈' : isPaid ? '✓' : '◈'
             }),
             el('div', {
               cls: 'item-details',
@@ -406,7 +425,7 @@ function renderHistory(projects) {
                 el('strong', { text: p.title || 'Untitled Project' }),
                 el('span', {
                   cls: 'item-meta',
-                  text: p.orderId ? `PayPal Order: ${p.orderId} • ${formatDate(p.paidAt || p.createdAt)}` : `Status: ${p.status} • ${formatDate(p.createdAt)}`
+                  text: p.orderId ? `${p.offlineDemo ? 'Offline mock order' : 'PayPal Order'}: ${p.orderId} • ${formatDate(p.paidAt || p.createdAt)}` : `Status: ${p.status} • ${formatDate(p.createdAt)}`
                 })
               ]
             })
@@ -449,7 +468,8 @@ function openStoredReceipt(project) {
     orderId: project.orderId,
     captureId: project.captureId,
     paidAt: project.paidAt,
-    archived: true
+    archived: true,
+    offlineDemo: Boolean(project.offlineDemo)
   });
   showView('new-project');
   showStep('receipt');
@@ -1205,6 +1225,11 @@ async function loadAndRenderPayPal() {
   if (state.paypalRendered) return;
   try {
     const config = await apiGet('/api/config');
+    if (config.offlineDemo) {
+      state.offlineDemo = true;
+      renderOfflineDemoCheckout();
+      return;
+    }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
     renderPayPalButtons();
@@ -1215,6 +1240,38 @@ async function loadAndRenderPayPal() {
       showPayPalTroubleshooting();
     }
   }
+}
+
+function renderOfflineDemoCheckout() {
+  const host = $('paypal-buttons');
+  if (!host || state.paypalRendered) return;
+  state.paypalRendered = true;
+  const card = host.closest('.paypal-buttons-container');
+  const heading = card?.querySelector('h4'), info = card?.querySelector('p');
+  if (heading) heading.textContent = 'OFFLINE SIMULATION — no PayPal transaction';
+  if (info) info.textContent = 'Judge walkthrough with local synthetic responses. No real Gemini or PayPal API is contacted.';
+  const help = $('btn-show-paypal-help');
+  if (help) help.hidden = true;
+  const note = el('p', {cls:'offline-demo-notice', attr:{role:'status'},
+    text:'SIMULATED BUYER APPROVAL · NO REAL OR SANDBOX FUNDS TRANSFERRED'});
+  const button = el('button', {cls:'btn-primary-glow offline-demo-pay',
+    text:'Simulate buyer approval (no payment)', attr:{type:'button'}});
+  button.addEventListener('click',async()=>{
+    button.disabled=true;
+    try {
+      const order=await api('/api/paypal/create-order',{quoteId:state.quoteId});
+      const receipt=await api('/api/paypal/capture-order',{orderId:order.id});
+      if (!receipt.offlineDemo) throw new Error('Mock provider flag missing');
+      renderReceipt(receipt);
+      showStep('receipt');
+      toast('Simulated workflow complete. No PayPal call made.','success');
+    } catch(err) {
+      toast('Offline demo failed: '+err.message,'error');
+      button.disabled=false;
+      state.paypalRendered=false;
+    }
+  });
+  host.replaceChildren(note,button);
 }
 
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
@@ -1367,6 +1424,7 @@ function renderPayPalButtons() {
 
 // ─── VERIFIED SANDBOX RECEIPT ───
 function renderReceipt(confirmed) {
+  const simulated = Boolean(confirmed.offlineDemo);
   const container = $('receipt-container');
   container.replaceChildren();
 
@@ -1381,7 +1439,7 @@ function renderReceipt(confirmed) {
 
   const receipt = el('article', {
     cls: 'receipt-card-styled',
-    attr: { 'aria-label': 'Verified PayPal Sandbox payment receipt' },
+    attr: { 'aria-label': simulated ? 'Offline simulated example receipt' : 'Verified PayPal Sandbox payment receipt' },
     children: [
       el('header', {
         cls: 'receipt-brandbar',
@@ -1396,22 +1454,24 @@ function renderReceipt(confirmed) {
               ] })
             ]
           }),
-          el('span', { cls: 'receipt-env-pill', text: '● SANDBOX VERIFIED' })
+          el('span', { cls: 'receipt-env-pill', text: simulated ? '● OFFLINE MOCK' : '● SANDBOX VERIFIED' })
         ]
       }),
       el('div', {
         cls: 'receipt-hero',
         children: [
           el('div', { cls: 'receipt-check-ring', text: '✓', attr: { 'aria-hidden': 'true' } }),
-          el('span', { cls: 'receipt-eyebrow', text: 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
-          el('h1', { cls: 'receipt-status-title', text: 'Payment complete.' }),
-          el('p', { cls: 'receipt-subheading', text: confirmed.archived
-            ? 'Saved record of a previously server-verified Sandbox capture. No new payment has been made.'
-            : 'The Sandbox capture was verified by FairFlow against the approved order.' }),
+          el('span', { cls: 'receipt-eyebrow', text: simulated ? 'OFFLINE DEMO / MOCK PROVIDER ONLY' : 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
+          el('h1', { cls: 'receipt-status-title', text: simulated ? 'Simulated checkout complete.' : 'Payment complete.' }),
+          el('p', { cls: 'receipt-subheading', text: simulated
+            ? 'Offline mock walkthrough only. No Gemini or PayPal calls; no money moved.'
+            : confirmed.archived
+              ? 'Saved record of a previously server-verified Sandbox capture. No new payment has been made.'
+              : 'The Sandbox capture was verified by FairFlow against the approved order.' }),
           el('div', {
             cls: 'receipt-amount-panel',
             children: [
-              el('span', { cls: 'receipt-amount-label', text: 'TOTAL CAPTURED · TEST FUNDS' }),
+              el('span', { cls: 'receipt-amount-label', text: simulated ? 'SIMULATED AMOUNT · NOT A TRANSACTION' : 'TOTAL CAPTURED · TEST FUNDS' }),
               el('div', {
                 cls: 'receipt-amount-line',
                 children: [
@@ -1419,7 +1479,7 @@ function renderReceipt(confirmed) {
                   el('span', { cls: 'receipt-currency', text: 'USD' })
                 ]
               }),
-              el('span', { cls: 'receipt-amount-note', text: 'PayPal Sandbox · No real money transferred' })
+              el('span', { cls: 'receipt-amount-note', text: simulated ? 'Offline local mock · No PayPal Sandbox API call' : 'PayPal Sandbox · No real money transferred' })
             ]
           })
         ]
@@ -1429,17 +1489,17 @@ function renderReceipt(confirmed) {
         children: [
           el('div', { cls: 'receipt-section-heading', children: [
             el('span', { text: '01  /  TRANSACTION RECORD' }),
-            el('span', { cls: 'receipt-record-pill', text: 'COMPLETED' })
+            el('span', { cls: 'receipt-record-pill', text: simulated ? 'SIMULATED' : 'COMPLETED' })
           ] }),
           el('div', {
             cls: 'receipt-meta-list',
             children: [
               renderMetaRow('Project', projectTitle),
-              renderMetaRow('Capture status', confirmed.status || 'COMPLETED'),
-              renderMetaRow('PayPal order ID', confirmed.orderId || 'Unavailable', Boolean(confirmed.orderId)),
-              renderMetaRow('PayPal capture ID', confirmed.captureId || 'Unavailable', Boolean(confirmed.captureId)),
-              renderMetaRow('Verified on (UTC)', verifiedAt),
-              renderMetaRow('Environment', 'api-m.sandbox.paypal.com')
+              renderMetaRow(simulated ? 'Demo result' : 'Capture status', simulated ? 'SIMULATED — NO PAYMENT' : confirmed.status || 'COMPLETED'),
+              renderMetaRow(simulated ? 'Mock order ID' : 'PayPal order ID', confirmed.orderId || 'Unavailable', Boolean(confirmed.orderId)),
+              renderMetaRow(simulated ? 'Mock capture ID' : 'PayPal capture ID', confirmed.captureId || 'Unavailable', Boolean(confirmed.captureId)),
+              renderMetaRow(simulated ? 'Generated on (UTC)' : 'Verified on (UTC)', verifiedAt),
+              renderMetaRow('Environment', simulated ? 'Offline local mock · no provider network' : 'api-m.sandbox.paypal.com')
             ]
           })
         ]
@@ -1449,8 +1509,9 @@ function renderReceipt(confirmed) {
         children: [
           el('span', { cls: 'receipt-verification-icon', text: '✓', attr: { 'aria-hidden': 'true' } }),
           el('div', { children: [
-            el('strong', { text: 'Order amount and capture status checked' }),
-            el('span', { text: 'The server verified the USD amount, order ID and completed capture before recording this receipt.' })
+            el('strong', { text: simulated ? 'Mock order consistency checked' : 'Order amount and capture status checked' }),
+            el('span', { text: simulated ? 'This mock result is NOT independent PayPal verification.'
+              : 'The server verified the USD amount, order ID and completed capture before recording this receipt.' })
           ] })
         ]
       }),
@@ -1458,9 +1519,11 @@ function renderReceipt(confirmed) {
         cls: 'receipt-footnote',
         children: [
           el('span', { text: 'FAIRFLOW  /  EVERY CHANGE DESERVES FAIR PAY.' }),
-          el('span', { text: confirmed.archived
-            ? 'SAVED SANDBOX RECORD · NO NEW CAPTURE'
-            : 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
+          el('span', { text: simulated
+            ? 'FAKE DEMO DATA · NOT A PAYMENT RECEIPT'
+            : confirmed.archived
+              ? 'SAVED SANDBOX RECORD · NO NEW CAPTURE'
+              : 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
         ]
       })
     ]
@@ -1786,6 +1849,15 @@ async function refreshIntegrationStatus() {
     const s = await apiGet('/api/health');
     chip.classList.remove('status-checking');
     chip.classList.toggle('status-needs-setup', !s.paypalConfigured || !s.aiConfigured);
+    state.offlineDemo = Boolean(s.offlineDemo);
+    if (state.offlineDemo) {
+      paypal.textContent = 'PAYPAL MOCK';
+      gemini.textContent = 'AI MOCK';
+      chip.title = 'Offline simulation: no external provider APIs or payment.';
+      const modelStatus = $('ai-current-model');
+      if (modelStatus) modelStatus.textContent = 'Offline model mock — NOT real Gemini';
+      return;
+    }
     paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
     gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
     chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';

@@ -12,7 +12,7 @@
 
 ---
 
-**Reviewing for the PayPal AI Hackathon?** Start with the [2-minute Judges Quick Start](JUDGES_START_HERE.md) for safe localhost setup, the real AI workflow, the difference between mocked and real Sandbox verification, and the important no-escrow boundaries.
+**Reviewing for the PayPal AI Hackathon?** Run `npm run demo:offline` for a credential-free, clearly labelled **SIMULATED** end-to-end walkthrough (no real Gemini or PayPal requests). The actual external APIs work in separate real-provider mode. Start with the [Judges Quick Start](JUDGES_START_HERE.md) for safe localhost setup, the real AI workflow, the difference between mocked and real Sandbox verification, and the important no-escrow boundaries.
 
 **Design system:** [DESIGN.md](DESIGN.md) documents brand tokens, dashboard interaction rules, motion constraints, accessibility targets, and release gates.
 

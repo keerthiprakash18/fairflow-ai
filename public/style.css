@@ -4307,3 +4307,14 @@ body.on-landing .mobile-nav-bar {
   #view-dashboard .framework-card:hover,
   .dashboard-filter:active, .dashboard-refresh:active { transform:none !important; }
 }
+
+
+/* Clearly differentiated offline judge simulation, never the styling of a real PayPal button. */
+.offline-demo-notice {
+  padding:13px 15px; margin:0 0 14px;
+  border:1px solid #E5C49A; border-left:4px solid #A26319; border-radius:7px;
+  background:#FFF8EC; color:#674419;
+  font:750 12px/1.6 var(--font-mono);
+}
+.offline-demo-pay { min-height:48px; width:100%; }
+.offline-demo-pay:disabled {opacity:.6;cursor:progress;}

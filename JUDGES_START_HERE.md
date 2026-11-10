@@ -2,11 +2,27 @@
 
 **FairFlow AI** demonstrates human-reviewed AI scoping, scope-change analysis and **PayPal Sandbox Orders v2** payment verification. It is a **local-only, single-user hackathon prototype**, not a hosted production app, not legal e-signature and not escrow.
 
-## 1. Open the interactive product overview (no credentials)
+## 1. Try the complete simulation without credentials
+
+**Run this first if you are judging.** It exercises the full working UI without API keys or a PayPal buyer account. Every AI and payment response is **MOCKED**, clearly labelled as a simulation, and **not proof of real API integration**. Real provider instructions follow below.
+
+```bash
+git clone https://github.com/keerthiprakash18/fairflow-ai.git
+cd fairflow-ai
+npm run demo:offline
+```
+
+Open **http://127.0.0.1:3000** (or choose another local port with `PORT=3100 npm run demo:offline` on Unix; on Windows PowerShell, set `$env:PORT="3100"` before the command). Use **New Agreement → Generate → Approve → Scope Guard → Simulate buyer approval → Simulated Receipt → Audit Trail**.
+
+The offline mode does **not** load `.env` or use real Gemini/PayPal credentials. It forcibly uses fake keys and a temporary local ledger, removes records when stopped, and rejects unexpected external provider calls. Its receipt explicitly says **NOT A PAYMENT RECEIPT**.
+
+For independently verified Gemini/PayPal integration, see the real API mode in Step 4 below and the actual Sandbox capture evidence in the project demonstration.
+
+## 2. Open the interactive product overview (no credentials)
 
 After the app starts, visit **http://127.0.0.1:3000**. The homepage contains an explicitly labelled illustrative **4-stage Scope Intelligence preview** and an interactive Scope Lab with three client-request scenarios. These illustrations work even if you don't have external API keys.
 
-## 2. Run locally (Node.js 22.16+)
+## 3. Run locally (Node.js 22.16+)
 
 ```bash
 git clone https://github.com/keerthiprakash18/fairflow-ai.git
@@ -19,7 +35,7 @@ On Windows PowerShell, copy the environment file using `Copy-Item .env.example .
 
 **Real AI and PayPal checkout require separate private development credentials.** Replace placeholders in your private `.env` for `GEMINI_API_KEY` and PayPal **Sandbox** Client ID/Secret. Never publish `.env`, credentials, buyer passwords or token values. Real money is never used; the integration has a hard-coded Sandbox endpoint.
 
-## 3. Test the actual workflow (live Gemini key required)
+## 4. Test the actual workflow (live Gemini key required)
 
 1. On the **Scope Lab** select **Multi-vendor marketplace** and click its **Open in Workbench** button.
 2. **Generate** the proposal using Gemini and review the deliverables, assumptions, risks and milestone percentages.
@@ -30,7 +46,7 @@ On Windows PowerShell, copy the environment file using `Copy-Item .env.example .
 
 The workflow does **not** digitally sign contracts, approve revised AI prices automatically, or release actual milestone installments.
 
-## 4. Safe automated checks
+## 5. Safe automated checks
 
 ```bash
 npm run check
@@ -43,7 +59,7 @@ npm run verify:scope
 
 Desktop/mobile visual browser QA also runs on each commit via **GitHub Actions** and uploads screenshots. It mocks upstream providers, not the real PayPal buyer approval.
 
-## 5. Technical and security boundaries
+## 6. Technical and security boundaries
 
 **Node.js native HTTP + vanilla JavaScript + CSS**; runtime uses no third-party npm packages. Gemini API performs structured analysis, human approval is required, PayPal Orders v2 verifies the Sandbox capture, and local JSON ledger data is preserved through restarts. Backend is bound to loopback only, rejects untrusted Host/Origin, validates request size and rate-limits routes.
 

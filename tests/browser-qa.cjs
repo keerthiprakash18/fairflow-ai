@@ -274,6 +274,57 @@ async function waitForHealth(url, server) {
     }
     await page.setViewportSize({width:390,height:844});
     assert.deepEqual(exceptions, [], 'Unexpected browser JavaScript exceptions');
+    // Owner credentials are deliberately absent; this is the separately flagged
+    // offline *simulation*, not real PayPal/Gemini integration.
+    const demoPort=await freePort(),demoUrl='http://127.0.0.1:'+demoPort;
+    const demoServer=spawn(process.execPath,['scripts/demo-offline.cjs'],{
+      cwd:root, env:{...process.env,PORT:String(demoPort)}, stdio:'pipe'
+    });
+    let demoPage;
+    try {
+      await waitForHealth(demoUrl,demoServer);
+      demoPage=await browser.newPage({viewport:{width:1440,height:900}});
+      await demoPage.goto(demoUrl+'/#new-project',{waitUntil:'domcontentloaded'});
+      await demoPage.locator('#view-new-project.active').waitFor();
+      await demoPage.locator('#description').fill('Build a 10-page responsive boutique e-commerce website with catalog, cart, checkout and admin inventory management.');
+      await demoPage.locator('#btn-generate').click();
+      await demoPage.locator('#btn-approve-quote').waitFor({timeout:10000});
+      await demoPage.locator('#btn-approve-quote').click();
+      await demoPage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:10000});
+      await demoPage.locator('#scope-request').fill('The client asks for a multi-vendor marketplace with independent seller dashboards and automatic split payouts.');
+      await demoPage.locator('#btn-analyze-scope').click();
+      await demoPage.locator('.scope-change-order-card').waitFor({timeout:10000});
+      await demoPage.locator('#btn-skip-scope').click();
+      await demoPage.locator('#step-checkout:not(.hidden-step)').waitFor({timeout:10000});
+      const offlineButton=demoPage.getByRole('button',{name:'Simulate buyer approval (no payment)'});
+      await offlineButton.waitFor({timeout:10000});
+      assert.match(await demoPage.locator('#paypal-buttons').innerText(),/SIMULATED BUYER APPROVAL/);
+      assert.equal(await demoPage.evaluate(()=>Boolean(window.paypal)),false,'Offline demo must not load live PayPal SDK');
+      await offlineButton.click();
+      await demoPage.locator('#step-receipt:not(.hidden-step)').waitFor({timeout:10000});
+      assert.match(await demoPage.locator('.receipt-status-title').innerText(),/Simulated checkout complete/);
+      assert.match(await demoPage.locator('.receipt-footnote').innerText(),/NOT A PAYMENT RECEIPT/);
+      assert.match(await demoPage.locator('.receipt-env-pill').innerText(),/OFFLINE MOCK/);
+      await demoPage.setViewportSize({width:390,height:844});
+      assert.equal(await demoPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);
+      await demoPage.screenshot({path:path.join(out,'judge-offline-simulation-mobile.png'),fullPage:true});
+      await demoPage.setViewportSize({width:1440,height:900});
+      await demoPage.locator('.nav-tab[data-view="dashboard"]').click();
+      await demoPage.locator('#view-dashboard.active').waitFor({timeout:10000});
+      await demoPage.waitForFunction(() => document.querySelector('#stat-paid')?.textContent === '1');
+      assert.equal(await demoPage.locator('#stat-revenue').innerText(),'$900.00');
+      assert.match(await demoPage.locator('.metric-line-item .metric-sub').innerText(),/NO PayPal funds/);
+      assert.match(await demoPage.locator('#dashboard-pulse-title').innerText(),/simulated agreement/);
+      assert.match(await demoPage.locator('.mini-label').filter({hasText:'SIMULATED CHECKOUTS'}).innerText(),/SIMULATED CHECKOUTS/);
+      assert.match(await demoPage.locator('.dashboard-project-status').innerText(),/Simulated/);
+      await demoPage.setViewportSize({width:390,height:844});
+      assert.equal(await demoPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);
+      await demoPage.screenshot({path:path.join(out,'judge-offline-dashboard-mobile.png'),fullPage:true});
+    } finally {
+      if(demoPage)await demoPage.close();
+      demoServer.kill('SIGTERM');
+    }
+
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,
       screenshotViewport: { desktop: [1440, 900], mobile: [390, 844] },
