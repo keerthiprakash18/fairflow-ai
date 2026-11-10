@@ -265,7 +265,7 @@ async function loadHistory() {
     state.projects = data.projects || [];
     renderHistory(state.projects);
   } catch (err) {
-    container.innerHTML = `<div style="padding: 30px; color: var(--red-400);">Error loading history: ${err.message}</div>`;
+    container.replaceChildren();const errEl=document.createElement('div');errEl.style.cssText='padding:30px;color:var(--red-400)';errEl.textContent='Error loading history: '+err.message;container.appendChild(errEl);
   }
 }
 
@@ -1022,7 +1022,7 @@ async function loadAndRenderPayPal() {
   } catch (err) {
     const target = $('paypal-buttons');
     if (target) {
-      target.innerHTML = `<div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; color: var(--red-400); font-size: 12px;">⚠️ ${err.message}</div>`;
+      target.replaceChildren();const errEl=document.createElement('div');errEl.style.cssText='padding:16px;border:1px solid #f9a8a8;border-radius:8px;color:var(--red-400);font-size:12px';errEl.textContent='⚠️ '+err.message;target.appendChild(errEl);
     }
   }
 }
@@ -1259,6 +1259,7 @@ $('btn-watch-flow')?.addEventListener('click', () => {
 let currentDemoStage = 3;
 let demoInterval = null;
 let autoPlayPaused = false;
+let userPausedDemo = false;
 let pauseTimeout = null;
 
 const STAGE_LABELS = {
@@ -1296,8 +1297,9 @@ function pauseDemoAutoPlay() {
 
 function startDemoAutoPlay() {
   if (demoInterval) clearInterval(demoInterval);
+  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
   demoInterval = setInterval(() => {
-    if (state.currentView !== 'landing' || autoPlayPaused) return;
+    if (state.currentView !== 'landing' || autoPlayPaused || userPausedDemo) return;
     let next = currentDemoStage + 1;
     if (next > 4) next = 1;
     setDemoStage(next);
@@ -1305,6 +1307,8 @@ function startDemoAutoPlay() {
 }
 
 function initShowcaseDemo() {
+  const pause=$('showcase-playback-toggle');
+  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));pause.setAttribute('aria-label',userPausedDemo?'Resume demo animation':'Pause demo animation');});
   qsa('.scrubber-tab, .showcase-dot').forEach(btn => {
     btn.addEventListener('click', () => {
       const st = Number(btn.dataset.stage);
@@ -1335,6 +1339,7 @@ function initShowcaseDemo() {
   const showcaseCard = $('showcase');
   if (showcaseCard) {
     showcaseCard.addEventListener('mouseenter', pauseDemoAutoPlay);
+    showcaseCard.addEventListener('focusin', pauseDemoAutoPlay);
     showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; });
   }
 
@@ -1355,6 +1360,22 @@ function initShowcaseDemo() {
   startDemoAutoPlay();
 }
 
+
+// The Scope Lab is illustrative. No AI API or payment API is called here.
+const LAB_EXAMPLES = Object.freeze({
+  marketplace:{impact:'IMPACT / HIGH',title:'Multi-vendor marketplace',description:'Seller accounts, split payouts and a new marketplace admin layer.',amount:'+$1,400 USD',timeline:'+18 days'},
+  assistant:{impact:'IMPACT / MEDIUM',title:'AI support assistant',description:'Knowledge retrieval, a support chat UI and quality evaluation.',amount:'+$650 USD',timeline:'+8 days'},
+  rush:{impact:'IMPACT / HIGH',title:'Rush delivery',description:'Compress the delivery schedule while preserving the original deliverables.',amount:'+$950 USD',timeline:'20 days earlier'}
+});
+function initScopeLab(){
+  const buttons=qsa('[data-lab-scenario]');
+  buttons.forEach(button=>button.addEventListener('click',()=>{
+    const example=LAB_EXAMPLES[button.dataset.labScenario];if(!example)return;
+    buttons.forEach(b=>{const selected=b===button;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',String(selected));});
+    [['lab-impact-label',example.impact],['lab-change-title',example.title],['lab-change-description',example.description],['lab-change-amount',example.amount],['lab-change-timeline',example.timeline]].forEach(([id,value])=>{const target=$(id);if(target)target.textContent=value;});
+  }));
+}
+
 // ─── GLOBAL VIEW BUTTON BINDINGS ───
 function bindViewButtons(ctx = document) {
   qsa('[data-view]', ctx).forEach(b => {
@@ -1366,6 +1387,7 @@ function bindViewButtons(ctx = document) {
 function init() {
   bindViewButtons();
   initShowcaseDemo();
+  initScopeLab();
 
   // Check initial URL hash for direct deep links
   const hash = window.location.hash.toLowerCase();

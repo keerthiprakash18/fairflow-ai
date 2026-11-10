@@ -32,10 +32,10 @@
 
 | The Freelancer Nightmare | The FairFlow AI Solution |
 | :--- | :--- |
-| **Vague Scope & Disagreements:** 73% of freelancers experience scope creep and unbilled revisions, causing loss of income and broken relationships. | **Gemini Scoping Engine:** AI structures informal briefs into itemized deliverables, milestone timelines, assumptions, and proactive risk audits. |
+| **Vague Scope & Disagreements:** Scope changes and unbilled revisions can lead to pricing disagreements and lost income. | **Gemini Scoping Engine:** AI structures informal briefs into itemized deliverables, milestone timelines, assumptions, and proactive risk audits. |
 | **Silent Scope Creep:** Clients add "just one small feature" mid-project, leading to unpaid labor and resentment. | **AI Scope-Change Detector:** Real-time diff analysis comparing new requests against baseline scope, computing exact financial impact (+$USD) and timeline shifts. |
-| **Payment Friction & Insecurity:** Sending raw invoices with no milestone protection leaves both parties exposed. | **PayPal Sandbox Orders v2:** Server-side order creation and capture with milestone authorization, escrow-like protection, and instant printable receipts. |
-| **Lack of Human Agency:** Fully automated AI pricing can hallucinate unrealistic budgets. | **Human-in-the-Loop Approval:** The freelancer retains absolute authority. AI advises; humans approve; PayPal guarantees. |
+| **Payment Friction & Insecurity:** Sending raw invoices with no milestone protection leaves both parties exposed. | **PayPal Sandbox Orders v2:** Server-side order creation and capture with sandbox checkout, server-side payment verification, and printable test receipts. |
+| **Lack of Human Agency:** Fully automated AI pricing can hallucinate unrealistic budgets. | **Human-in-the-Loop Approval:** The freelancer retains absolute authority. AI advises; humans approve; PayPal Sandbox processes test payments. |
 
 ---
 
@@ -44,7 +44,7 @@
 ### 1. Multi-Model Gemini 3.8 Scoping Engine
 * Analyzes messy client messages or brief descriptions into structured scopes.
 * Generates itemized deliverables, percentage-based milestone breakdowns (Deposit, Alpha, Final Review), risk watchouts, and clarification questions.
-* **Resilient Cascade Architecture:** Automatically falls back across `gemini-3.8-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` to ensure 99.9% uptime during hackathon judging.
+* **Resilient Cascade Architecture:** Automatically falls back across `gemini-3.8-flash` → `gemini-3.5-flash-lite` → `gemini-3.1-flash-lite` to help handle unavailable models.
 
 ### 2. 1-Click AI Prompt Enhancer
 * Turns 5-word ideas (e.g. *"build an online coffee store"*) into comprehensive technical briefs specifying tech stack, authentication, database schema, payment gateways, and security requirements.

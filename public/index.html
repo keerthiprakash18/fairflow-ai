@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-type="software">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -18,6 +18,7 @@
   <link rel="stylesheet" href="/style.css">
 </head>
 <body class="editorial-workbench-body">
+  <a class="skip-link" href="#app-viewport">Skip to content</a>
   <!-- Minimalist Master App Shell -->
   <div class="workbench-shell">
     
@@ -138,13 +139,13 @@
                   </div>
                   <div class="trust-sep"></div>
                   <div class="trust-stat">
-                    <span class="stat-value">$0</span>
-                    <span class="stat-label">Unbilled Scope Leakage</span>
+                    <span class="stat-value">Human</span>
+                    <span class="stat-label">Final Pricing Authority</span>
                   </div>
                   <div class="trust-sep"></div>
                   <div class="trust-stat">
                     <span class="stat-value">Orders v2</span>
-                    <span class="stat-label">PayPal Server-Verified</span>
+                    <span class="stat-label">Sandbox API Integration</span>
                   </div>
                 </div>
               </div>
@@ -278,7 +279,7 @@
                     <!-- STAGE 4: HUMAN APPROVED PAYPAL SETTLEMENT -->
                     <div class="showcase-slide" data-slide="4">
                       <div class="slide-badge-row">
-                        <span class="badge-success">✓ HUMAN SIGNED &amp; APPROVED</span>
+                        <span class="badge-success">✓ DEMO APPROVAL STATE</span>
                         <span class="badge-paypal">PAYPAL ORDERS V2</span>
                       </div>
                       <div class="settlement-summary">
@@ -301,7 +302,7 @@
                             <span class="paypal-italic">PayPal</span>
                             <span class="checkout-word">Checkout</span>
                           </div>
-                          <span class="sandbox-stamp">SANDBOX VERIFIED</span>
+                          <span class="sandbox-stamp">ILLUSTRATIVE · NO PAYMENT</span>
                         </div>
                       </div>
                       <button class="btn-demo-test-workbench" data-view="dashboard">
@@ -314,15 +315,16 @@
 
                   <!-- Interactive Showcase Controls -->
                   <div class="showcase-controls-bar">
+                    <button type="button" id="showcase-playback-toggle" class="showcase-pause-btn" aria-pressed="false" aria-label="Pause demo animation">Pause preview</button>
                     <button class="btn-showcase-nav" id="showcase-prev-btn" aria-label="Previous Demo Stage">
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
                       <span>Previous</span>
                     </button>
                     <div class="showcase-step-dots" id="showcase-dots">
-                      <span class="showcase-dot" data-stage="1"></span>
-                      <span class="showcase-dot" data-stage="2"></span>
-                      <span class="showcase-dot active" data-stage="3"></span>
-                      <span class="showcase-dot" data-stage="4"></span>
+                      <button type="button" class="showcase-dot" data-stage="1" aria-label="Show baseline example"></button>
+                      <button type="button" class="showcase-dot" data-stage="2" aria-label="Show new request example"></button>
+                      <button type="button" class="showcase-dot active" data-stage="3" aria-label="Show scope analysis example"></button>
+                      <button type="button" class="showcase-dot" data-stage="4" aria-label="Show checkout preview"></button>
                     </div>
                     <button class="btn-showcase-nav" id="showcase-next-btn" aria-label="Next Demo Stage">
                       <span>Next Step</span>
@@ -337,21 +339,71 @@
           </div>
         </section>
 
-        <!-- SECTION 2: THE FREELANCER SCOPE-CREEP PROBLEM -->
+
+        <!-- PRODUCT-FIRST SIGNATURE STORY. ALL FIGURES ARE CLEARLY ILLUSTRATIVE. -->
+        <section class="scope-lab" id="scope-lab" aria-labelledby="scope-lab-title">
+          <div class="landing-container">
+            <div class="lab-overline"><span>02 / PRODUCT IN MOTION</span><span>LIVE INTERACTION · SAMPLE VALUES ONLY</span></div>
+            <div class="lab-grid">
+              <div class="lab-content">
+                <p class="lab-kicker">The scope is never static.</p>
+                <h2 id="scope-lab-title">Make the <em>invisible work</em> visible.</h2>
+                <p class="lab-description">“Can we add one small thing?” Choose a client request and see why a seemingly small revision deserves a new conversation. This is a sample, not a live AI response.</p>
+                <div class="lab-choices" role="group" aria-label="Sample scope change scenarios">
+                  <button type="button" data-lab-scenario="marketplace" class="lab-choice is-selected" aria-pressed="true"><span>01</span> Multi-vendor marketplace <b aria-hidden="true">↗</b></button>
+                  <button type="button" data-lab-scenario="assistant" class="lab-choice" aria-pressed="false"><span>02</span> AI support assistant <b aria-hidden="true">↗</b></button>
+                  <button type="button" data-lab-scenario="rush" class="lab-choice" aria-pressed="false"><span>03</span> Rush delivery <b aria-hidden="true">↗</b></button>
+                </div>
+                <p class="lab-disclaimer">These are illustrative estimates. In the actual app Gemini suggests; a person approves. No payment is made from this demo.</p>
+                <button type="button" class="lab-cta" data-view="new-project">Try it with a real project brief <span aria-hidden="true">↗</span></button>
+              </div>
+              <div class="lab-stage">
+                <div class="lab-stage-top"><span class="lab-status-dot"></span> FAIRFLOW / SCOPE LENS <span class="lab-stage-tag">INTERACTIVE SAMPLE</span></div>
+                <div class="lab-paper-grid">
+                  <article class="lab-paper">
+                    <div class="lab-paper-index"><span>A / ORIGINAL</span><span>LOCKED EXAMPLE</span></div>
+                    <p class="lab-paper-label">AGREEMENT 001</p>
+                    <h3>Boutique<br>e-commerce</h3>
+                    <p class="lab-paper-copy">A single-vendor storefront with checkout, catalog and admin tools.</p>
+                    <div class="lab-paper-rule"></div>
+                    <div class="lab-paper-line"><span>Delivery</span><strong>30 days</strong></div>
+                    <div class="lab-paper-line"><span>Example price</span><strong>$2,850</strong></div>
+                    <div class="lab-paper-stamp">BASELINE SCOPE</div>
+                  </article>
+                  <div class="lab-mid-bridge" aria-hidden="true">+</div>
+                  <article class="lab-paper lab-paper-new" aria-live="polite" aria-atomic="true">
+                    <div class="lab-paper-index"><span>B / REQUESTED</span><span>NOT APPROVED</span></div>
+                    <p class="lab-paper-label" id="lab-impact-label">IMPACT / HIGH</p>
+                    <h3 id="lab-change-title">Multi-vendor<br>marketplace</h3>
+                    <p class="lab-paper-copy" id="lab-change-description">Seller accounts, split payouts and a new marketplace admin layer.</p>
+                    <div class="lab-paper-rule"></div>
+                    <div class="lab-extra-amount" id="lab-change-amount">+$1,400 USD</div>
+                    <div class="lab-paper-line"><span>Suggested timeline</span><strong id="lab-change-timeline">+18 days</strong></div>
+                    <div class="lab-paper-stamp lab-stamp-alert">SUGGESTED DELTA</div>
+                  </article>
+                </div>
+                <div class="lab-stage-bottom"><span aria-hidden="true">✓</span> Original approved amount stays unchanged. <strong>Human review required.</strong></div>
+              </div>
+            </div>
+            <div class="lab-footer"><span>AI RECOMMENDS / HUMANS APPROVE</span><span>PAYPAL SANDBOX · NO REAL MONEY</span></div>
+          </div>
+        </section>
+
+        <!-- SECTION 3: THE FREELANCER SCOPE-CREEP PROBLEM -->
         <section class="landing-section-problem" id="problem">
           <div class="landing-container">
             <div class="problem-editorial-header">
               <span class="section-kicker">02 // THE INDUSTRY REALITY</span>
               <h2 class="problem-title">The Unpaid "Quick Favor" Trap</h2>
-              <p class="problem-subtitle">Why most freelance developers and agencies under-earn despite working 50+ hours a week.</p>
+              <p class="problem-subtitle">A small request can hide significant new engineering work.</p>
             </div>
 
             <div class="problem-asymmetric-grid">
               
               <!-- BIG STAT CARD -->
               <div class="problem-stat-card">
-                <div class="stat-big-number">73%</div>
-                <h3 class="stat-card-heading">of independent developers absorb unpaid revisions.</h3>
+                <div class="stat-big-number">01<span class="stat-fraction">/ 02</span></div>
+                <h3 class="stat-card-heading">One original agreement. A second request. Two distinct scopes.</h3>
                 <p class="stat-card-text">
                   You know the message: <em>“Can we just add one small thing?”</em> You want to keep the client relationship positive, so you agree without hesitation.
                 </p>
@@ -359,7 +411,7 @@
                   Two weeks later, you have built half a new product without an extra dime. The problem is not malice — it is the absence of an objective contract referee.
                 </p>
                 <div class="stat-pill-footer">
-                  <span class="pill-dot"></span> Source: Industry Freelance Revenue Benchmark 2026
+                  <span class="pill-dot"></span> Illustrative freelancer scenario · no statistical claim
                 </div>
               </div>
 
@@ -395,7 +447,7 @@
                   <div class="referee-icon">⚖️</div>
                   <div class="referee-text">
                     <strong>The FairFlow Solution:</strong>
-                    <span>Google Gemini acts as an impartial AI referee that calculates exact financial variance without emotion, preserving client goodwill while protecting your bank account.</span>
+                    <span>Gemini analyzes new deliverables and suggests a cost impact. You review the estimate and approve any payment.</span>
                   </div>
                 </div>
               </div>
@@ -1046,7 +1098,7 @@
       </div>
       <div class="modal-body">
         <p class="modal-intro">
-          FairFlow AI is fully connected to the <strong>PayPal Developer Sandbox</strong>. To test the live payment flow without real money, use a PayPal Sandbox Personal Test Buyer account.
+          FairFlow AI supports the <strong>PayPal Developer Sandbox</strong> when test credentials are configured. To test the live payment flow without real money, use a PayPal Sandbox Personal Test Buyer account.
         </p>
 
         <div class="modal-instruction-box">
