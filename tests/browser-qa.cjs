@@ -8,6 +8,7 @@ const os = require('node:os');
 const path = require('node:path');
 const net = require('node:net');
 const { chromium } = require('playwright');
+const axePath = require.resolve('axe-core/axe.min.js');
 
 const root = path.resolve(__dirname, '..');
 const out = path.join(root, 'browser-artifacts');
@@ -32,6 +33,34 @@ async function waitForHealth(url, server) {
   }
   throw Error('FairFlow did not become healthy');
 }
+const accessibilityReports = [];
+async function auditAccessibility(page, context, scenario) {
+  if (!await page.evaluate(() => typeof window.axe !== 'undefined')) {
+    await page.addScriptTag({ path: axePath });
+  }
+  const report = await page.evaluate(async selector => {
+    const root = document.querySelector(selector);
+    if (!root) throw Error('Missing accessibility scan root: '+selector);
+    const result = await window.axe.run(root, {
+      runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa','wcag22aa']}
+    });
+    return {
+      passes:result.passes.length,
+      violations:result.violations.map(v=>({
+        id:v.id,impact:v.impact,description:v.description,
+        nodes:v.nodes.slice(0,12).map(n=>({target:n.target,html:n.html.slice(0,240),
+          summary:n.failureSummary?.slice(0,340)}))
+      }))
+    };
+  },context);
+  accessibilityReports.push({scenario,context,...report});
+  await fs.writeFile(path.join(out,'accessibility-audit.json'),
+    JSON.stringify(accessibilityReports,null,2));
+  const serious = report.violations.filter(v=>['critical','serious'].includes(v.impact));
+  assert.deepEqual(serious,[],
+    'WCAG accessibility findings in '+scenario+': '+JSON.stringify(serious));
+}
+
 (async () => {
   await fs.mkdir(out, { recursive: true });
   const dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'fairflow-browser-'));
@@ -51,6 +80,16 @@ async function waitForHealth(url, server) {
     await waitForHealth(url, server);
     browser = await chromium.launch({ headless: true });
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
+    await page.addInitScript(() => {
+      window.__ffLayoutShift = 0;
+      try {
+        const observer = new PerformanceObserver(list => {
+          for (const item of list.getEntries())
+            if (!item.hadRecentInput) window.__ffLayoutShift += item.value;
+        });
+        observer.observe({type:'layout-shift',buffered:true});
+      } catch {}
+    });
     const exceptions = [];
     page.on('pageerror', error => exceptions.push(error.message));
     // PayPal SDK is mocked only for this browser test; no provider credentials or money used.
@@ -72,6 +111,20 @@ async function waitForHealth(url, server) {
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.locator('#view-landing.active').waitFor();
     await page.waitForTimeout(1100); // Wait for editorial entrance animation to finish before visual capture.
+    const performanceSnapshot = await page.evaluate(() => ({
+      fcpMs:Math.round(performance.getEntriesByType('paint')
+        .find(x=>x.name==='first-contentful-paint')?.startTime || 0),
+      domContentLoadedMs:Math.round(performance.getEntriesByType('navigation')[0]?.domContentLoadedEventEnd || 0),
+      clsObserved:Number((window.__ffLayoutShift || 0).toFixed(4)),
+      eagerConfettiRequests:performance.getEntriesByType('resource')
+        .filter(x=>/canvas-confetti|confetti\.browser|min\.js/.test(x.name)).length
+    }));
+    assert.equal(performanceSnapshot.eagerConfettiRequests,0,'No third-party animation JS should load during startup');
+    await fs.writeFile(path.join(out,'performance-snapshot.json'),JSON.stringify({
+      context:'Local Chromium smoke test; NOT a field Core Web Vitals or Lighthouse score',
+      ...performanceSnapshot
+    },null,2));
+    await auditAccessibility(page,'#view-landing','desktop landing');
     await page.screenshot({ path: path.join(out, 'landing-desktop.png'), fullPage: true });
     const desktop = await page.evaluate(() => ({
       viewport: window.innerWidth,
@@ -85,6 +138,7 @@ async function waitForHealth(url, server) {
     await page.locator('#btn-hero-launch-workbench').click();
     await page.locator('#view-dashboard.active').waitFor();
     await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('No saved agreements'));
+    await auditAccessibility(page,'#view-dashboard','empty dashboard');
     assert.equal(await page.locator('#stat-total').innerText(), '0');
     assert.equal(await page.locator('#stat-revenue').innerText(), '$0.00');
     assert.equal(await page.locator('#dashboard-pulse-title').innerText(), 'No saved agreements yet');
@@ -130,6 +184,7 @@ async function waitForHealth(url, server) {
     assert.match(await page.locator('#description').inputValue(), /e-commerce website/);
     await page.locator('#btn-generate').click();
     await page.locator('#btn-approve-quote').waitFor({ timeout: 15000 });
+    await auditAccessibility(page,'#step-proposal','generated proposal');
     await page.screenshot({ path: path.join(out, 'proposal-desktop.png'), fullPage: true });
     const confirmation = page.waitForResponse(response => response.url().endsWith('/api/confirm-quote'), { timeout: 10000 });
     await page.locator('#btn-approve-quote').click();
@@ -150,6 +205,7 @@ async function waitForHealth(url, server) {
     assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
     await page.locator('#btn-analyze-scope').click();
     await page.locator('.scope-change-order-card').waitFor({timeout:12000});
+    await auditAccessibility(page,'#step-scope','scope guard analysis');
     const draft = await page.locator('.change-order-textarea').inputValue();
     assert.match(draft,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
     assert.match(draft,/Original approved amount:/);
@@ -163,6 +219,7 @@ async function waitForHealth(url, server) {
     await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
     await page.locator('#mock-paypal-approve').click();
     await page.locator('#step-receipt:not(.hidden-step)').waitFor({ timeout: 15000 });
+    await auditAccessibility(page,'#step-receipt','receipt');
     assert.match(await page.locator('#step-receipt').innerText(), /Payment complete/);
     assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
     assert.equal(await page.locator('.receipt-meta-row').count(), 6);
@@ -302,6 +359,7 @@ async function waitForHealth(url, server) {
       assert.equal(await demoPage.evaluate(()=>Boolean(window.paypal)),false,'Offline demo must not load live PayPal SDK');
       await offlineButton.click();
       await demoPage.locator('#step-receipt:not(.hidden-step)').waitFor({timeout:10000});
+      await auditAccessibility(demoPage,'#step-receipt','offline simulation receipt');
       assert.match(await demoPage.locator('.receipt-status-title').innerText(),/Simulated checkout complete/);
       assert.match(await demoPage.locator('.receipt-footnote').innerText(),/NOT A PAYMENT RECEIPT/);
       assert.match(await demoPage.locator('.receipt-env-pill').innerText(),/OFFLINE MOCK/);
