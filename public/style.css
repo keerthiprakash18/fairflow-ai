@@ -4005,3 +4005,27 @@ body.on-landing .mobile-nav-bar {
     -webkit-print-color-adjust: exact; print-color-adjust: exact;
   }
 }
+
+
+/* Guided wizard needs contained horizontal progression on narrow viewports. */
+@media (max-width: 768px) {
+  .editorial-stepper-container {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    overscroll-behavior-x: contain;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+  }
+  .editorial-stepper {
+    width: max-content;
+    min-width: 100%;
+    flex-wrap: nowrap;
+  }
+  .stepper-step { flex-shrink: 0; }
+  .stepper-title { white-space: nowrap; }
+  .stepper-divider { flex: 0 0 20px; margin: 0 8px; }
+}

@@ -130,7 +130,18 @@ async function waitForHealth(url, server) {
     assert.notEqual(await page.locator('.receipt-card-styled').evaluate(node => getComputedStyle(node).display), 'none');
     await page.emulateMedia({ media: 'screen' });
     await page.setViewportSize({ width: 390, height: 844 });
-    const receiptMobile = await page.evaluate(() => ({ viewport: innerWidth, content: document.documentElement.scrollWidth }));
+    const receiptMobile = await page.evaluate(() => ({
+      viewport: innerWidth, content: document.documentElement.scrollWidth,
+      overflowing: [...document.querySelectorAll('body *')].filter(element => {
+        const rect = element.getBoundingClientRect();
+        return rect.width > 0 && rect.right > innerWidth + 2 &&
+          getComputedStyle(element).position !== 'fixed' &&
+          !element.closest('.editorial-stepper');
+      }).slice(0, 12).map(element => ({
+        tag: element.tagName, className: String(element.className || '').slice(0,80),
+        right: Math.round(element.getBoundingClientRect().right)
+      }))
+    }));
     assert.ok(receiptMobile.content <= receiptMobile.viewport + 2, 'Receipt mobile overflow: ' + JSON.stringify(receiptMobile));
     await page.screenshot({ path: path.join(out, 'mocked-payment-receipt-mobile.png'), fullPage: true });
 
