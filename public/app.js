@@ -1011,12 +1011,14 @@ function renderCheckoutStep() {
       el('h4', { text: 'Complete Payment via PayPal', attr: { style: 'font-family: var(--font-heading); font-size: 16px; font-weight: 800; margin-bottom: 8px;' } }),
       el('p', { text: 'Click below to authorize via PayPal Sandbox. Server will independently capture and verify the order status.', attr: { style: 'font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;' } }),
       el('div', { id: 'paypal-buttons' }),
+      el('button', { id: 'btn-show-paypal-help', cls: 'btn-landing-secondary', text: 'PayPal error? Check order status', attr: { type: 'button', style: 'margin-top:14px;padding:9px 12px;font-size:12px;' } }),
       el('div', { id: 'paypal-troubleshooting', attr: { hidden: 'hidden', 'aria-live': 'polite' } })
     ]
   });
 
   container.appendChild(summaryCard);
   container.appendChild(paypalCard);
+  $('btn-show-paypal-help')?.addEventListener('click', showPayPalTroubleshooting);
 
   loadAndRenderPayPal();
 }

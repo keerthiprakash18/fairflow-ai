@@ -329,3 +329,14 @@ This app currently has **no user authentication** and `/api/projects` can expose
 - By default the prototype listens on `127.0.0.1` only. To run on another host, configure `HOST` deliberately; do **not** expose `/api/projects` publicly without authentication and secured storage.
 - `npm run verify:integrations` performs optional real Gemini generation and PayPal Sandbox **OAuth-only** checks using local `.env`, without creating or capturing any payment. A successful result is still **not** a successful buyer checkout test.
 - Inspo MCP is configured in `.codex/config.toml` for compatible, trusted Codex workspaces. It is not automatically connected to each ChatGPT session.
+
+
+### Troubleshoot PayPal Sandbox genericError / seller-buyer login
+
+If the popup says "Things don't appear to be working at the moment", **do not assume a capture failed**. First close the popup and use **Check PayPal order status** in the checkout help panel, or run `npm run diagnose:paypal` in the project directory. The diagnostic checks the **real** PayPal Sandbox Orders API for up to eight local orders, showing `CREATED`, `APPROVED` or `COMPLETED` without printing API secrets or buyer emails; it never creates or captures an order. A local `checkout-started` status by itself proves only that an order was made.
+
+Use two **different** Sandbox accounts: a **Business** seller associated with your REST application and a **Personal** buyer who approves the payment. For US Personal Sandbox buyers, configure `PAYPAL_SANDBOX_BUYER_COUNTRY=US` in `.env`; change the country to match the Personal buyer if needed. The JavaScript SDK's `buyer-country` setting is **sandbox-only**. After changing local `.env`, restart the server. If the PayPal side shows `APPROVED` or `COMPLETED`, stop retrying and reconcile first; don't delete `data/projects.json`. If PayPal still fails with an unapproved `CREATED` order, a **new project** starts a new order. Old orders are intentionally not automatically retried or captured.
+
+The current Orders v2 payload uses the modern `payment_source.paypal.experience_context` structure and a PayPal login-first experience. These changes improve sandbox consistency and diagnostics, but cannot fix a PayPal-hosted service outage or bad buyer credentials.
+
+Official references: https://developer.paypal.com/sdk/js/configuration/ and https://developer.paypal.com/api/rest/integration/orders-api
