@@ -43,3 +43,9 @@ test('demo templates are correctly labelled and payment copy is not misleading',
   assert.match(js,/Full Quote Payment/);
   assert.match(js,/milestone splits are planning estimates/);
 });
+
+test('landing does not overstate sandbox security or fabricate issued documents',()=>{
+  assert.doesNotMatch(html,/cryptographic digital receipts/i);
+  assert.doesNotMatch(html,/automatically generates Change Order #02/i);
+  assert.match(html,/sandbox buyer approves the order/i);
+});

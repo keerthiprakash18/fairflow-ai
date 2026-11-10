@@ -58,19 +58,19 @@
 * Estimates exact financial delta (e.g. *+$1,200 USD*) and delivery timeline expansion.
 * Drafts a polite, professional client-facing adjustment letter ready to copy and send.
 
-### 5. Bank-Grade PayPal Orders API v2 Integration
+### 5. Server-Verified PayPal Sandbox Orders API v2 Integration
 * Server-side order initialization (`POST /v2/checkout/orders`) with unique idempotency keys.
 * Client-side PayPal Smart Buttons loaded dynamically with sandbox client configuration.
 * Server-side capture verification (`POST /v2/checkout/orders/{id}/capture`): verifies `COMPLETED` order status, matching capture ID, exact dollar amounts, and prevents replay or double-capture attacks.
 
 ### 6. Apple-Inspired Fluid Interface
-* Deep Midnight Navy aesthetic designed using modern fintech UX guidelines (`ui-ux-pro-max`) and Apple interaction standards (`apple-design`).
-* Optical SF Pro typography, 40ms touch responsiveness (`touch-action: manipulation`), spring animations, high-contrast `:focus-visible` accessibility rings, and mobile bottom sheet drawers for testing modals.
-* 100% clean inline Lucide SVGs — zero generic raw emojis.
+* Distinctive editorial layout with warm off-white surfaces, charcoal typography, cobalt actions, and an interactive scope comparison.
+* Serif display typography, responsive layouts, keyboard-visible focus rings, reduced-motion handling, and lightweight animations.
+* Lightweight inline SVGs for key controls, with labelled sample scenarios in the demo.
 
 ### 7. Zero External NPM Dependencies
 * Built entirely on Node.js 22+ native modules: `http`, `crypto`, and native `fetch`.
-* Instant startup, zero vulnerability surface, and ultra-lightweight codebase footprint.
+* Lightweight runtime with no third-party npm packages; this does not eliminate security risks or replace production hardening.
 
 ---
 
