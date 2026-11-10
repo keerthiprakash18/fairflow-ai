@@ -81,3 +81,18 @@ test('marketing does not claim a specific Gemini model when runtime uses a fallb
   assert.doesNotMatch(js,/Gemini 3\.8/i);
   assert.match(html,/GOOGLE GEMINI API/);
 });
+
+test('keyboard-supported demo tabs and focus-managed helper modal',()=>{
+  assert.match(js,/event\.key === 'ArrowRight'/);
+  assert.match(js,/event\.key === 'ArrowLeft'/);
+  assert.match(js,/lastFocusBeforeHelper/);
+  assert.match(js,/function closeHelperModal\(/);
+  assert.match(js,/if \(e\.key !== 'Tab'\) return/);
+});
+test('Scope Guard drafts reviewable change-order without changing checkout',()=>{
+  assert.match(js,/Original Approved Scope/);
+  assert.match(js,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
+  assert.match(js,/summaryLines\.join/);
+  assert.match(js,/Copy draft summary/);
+  assert.match(js,/original approved quote/);
+});

@@ -1459,39 +1459,58 @@ function renderMetaRow(label, value, copyable = false) {
 const helperModal = $('helper-modal');
 const helperBtn   = $('btn-quick-helper');
 const modalDialog = helperModal ? helperModal.querySelector('.modal-dialog') : null;
+let lastFocusBeforeHelper = null;
+function closeHelperModal() {
+  if (!helperModal) return;
+  helperModal.classList.add('hidden');
+  if (lastFocusBeforeHelper?.isConnected) lastFocusBeforeHelper.focus();
+}
 
 if (helperBtn && helperModal) {
   helperBtn.addEventListener('click', () => {
     haptic('light');
+    lastFocusBeforeHelper = document.activeElement;
     if (modalDialog) {
       const rect = helperBtn.getBoundingClientRect();
       modalDialog.style.transformOrigin = `${Math.round(rect.left + rect.width / 2)}px ${Math.round(rect.top + rect.height / 2)}px`;
     }
     helperModal.classList.remove('hidden');
+    $('btn-close-helper')?.focus();
   });
 
   $('btn-close-helper')?.addEventListener('click', () => {
     haptic('light');
-    helperModal.classList.add('hidden');
+    closeHelperModal();
   });
 
   $('btn-got-it')?.addEventListener('click', () => {
     haptic('light');
-    helperModal.classList.add('hidden');
+    closeHelperModal();
   });
 
   helperModal.addEventListener('click', e => {
     if (e.target === helperModal) {
       haptic('light');
-      helperModal.classList.add('hidden');
+      closeHelperModal();
     }
   });
 
   window.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !helperModal.classList.contains('hidden')) {
+    if (helperModal.classList.contains('hidden')) return;
+    if (e.key === 'Escape') {
+      e.preventDefault();
       haptic('light');
-      helperModal.classList.add('hidden');
+      closeHelperModal();
+      return;
     }
+    if (e.key !== 'Tab') return;
+    const tabbables = [...helperModal.querySelectorAll('a[href], button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"])')]
+      .filter(node => node.getClientRects().length > 0);
+    if (!tabbables.length) { e.preventDefault(); return; }
+    const first = tabbables[0], last = tabbables[tabbables.length - 1];
+    if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+    else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    else if (!helperModal.contains(document.activeElement)) { e.preventDefault(); first.focus(); }
   });
 }
 
@@ -1523,6 +1542,7 @@ function setDemoStage(stageNum) {
     const isMatch = Number(t.dataset.stage) === stageNum;
     t.classList.toggle('active', isMatch);
     t.setAttribute('aria-selected', isMatch ? 'true' : 'false');
+    t.tabIndex = isMatch ? 0 : -1;
   });
 
   qsa('.showcase-slide').forEach(s => {
@@ -1564,6 +1584,21 @@ function initShowcaseDemo() {
       }
     });
   });
+
+  qsa('.scrubber-tab').forEach(tab => tab.addEventListener('keydown', event => {
+    const current = Number(tab.dataset.stage);
+    let next = current;
+    if (event.key === 'ArrowRight') next = current === 4 ? 1 : current + 1;
+    else if (event.key === 'ArrowLeft') next = current === 1 ? 4 : current - 1;
+    else if (event.key === 'Home') next = 1;
+    else if (event.key === 'End') next = 4;
+    else return;
+    event.preventDefault();
+    setDemoStage(next);
+    pauseDemoAutoPlay();
+    qsa('.scrubber-tab').find(t => Number(t.dataset.stage) === next)?.focus();
+  }));
+  setDemoStage(currentDemoStage);
 
   $('showcase-prev-btn')?.addEventListener('click', () => {
     haptic('light');
