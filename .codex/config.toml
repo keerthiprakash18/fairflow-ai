@@ -1,0 +1,5 @@
+# FairFlow AI — Codex project MCP configuration
+# Inspo: read-only curated design references for UI work.
+# Codex loads project configuration when the project is trusted.
+[mcp_servers.inspo]
+url = "https://inspomcp.dev/api/mcp"
