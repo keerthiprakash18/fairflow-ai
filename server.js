@@ -50,15 +50,25 @@ const DATA_DIR  = path.resolve(process.env.FAIRFLOW_DATA_DIR || path.join(__dirn
 const DATA_FILE = path.join(DATA_DIR, 'projects.json');
 
 async function ensureDataDir() {
-  try { await fs.mkdir(DATA_DIR, { recursive: true }); } catch {}
+  await fs.mkdir(DATA_DIR, { recursive: true });
 }
 
 async function loadProjects() {
+  let raw;
   try {
-    const raw = await fs.readFile(DATA_FILE, 'utf8');
-    return JSON.parse(raw);
+    raw = await fs.readFile(DATA_FILE, 'utf8');
+  } catch (err) {
+    if (err?.code === 'ENOENT') return [];
+    throw Object.assign(new Error('Cannot read local ledger. Check data directory permissions; no records were changed.'), { httpStatus: 500 });
+  }
+  try {
+    const data = JSON.parse(raw);
+    if (!Array.isArray(data)) throw new Error('Expected a project record array');
+    return data;
   } catch {
-    return [];
+    // CRITICAL: Never silently treat an unreadable or corrupt ledger as empty.
+    // Doing so could overwrite existing PayPal transaction history on next save.
+    throw Object.assign(new Error('Local project ledger is invalid. Restore from projects.json.bak before creating more records. No data was overwritten.'), { httpStatus: 500 });
   }
 }
 
@@ -76,7 +86,10 @@ async function saveProject(record) {
     else list.push(next);
     const tmp = DATA_FILE + '.' + process.pid + '.' + randomUUID() + '.tmp';
     try {
-      await fs.writeFile(tmp, JSON.stringify(list, null, 2), 'utf8');
+      await fs.writeFile(tmp, JSON.stringify(list, null, 2), { encoding: 'utf8', mode: 0o600 });
+      // Backup the last good file before atomic replacement. Both files stay local.
+      try { await fs.copyFile(DATA_FILE, DATA_FILE + '.bak'); }
+      catch (err) { if (err.code !== 'ENOENT') throw err; }
       await fs.rename(tmp, DATA_FILE);
     } finally {
       await fs.unlink(tmp).catch(() => {});
@@ -112,6 +125,47 @@ async function getOrder(orderId) {
   const entry = { quoteId:saved.quoteId, createdAt:Date.now(), captured:saved.status === 'paid', capturing:false };
   orders.set(orderId,entry);
   return entry;
+}
+
+// ─── Same-origin request safety and bounded API usage ──────────────────────
+// Local single-user prototype. These controls reduce accidental misuse but do
+// not replace authentication or multi-tenant authorization for public hosting.
+const API_WINDOW_MS = 60_000;
+const rateBuckets = new Map();
+const RATE_LIMITS = Object.freeze({
+  '/api/enhance-brief': 12,
+  '/api/quote': 12,
+  '/api/scope-change': 12,
+  '/api/confirm-quote': 20,
+  '/api/paypal/create-order': 15,
+  '/api/paypal/capture-order': 15,
+  '/api/paypal/order-status': 40,
+  '/api/paypal/approval-link': 30,
+  '/api/paypal/reconcile-order': 20,
+});
+function rateLimited(req, route) {
+  const limit = RATE_LIMITS[route];
+  if (!limit) return false;
+  const now = Date.now();
+  if (rateBuckets.size > 2000) {
+    for (const [key, bucket] of rateBuckets) if (bucket.resetAt <= now) rateBuckets.delete(key);
+  }
+  const key = (req.socket.remoteAddress || 'unknown') + ':' + route;
+  let bucket = rateBuckets.get(key);
+  if (!bucket || now >= bucket.resetAt) bucket = { count: 0, resetAt: now + API_WINDOW_MS };
+  bucket.count++;
+  rateBuckets.set(key, bucket);
+  return bucket.count > limit;
+}
+function allowedPostOrigin(req) {
+  if (req.headers['sec-fetch-site'] === 'cross-site') return false;
+  const origin = req.headers.origin;
+  if (!origin) return true; // CLI clients may omit Origin entirely.
+  try {
+    const u = new URL(origin);
+    const host = req.headers.host;
+    return (u.protocol === 'http:' || u.protocol === 'https:') && u.host === host;
+  } catch { return false; }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -420,6 +474,19 @@ async function handle(req, res) {
 
   // CORS headers for local dev
   res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  if (req.method === 'POST' && route.startsWith('/api/')) {
+    if (!allowedPostOrigin(req)) return send(res, 403, { error: 'Cross-origin API requests are not permitted.' });
+    if (rateLimited(req, route)) {
+      res.setHeader('Retry-After', '60');
+      return send(res, 429, { error: 'Too many requests. Try again shortly.' });
+    }
+    if (req.headers['content-type'] && !String(req.headers['content-type']).toLowerCase().startsWith('application/json'))
+      return send(res, 415, { error: 'API requests require application/json.' });
+  }
 
   // ── Health ────────────────────────────────────────────────────────────────
   if (req.method === 'GET' && route === '/api/health') {

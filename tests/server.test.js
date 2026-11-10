@@ -67,3 +67,24 @@ test('enforces duplicate capture and payment state transitions',()=>withServer(a
   assert.match(data.error, /Unknown order/);
 }));
 
+
+
+test('POST API is same-origin, rate-limited and has safety headers',()=>withServer(async base=>{
+  const headers={'Content-Type':'application/json'};
+  const denied=await fetch(base+'/api/quote',{method:'POST',headers:{...headers,Origin:'https://untrusted.example'},body:'{}'});
+  assert.equal(denied.status,403);
+  const crossed=await fetch(base+'/api/quote',{method:'POST',headers:{...headers,'Sec-Fetch-Site':'cross-site'},body:'{}'});
+  assert.equal(crossed.status,403);
+  const unsupported=await fetch(base+'/api/quote',{method:'POST',headers:{'Content-Type':'text/plain'},body:'{}'});
+  assert.equal(unsupported.status,415);
+  const ok=await fetch(base+'/api/health');
+  assert.equal(ok.headers.get('x-frame-options'),'DENY');
+  assert.equal(ok.headers.get('x-content-type-options'),'nosniff');
+  assert.ok(ok.headers.get('permissions-policy').includes('camera=()'));
+  let limited=false;
+  for(let i=0;i<16;i++){
+    const res=await fetch(base+'/api/quote',{method:'POST',headers,body:'{}'});
+    if(res.status===429){limited=true;break;}
+  }
+  assert.equal(limited,true,'AI API must reject excessive calls with HTTP 429');
+}));
