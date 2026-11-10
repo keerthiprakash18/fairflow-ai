@@ -72,8 +72,22 @@ async function waitForHealth(url, server) {
     await page.locator('#btn-generate').click();
     await page.locator('#btn-approve-quote').waitFor({ timeout: 15000 });
     await page.screenshot({ path: path.join(out, 'proposal-desktop.png'), fullPage: true });
+    const confirmation = page.waitForResponse(response => response.url().endsWith('/api/confirm-quote'), { timeout: 10000 });
     await page.locator('#btn-approve-quote').click();
-    await page.locator('#step-scope:not(.hidden-step)').waitFor({ timeout: 15000 });
+    const confirmed = await confirmation;
+    const confirmedBody = await confirmed.text();
+    assert.equal(confirmed.status(), 200, 'Approve quote API failed: ' + confirmedBody);
+    try {
+      await page.locator('#step-scope:not(.hidden-step)').waitFor({ timeout: 5000 });
+    } catch (error) {
+      console.error('Browser state after quote confirmation:', await page.evaluate(() => ({
+        scopeClasses: document.getElementById('step-scope')?.className,
+        proposalClasses: document.getElementById('step-proposal')?.className,
+        toast: document.getElementById('toast')?.textContent,
+        buttonText: document.getElementById('btn-approve-quote')?.textContent
+      })));
+      throw error;
+    }
     assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
     await page.locator('#btn-analyze-scope').click();
     await page.waitForTimeout(800);
