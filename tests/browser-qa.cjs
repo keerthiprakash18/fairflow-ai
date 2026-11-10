@@ -308,6 +308,15 @@ async function waitForHealth(url, server) {
       await demoPage.setViewportSize({width:390,height:844});
       assert.equal(await demoPage.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+2),true);
       await demoPage.screenshot({path:path.join(out,'judge-offline-simulation-mobile.png'),fullPage:true});
+      await demoPage.locator('.nav-tab[data-view="dashboard"]').click();
+      await demoPage.locator('#view-dashboard.active').waitFor({timeout:10000});
+      await demoPage.waitForFunction(() => document.querySelector('#stat-paid')?.textContent === '1');
+      assert.equal(await demoPage.locator('#stat-revenue').innerText(),'$900.00');
+      assert.match(await demoPage.locator('.metric-line-item .metric-sub').innerText(),/NO PayPal funds/);
+      assert.match(await demoPage.locator('#dashboard-pulse-title').innerText(),/simulated agreement/);
+      assert.match(await demoPage.locator('.mini-label').filter({hasText:'SIMULATED CHECKOUTS'}).innerText(),/SIMULATED CHECKOUTS/);
+      assert.match(await demoPage.locator('.dashboard-project-status').innerText(),/Simulated/);
+      await demoPage.screenshot({path:path.join(out,'judge-offline-dashboard-mobile.png'),fullPage:true});
     } finally {
       if(demoPage)await demoPage.close();
       demoServer.kill('SIGTERM');
