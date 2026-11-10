@@ -908,7 +908,7 @@ function renderScopeAnalysis(data) {
       el('div', {
         cls: 'diff-card diff-orig',
         children: [
-          el('h4', { cls: 'diff-title', html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Original Signed Terms</span>' }),
+          el('h4', { cls: 'diff-title', html: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg><span>Original Approved Scope</span>' }),
           el('p', { text: analysis.originalScope, attr: { style: 'font-size: 12px; color: var(--label-secondary); margin-bottom: 8px;' } }),
           el('strong', { cls: 'font-mono', text: `$${Number(originalQuote.amountUSD).toFixed(2)} USD (Locked)` })
         ]
@@ -948,6 +948,9 @@ function renderScopeAnalysis(data) {
     ]
   });
   layout.appendChild(metricsRow);
+  if (analysis.timelineImpact) {
+    layout.appendChild(el('p',{cls:'scope-timeline-impact',text:'Estimated schedule impact: ' + analysis.timelineImpact}));
+  }
 
   // Advisory text
   if (analysis.recommendation) {
@@ -959,6 +962,50 @@ function renderScopeAnalysis(data) {
       ]
     }));
   }
+
+  // AI's change impact is a reviewable DRAFT, never an authorized payment.
+  const approved = Number(originalQuote.amountUSD);
+  const additions = analysis.addedFeatures?.length ? analysis.addedFeatures : (analysis.newRequests || []);
+  const summaryLines = [
+    'FAIRFLOW AI — DRAFT CHANGE ORDER (NOT APPROVED)',
+    'Project: ' + (originalQuote.title || state.quote?.title || 'Freelance Agreement'),
+    'Original approved amount: $' + approved.toFixed(2) + ' USD',
+    '',
+    'New requirements:',
+    ...(additions.length ? additions.map((feature,i) => (i + 1) + '. ' + feature) : ['Further requirements to review']),
+    '',
+    'AI-estimated extra cost: +$' + Number(analysis.additionalCostUSD || 0).toFixed(2) + ' USD',
+    'AI-suggested total: $' + Number(analysis.newTotalUSD || approved).toFixed(2) + ' USD',
+    'Estimated time impact: ' + (analysis.timelineImpact || 'To be agreed'),
+    'Recommendation: ' + (analysis.recommendation || 'Review with client'),
+    '',
+    'NOT APPROVED: No additional charges have been authorized.',
+    'Current payment remains the original approved amount. Both parties must approve a change separately.'
+  ];
+  const summary = summaryLines.join('\n');
+  const panel = el('section',{cls:'scope-change-order-card',attr:{'aria-label':'Draft scope change summary'}});
+  panel.append(
+    el('span',{cls:'change-order-kicker',text:'CLIENT CHANGE ORDER / DRAFT · NOT APPROVED'}),
+    el('h4',{cls:'change-order-title',text:'A clearer next conversation with your client.'}),
+    el('p',{cls:'change-order-copy',text:'AI-generated estimate for human review. Copying this draft does not change the approved payment.'})
+  );
+  const draft=el('textarea',{cls:'change-order-textarea',attr:{readonly:'readonly',rows:'9','aria-label':'Draft change-order summary'}});
+  draft.value=summary;
+  const copy=el('button',{cls:'btn-change-order-copy',text:'Copy draft summary',attr:{type:'button'}});
+  copy.addEventListener('click',async()=>{
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard unavailable');
+      await navigator.clipboard.writeText(summary);
+      toast('Draft copied. Review with your client first.','success');
+    } catch {
+      draft.focus();
+      draft.select();
+      toast('Draft selected. Press Ctrl+C to copy.','info');
+    }
+  });
+  panel.append(draft,copy);
+  layout.appendChild(panel);
+  layout.appendChild(el('p',{cls:'scope-payment-boundary',text:'Not included in payment: this additional AI estimate is not approved. Checkout uses only your original approved quote.'}));
 
   // Action Button
   const proceedBtn = el('button', {

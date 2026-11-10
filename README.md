@@ -54,9 +54,9 @@
 * Hard validation bounds ($1.00 – $10,000.00 USD) prevent accidental under- or over-charging.
 
 ### 4. AI Scope-Change Detector (Scope Creep Guard)
-* Pinpoints differences between the signed scope and new mid-project requests.
+* Pinpoints differences between the human-approved baseline and new mid-project requests.
 * Suggests an **estimated** financial delta (e.g. *+$1,200 USD*) and possible delivery time change, both subject to human approval.
-* Drafts a polite, professional client-facing adjustment letter ready to copy and send.
+* Produces a copyable DRAFT change-order summary with the original price, requested additions and estimated financial/timeline impact. Copying it never changes price or charges the buyer.
 
 ### 5. Server-Verified PayPal Sandbox Orders API v2 Integration
 * Server-side order initialization (`POST /v2/checkout/orders`) with unique idempotency keys.

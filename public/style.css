@@ -18,7 +18,7 @@
   /* Editorial Inks & Text Scales */
   --text-primary:       #17191D; /* Deep carbon black */
   --text-secondary:     #5A5D64; /* Warm editorial charcoal */
-  --text-tertiary:      #8C8F96; /* Subtle metadata */
+  --text-tertiary:      #64676E; /* Subtle metadata */
   --text-quaternary:    #B5B8BD; /* Micro captions */
 
   /* Semantic Action Palette */
@@ -4062,3 +4062,58 @@ body.on-landing .mobile-nav-bar {
     padding-left: 40px;
   }
 }
+
+
+/* FINAL PRE-SUBMISSION POLISH: keep decorative coral, use an AA-contrast fill under white text. */
+:root { --action-coral-contrast:#B83D2D; --action-coral-hover:#A43227; }
+.btn-vermilion,.btn-amber-glow {
+  background-color:var(--action-coral-contrast);
+  border-color:var(--action-coral-contrast);
+}
+.btn-vermilion:hover,.btn-amber-glow:hover {
+  background-color:var(--action-coral-hover);
+  border-color:var(--action-coral-hover);
+}
+.impact-metric-label { font-size:11px; line-height:1.5; }
+.scope-timeline-impact {
+  margin:0 0 16px; padding:12px 15px; border-left:3px solid #247A59;
+  background:#EFF8F2; border-radius:5px; color:#204F3D;
+  font-size:13px; line-height:1.6; font-weight:650;
+}
+.scope-change-order-card {
+  margin:20px 0 14px; padding:clamp(16px,3vw,25px);
+  border:1px solid #C9D8D1; border-radius:11px;
+  background:linear-gradient(145deg,#FFFFFF 26%,#F2F7F4 100%);
+}
+.change-order-kicker {
+  display:block; color:#A0392D; font:750 11px/1.5 var(--font-mono);
+  letter-spacing:.05em;
+}
+.change-order-title {
+  color:#1A2D34; font:650 clamp(19px,2.4vw,25px)/1.25 var(--font-serif);
+  margin:12px 0 8px;
+}
+.change-order-copy { font-size:13px; line-height:1.65; color:#52636B; margin-bottom:14px; }
+.change-order-textarea {
+  display:block; width:100%; min-height:180px; padding:14px 15px;
+  border-radius:7px; border:1px solid #CAD5D1; resize:vertical;
+  background:white; color:#21343C; font:500 12px/1.65 var(--font-mono);
+}
+.btn-change-order-copy {
+  display:inline-flex; align-items:center; justify-content:center;
+  margin-top:13px; min-height:44px; padding:11px 18px; border-radius:7px;
+  border:1px solid #184E68; background:#163F57; color:white;
+  font-size:12px; font-weight:750; cursor:pointer;
+}
+.btn-change-order-copy:hover { background:#245571; }
+.scope-payment-boundary {
+  padding:12px 14px; border-left:3px solid #247A59;
+  margin:12px 0; background:#EFF8F2; color:#20513D;
+  font-size:12px; line-height:1.7; font-weight:650;
+}
+@media (max-width:640px) {
+  .scope-change-order-card { padding:16px; }
+  .btn-change-order-copy { width:100%; }
+  .change-order-textarea { font-size:12px; }
+}
+@media print { .scope-change-order-card,.scope-payment-boundary {display:none!important;} }
