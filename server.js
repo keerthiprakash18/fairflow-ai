@@ -83,6 +83,34 @@ async function saveProject(record) {
   return projectWriteQueue;
 }
 
+// Recover active quotes and pending PayPal orders after a local server restart.
+async function getQuote(quoteId) {
+  if (typeof quoteId !== 'string' || quoteId.length > 128) return null;
+  if (quotes.has(quoteId)) return quotes.get(quoteId);
+  const saved = (await loadProjects()).find(p => p.quoteId === quoteId);
+  if (!saved || !saved.title || !Number.isFinite(Number(saved.amountUSD))) return null;
+  const q = {
+    title: saved.title, summary: saved.summary || '',
+    deliverables: Array.isArray(saved.deliverables) ? saved.deliverables : [],
+    milestones: Array.isArray(saved.milestones) ? saved.milestones : [],
+    amountUSD: Number(saved.amountUSD), timeline: saved.timeline || '',
+    createdAt: Date.now(), paid: saved.status === 'paid',
+    locked: ['approved','checkout-started','paid'].includes(saved.status),
+    orderId: saved.orderId || null
+  };
+  quotes.set(quoteId,q);
+  return q;
+}
+async function getOrder(orderId) {
+  if (typeof orderId !== 'string' || orderId.length > 128) return null;
+  if (orders.has(orderId)) return orders.get(orderId);
+  const saved = (await loadProjects()).find(p => p.orderId === orderId);
+  if (!saved) return null;
+  const entry = { quoteId:saved.quoteId, createdAt:Date.now(), captured:saved.status === 'paid', capturing:false };
+  orders.set(orderId,entry);
+  return entry;
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function send(res, status, data) {
   res.writeHead(status, {
@@ -452,28 +480,32 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
   // ── Confirm quote (server-side amount validation + lock) ──────────────────
   if (req.method === 'POST' && route === '/api/confirm-quote') {
     const { quoteId, amountUSD, milestones } = await readBody(req);
-    const quote  = quotes.get(quoteId);
+    const quote = await getQuote(quoteId);
     if (!quote) return send(res, 404, { error: 'Quote expired or not found. Generate a new one.' });
     if (quote.paid) return send(res, 400, { error: 'This quote has already been paid.' });
     if (quote.locked) return send(res, 400, { error: 'This quote is already in checkout. Refresh and start a new one.' });
     const amount = validateAmount(amountUSD);
     if (!amount) return send(res, 400, { error: 'Enter a valid USD amount between $1.00 and $10,000.00 (up to 2 decimal places).' });
 
-    if (Array.isArray(milestones) && milestones.length > 0) {
-      const sum = milestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
-      if (Math.abs(sum - 100) > 0.5) {
-        return send(res, 400, { error: `Milestone percentages must total exactly 100% (currently ${sum}%).` });
+    let approvedMilestones = quote.milestones;
+    if (milestones !== undefined) {
+      if (!Array.isArray(milestones) || milestones.length < 1 || milestones.length > 6 ||
+          !milestones.every(m => m && Number.isInteger(m.percent) && m.percent >= 1 && m.percent <= 100 && typeof m.name === 'string' && m.name.trim())) {
+        return send(res, 400, { error: 'Provide 1–6 milestones with whole-number percentages from 1 to 100.' });
       }
-      quote.milestones = milestones.map(m => ({
-        name: String(m.name || 'Deliverable').slice(0, 90),
-        percent: Math.max(1, Math.round(Number(m.percent || 0))),
-        description: String(m.description || '').slice(0, 200),
+      if (milestones.reduce((sum,m) => sum + m.percent, 0) !== 100) {
+        return send(res, 400, { error: 'Milestone percentages must total exactly 100%.' });
+      }
+      approvedMilestones = milestones.map(m => ({
+        name: m.name.trim().slice(0,90), percent:m.percent,
+        description: String(m.description || '').slice(0,200)
       }));
     }
 
+    await saveProject({ quoteId, title:quote.title, amountUSD:amount, milestones:approvedMilestones, status:'approved', createdAt:new Date().toISOString() });
     quote.amountUSD = amount;
-    quote.locked    = true;
-    await saveProject({ quoteId, title: quote.title, amountUSD: amount, milestones: quote.milestones, status: 'approved', createdAt: new Date().toISOString() });
+    quote.milestones = approvedMilestones;
+    quote.locked = true;
     return send(res, 200, { quoteId, amountUSD: amount, milestones: quote.milestones, locked: quote.locked });
   }
 
@@ -482,7 +514,7 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
     const { quoteId, newRequest } = await readBody(req);
     if (typeof newRequest !== 'string' || newRequest.trim().length < 10 || newRequest.length > 3000)
       return send(res, 400, { error: 'Describe the new client request in 10–3000 characters.' });
-    const quote = quotes.get(quoteId);
+    const quote = await getQuote(quoteId);
     if (!quote) return send(res, 404, { error: 'Original quote not found. Generate a quote first.' });
     if (!quote.locked) return send(res, 400, { error: 'Approve the original quotation before comparing scope.' });
     const analysis = await analyzeScopeChange(quote, newRequest.trim());
@@ -500,7 +532,7 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
   // ── Create PayPal order ───────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/paypal/create-order') {
     const { quoteId } = await readBody(req);
-    const quote = quotes.get(quoteId);
+    const quote = await getQuote(quoteId);
     if (!quote || !quote.locked || quote.paid)
       return send(res, 400, { error: 'Confirm a valid quote before starting checkout.' });
     if (quote.orderId) return send(res, 200, { id: quote.orderId });
@@ -531,11 +563,11 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
   // ── Capture PayPal order ──────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/paypal/capture-order') {
     const { orderId } = await readBody(req);
-    const entry = orders.get(orderId);
+    const entry = await getOrder(orderId);
     if (!entry) return send(res, 404, { error: 'Unknown order. Verify your Sandbox transaction before retrying.' });
     if (entry.captured) return send(res, 409, { error: 'Order already captured.' });
     if (entry.capturing) return send(res, 409, { error: 'Payment capture already in progress.' });
-    const quote = quotes.get(entry.quoteId);
+    const quote = await getQuote(entry.quoteId);
     if (!quote) return send(res, 404, { error: 'Original quote expired. Verify PayPal before restarting checkout.' });
     entry.capturing = true;
     try {
@@ -548,11 +580,11 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
           || !Number.isFinite(amount) || Math.abs(amount-quote.amountUSD)>0.001) {
         throw Object.assign(new Error('Sandbox payment could not be verified. Check the PayPal transaction record.'), { httpStatus: 502 });
       }
-      entry.captured = true;
-      quote.paid = true;
       const paidAt = new Date().toISOString();
       await saveProject({quoteId:entry.quoteId,title:quote.title,amountUSD:quote.amountUSD,
         status:'paid',orderId,captureId:captured.id,paidAt});
+      entry.captured = true;
+      quote.paid = true;
       return send(res, 200, {
         status:'COMPLETED',orderId:data.id,captureId:captured.id,amount:amount.toFixed(2),
         currency:'USD',projectTitle:quote.title,paidAt,sandbox:true

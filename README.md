@@ -132,7 +132,7 @@ Judges can test the entire lifecycle in under **2 minutes** at `http://localhost
 │   • Click "Approve & Lock Quote"                                       │
 │                                              │                         │
 │                                              ▼                         │
-│                                [ Step 3: PayPal Escrow Checkout ]      │
+│                                [ Step 3: PayPal Sandbox Checkout ]      │
 │                                • Launch PayPal Sandbox Smart Button    │
 │                                • Complete Sandbox payment              │
 │                                • View server-verified receipt & history│
@@ -143,11 +143,11 @@ Judges can test the entire lifecycle in under **2 minutes** at `http://localhost
 
 1. **Dashboard & Analytics:**
    * Open `http://localhost:3000`.
-   * Observe high-level metrics (Total Volume, In Escrow, Active Projects, Protected Ratio) and the live transaction feed.
+   * Observe high-level metrics (Total Volume, Active Agreements, Paid Projects, Sandbox Capture History) and the live transaction feed.
 2. **Generate AI Proposal:**
    * Click **"+ New Proposal"**.
    * Click any 1-Click Demo chip (e.g. **"🛍 E-Commerce Store"**) or enter your own idea and test the **"⚡ AI Enhance Brief"** button.
-   * Click **"✦ Generate AI Proposal"**. Gemini 3.8 Flash will stream back a complete deliverable matrix, percentage milestone breakdown, and project risk audit.
+   * Click **"✦ Generate AI Proposal"**. Gemini 3.8 Flash returns a structured deliverable matrix, percentage milestone breakdown, and project risk audit.
 3. **Interactive Human Approval:**
    * Adjust milestone percentages; click the **"⚡ Auto-Balance to 100%"** button to see spring-based math reconciliation.
    * Set your final price (e.g., `$2,750.00`) and click **"✓ Approve & Lock Quotation"**.
@@ -156,10 +156,10 @@ Judges can test the entire lifecycle in under **2 minutes** at `http://localhost
    * Click **"✦ Analyze Scope Change"**. Gemini flags the severe architecture expansion, computes an additional cost delta (e.g., `+$6,500.00`), and produces an assertive client response letter.
 5. **PayPal Sandbox Checkout:**
    * Click **"💳 Continue to Checkout"**.
-   * Review the escrow terms and PayPal Sandbox badge.
+   * Review the approved quote and PayPal Sandbox badge.
    * Click the golden **PayPal** button to launch the Sandbox popup.
    * Log in with a Sandbox Personal Test Buyer account (or follow the guide in the **"🧪 Sandbox Helper"** modal).
-   * Confirm checkout. The server verifies the transaction against the PayPal Orders v2 API, seals the transaction, displays a printable receipt with Capture ID, and updates the local project ledger.
+   * Confirm checkout. The server verifies the transaction against the PayPal Orders v2 API, records the verified sandbox capture, displays a printable receipt with Capture ID, and updates the local project ledger.
 
 ---
 
@@ -297,3 +297,8 @@ npm test
 ## License
 
 This project is open-source and licensed under the **[MIT License](LICENSE)** — see the LICENSE file for details.
+
+
+### Verification and public-hosting limitations
+Automated tests are not live Gemini/PayPal API verification. Health only shows credential configuration, never live provider connectivity. Verify Gemini requests and PayPal Sandbox buyer approval/capture manually with private credentials before submitting.
+This app currently has **no user authentication** and `/api/projects` can expose project history. It is a local hackathon prototype, **not a public multi-user finance service**. Do not enter private client data or expose the service directly to the Internet without adding authentication and secured storage.

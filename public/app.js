@@ -965,8 +965,8 @@ function renderCheckoutStep() {
           el('div', {
             cls: 'breakdown-row',
             children: [
-              el('span', { text: 'PayPal Platform Fee (Sandbox):' }),
-              el('span', { cls: 'font-mono color-mint', text: '$0.00 USD' })
+              el('span', { text: 'PayPal processing fee:' }),
+              el('span', { cls: 'font-mono', text: 'Not estimated here' })
             ]
           }),
           el('div', {
@@ -1083,7 +1083,7 @@ function renderPayPalButtons() {
   }).render('#paypal-buttons');
 }
 
-// ─── VERIFIED ESCROW RECEIPT ───
+// ─── VERIFIED SANDBOX RECEIPT ───
 function renderReceipt(confirmed) {
   const container = $('receipt-container');
   container.innerHTML = '';
@@ -1097,7 +1097,7 @@ function renderReceipt(confirmed) {
         children: [
           el('div', { cls: 'receipt-check-ring', text: '✓' }),
           el('h1', { cls: 'receipt-status-title', text: 'Payment Verified & Captured' }),
-          el('p', { text: 'PayPal Orders API v2 status COMPLETED. Cryptographically recorded by FairFlow server.', attr: { style: 'font-size: 13px; color: var(--text-secondary);' } })
+          el('p', { text: 'PayPal Sandbox capture COMPLETED, verified against the approved order.', attr: { style: 'font-size: 13px; color: var(--text-secondary);' } })
         ]
       }),
       el('div', {
@@ -1263,10 +1263,10 @@ let userPausedDemo = false;
 let pauseTimeout = null;
 
 const STAGE_LABELS = {
-  1: 'STAGE 01 / 04 · BASELINE SCOPE',
-  2: 'STAGE 02 / 04 · CLIENT REQUEST',
-  3: 'STAGE 03 / 04 · AI SCOPE ANALYSIS',
-  4: 'STAGE 04 / 04 · PAYPAL SETTLEMENT',
+  1: '01 / 04 · AGREEMENT EXAMPLE',
+  2: '02 / 04 · CLIENT REQUEST',
+  3: '03 / 04 · SAMPLE ANALYSIS',
+  4: '04 / 04 · CHECKOUT PREVIEW',
 };
 
 function setDemoStage(stageNum) {
@@ -1376,6 +1376,25 @@ function initScopeLab(){
   }));
 }
 
+// Status means credentials are present, never that a real payment or AI request succeeded.
+async function refreshIntegrationStatus() {
+  const chip = document.querySelector('.status-chip-sandbox');
+  const paypal = $('status-sandbox'), gemini = $('status-ai');
+  if (!chip || !paypal || !gemini) return;
+  try {
+    const s = await apiGet('/api/health');
+    chip.classList.remove('status-checking');
+    chip.classList.toggle('status-needs-setup', !s.paypalConfigured || !s.aiConfigured);
+    paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
+    gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
+    chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';
+  } catch {
+    chip.classList.add('status-needs-setup');
+    paypal.textContent = 'SERVER OFFLINE';
+    gemini.textContent = 'CHECK CONNECTION';
+  }
+}
+
 // ─── GLOBAL VIEW BUTTON BINDINGS ───
 function bindViewButtons(ctx = document) {
   qsa('[data-view]', ctx).forEach(b => {
@@ -1388,6 +1407,7 @@ function init() {
   bindViewButtons();
   initShowcaseDemo();
   initScopeLab();
+  refreshIntegrationStatus();
 
   // Check initial URL hash for direct deep links
   const hash = window.location.hash.toLowerCase();

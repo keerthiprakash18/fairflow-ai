@@ -3535,3 +3535,12 @@ body.on-landing .mobile-nav-bar {
 @media(max-width:980px){.landing-hero-block{min-height:auto}.landing-hero-block::before{inset:54% 0 0;clip-path:none}.landing-hero-split{gap:48px}.landing-hero-visual{width:min(100%,675px);margin:auto}}
 @media(max-width:640px){.landing-container{padding-inline:20px}.landing-hero-block{padding:46px 0 68px}.landing-main-title{font-size:clamp(43px,10.4vw,56px)}.landing-hero-visual{padding:42px 3px}.landing-hero-visual::before,.landing-hero-visual::after{font-size:8px}.showcase-controls-bar{flex-wrap:wrap;gap:6px}.showcase-pause-btn{order:3;flex-basis:100%}.scope-lab{padding-top:76px}.lab-grid{padding:52px 0 60px}.lab-content h2{font-size:clamp(40px,10vw,58px)}.lab-paper-grid{grid-template-columns:1fr;gap:12px}.lab-paper{min-height:295px}.lab-mid-bridge{margin:auto}.lab-stage-top{flex-wrap:wrap;font-size:9px}.lab-stage-tag{margin-left:0}.lab-extra-amount{font-size:32px}}
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}.landing-hero-copy,.landing-hero-visual{animation:none!important}.scope-lab *, .landing-hero-block *{transition-duration:.01ms!important}}
+
+/* Refinements based on actual 1649px screenshot: demo chrome and truthful status. */
+.showcase-window-bar{gap:10px;min-width:0}
+.window-dots{flex:0 0 auto}
+.window-title{flex:1 1 auto;min-width:0;font-size:10px;letter-spacing:.018em;line-height:1.3}
+.window-title span:last-child{overflow-wrap:anywhere}
+.window-status{flex:0 1 auto;max-width:162px;font-size:9px;line-height:1.35;text-align:center;overflow-wrap:break-word}
+.status-chip-sandbox.status-checking .pulse-dot,.status-chip-sandbox.status-needs-setup .pulse-dot{background:#C67D00;box-shadow:0 0 0 3px rgba(198,125,0,.14)}
+@media(max-width:640px){.showcase-window-bar{padding:10px}.window-title{font-size:9px}.window-status{max-width:110px;font-size:9px}.status-chip-sandbox{font-size:9px;gap:5px;padding:4px 7px}}
