@@ -18,7 +18,7 @@ jobs:
           node-version: '22'
       - name: Install test-only browser tooling
         run: |
-          npm install --no-save --package-lock=false playwright@1.58.2
+          npm install --no-save --package-lock=false playwright@1.58.2 axe-core@4.14.0
           npx playwright install --with-deps chromium
       - name: Test UI and capture browser screenshots
         run: node tests/browser-qa.cjs

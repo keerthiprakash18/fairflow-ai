@@ -131,3 +131,33 @@ test('offline judge walkthrough never misrepresents a simulated receipt as PayPa
  assert.match(js,/FAKE DEMO DATA · NOT A PAYMENT RECEIPT/);
  assert.match(js,/id: 'paypal-buttons'/);
 });
+
+test('performance: no eager third-party confetti and no runaway demo ticker',()=>{
+ const htmlSource=fs.readFileSync(path.join(root,'public','index.html'),'utf8');
+ assert.doesNotMatch(htmlSource,/cdn\.jsdelivr\.net\/npm\/canvas-confetti/);
+ assert.match(js,/IntersectionObserver/);
+ assert.match(js,/document\.addEventListener\('visibilitychange', syncDemoAutoPlay\)/);
+ assert.match(js,/function scrollBehavior\(\)|const scrollBehavior/);
+ assert.match(css,/receipt-confirmation/);
+});
+test('accessibility: durable feedback, timed requests and safe payment SDK retry',()=>{
+ assert.match(html,/id="brief-error"[^>]+role="alert"/);
+ assert.match(html,/id="scope-error"[^>]+role="alert"/);
+ assert.match(html,/wizard-step-announcement/);
+ assert.match(js,/AbortController/);
+ assert.match(js,/Retry-After/);
+ assert.match(js,/setInlineError\('scope-error'/);
+ assert.match(js,/function loadPayPalSdk/);
+ assert.match(js,/Retry loading PayPal checkout/);
+ assert.match(js,/toastEl\.setAttribute\('role', type === 'error'/);
+});
+test('performance budgets: baseline bundle size under controlled thresholds',()=>{
+ const sizes={
+  html:fs.statSync(path.join(root,'public','index.html')).size,
+  css:fs.statSync(path.join(root,'public','style.css')).size,
+  js:fs.statSync(path.join(root,'public','app.js')).size
+ };
+ assert.ok(sizes.html <= 85000,'HTML exceeds 85KiB budget: '+JSON.stringify(sizes));
+ assert.ok(sizes.css <= 130000,'CSS exceeds 130KiB budget: '+JSON.stringify(sizes));
+ assert.ok(sizes.js <= 100000,'JS exceeds 100KiB budget: '+JSON.stringify(sizes));
+});
