@@ -98,8 +98,17 @@ test('oversized requests are rejected with 413 and CSP is present',()=>withServe
 }));
 
 test('rejects hostile Host header to prevent local DNS rebinding access',()=>withServer(async base=>{
- const res=await fetch(base+'/api/projects',{headers:{Host:'untrusted.attacker.example'}});
- assert.equal(res.status,403);
+ // Node fetch normalizes Host; use raw http to exercise a genuine attacker Host.
+ const url=new URL(base);
+ const status=await new Promise((resolve,reject)=>{
+   const req=require('node:http').request({
+     hostname:'127.0.0.1',port:Number(url.port),path:'/api/projects',method:'GET',
+     headers:{Host:'untrusted.attacker.example'}
+   },res=>{res.resume();res.on('end',()=>resolve(res.statusCode));});
+   req.once('error',reject);
+   req.end();
+ });
+ assert.equal(status,403);
  const valid=await fetch(base+'/api/health');
  assert.equal(valid.status,200);
 }));
