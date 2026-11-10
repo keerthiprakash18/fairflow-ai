@@ -197,7 +197,7 @@ Open `.env` in any text editor and paste your credentials:
 PAYPAL_CLIENT_ID=your_sandbox_client_id_here
 PAYPAL_CLIENT_SECRET=your_sandbox_client_secret_here
 GEMINI_API_KEY=your_gemini_api_key_here
-GEMINI_MODEL=gemini-3.8-flash
+GEMINI_MODEL=gemini-3.1-flash-lite
 PORT=3000
 ```
 
@@ -314,7 +314,7 @@ npm test
 
 ## Devpost Submission Kit
 
-For the verified feature description, complete demo steps, under-3-minute video outline, and deadline checklist, read [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md). **Actual PayPal buyer checkout and Gemini requests must still be verified privately before submission.**
+For the verified feature description, complete demo steps, under-3-minute video outline, and deadline checklist, read [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md). **Real Gemini proposal and Scope Guard checks passed on the owner's laptop on November 10, 2026.** A completed $3,500 test-funds receipt was shown in the owner-provided screenshot; live PayPal order/capture verification should be run against the private ledger using `npm run verify:payments`.
 
 ---
 
@@ -367,7 +367,7 @@ Stop repeatedly recreating accounts. Under **PayPal error? Check order status** 
 
 If a capture succeeds at PayPal but FairFlow fails before saving it, open **PayPal error? Check order status** and, only if PayPal confirms a matching COMPLETED capture, use **Verify & restore saved capture — NO new charge**. It reads PayPal's order and repairs the local record without submitting another payment. Never repeat or delete a payment to fix an out-of-sync receipt.
 
-**Actual Gemini Scope Guard smoke check (owner laptop):** with a private `.env`, run `npm run verify:scope`. It runs real Gemini quote and scope requests against an ephemeral local test ledger; it **never** creates/captures any PayPal payment. Automated GitHub CI still uses provider mocks. For the actual video, show the real API response on your laptop and distinguish it from mock screenshots.
+**Actual Gemini Scope Guard smoke check (passed on owner laptop November 10):** with a private `.env`, run `npm run verify:scope` when reconfirming the final build. It runs real Gemini quote and scope requests against an ephemeral local test ledger; it **never** creates/captures any PayPal payment. Automated GitHub CI still uses provider mocks. For the actual video, show the real API response on your laptop and distinguish it from mock screenshots.
 
 **Public hosting warning:** Do not expose `/api/projects` or AI/PayPal routes on the internet without authenticated user accounts, per-user authorization, secure database storage and production payment controls. A cosmetic login screen would not solve those problems. Public hosting is **not required** for this hackathon; judges may use the repository's documented local setup. See [Security audit](SECURITY_AUDIT.md), [demo video materials](DEMO_VIDEO_SCRIPT.md) and [submission checklist](HACKATHON_SUBMISSION.md).
 
@@ -380,6 +380,6 @@ From your Windows PowerShell in the repository, after `git pull origin main` and
 npm run verify:submission
 ```
 
-This runs source syntax, offline regression tests, **real Gemini connectivity + actual quote and Scope Guard requests**, and PayPal Sandbox **OAuth only**. It does **not** initiate any payment, create a PayPal order, or repeat your already completed Sandbox capture. The final step uses a temporary test ledger and removes it. If you want to inspect old payment statuses without charging, use `npm run diagnose:paypal` separately.
+This runs source syntax, offline regression tests, **real Gemini connectivity + actual quote and Scope Guard requests**, and PayPal Sandbox **OAuth only**. It does **not** initiate any payment, create a PayPal order, or repeat your already completed Sandbox capture. The final step uses a temporary test ledger and removes it. If you want to inspect old payment statuses without charging, use `npm run diagnose:paypal` separately. Run `npm run verify:payments` to independently compare every saved real Sandbox paid receipt against PayPal's live read-only Orders API without charging; keep your private `data/` folder intact.
 
 **Video/Devpost publication cannot be replaced by the automated checks**: record real on-screen footage, publish the video to YouTube, paste its URL into Devpost, and confirm final submission yourself.
