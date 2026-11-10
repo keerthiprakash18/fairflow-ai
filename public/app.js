@@ -1,6 +1,6 @@
 /**
- * FairFlow AI — Elite Frontend Application (1000x Edition)
- * Zero frameworks, vanilla JS, pristine 60fps micro-interactions
+ * FairFlow AI — Editorial Fintech Frontend
+ * Zero frameworks; reduced-motion-friendly interactions and verified data displays
  */
 'use strict';
 

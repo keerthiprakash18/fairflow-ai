@@ -81,6 +81,28 @@ async function waitForHealth(url, server) {
     assert.match(desktop.heading || '', /Every Change/);
     assert.ok(desktop.content <= desktop.viewport + 2, 'Desktop horizontal overflow: ' + JSON.stringify(desktop));
 
+    // New Dashboard V2 — no fabricated amounts; keyboard-usable filters and honest empty state.
+    await page.locator('#btn-hero-launch-workbench').click();
+    await page.locator('#view-dashboard.active').waitFor();
+    await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('No saved agreements'));
+    assert.equal(await page.locator('#stat-total').innerText(), '0');
+    assert.equal(await page.locator('#stat-revenue').innerText(), '$0.00');
+    assert.equal(await page.locator('#dashboard-pulse-title').innerText(), 'No saved agreements yet');
+    assert.match(await page.locator('#dashboard-status-track').getAttribute('aria-label'), /0 saved agreements/);
+    await page.locator('[data-project-filter="paid"]').focus();
+    await page.keyboard.press('Enter');
+    assert.equal(await page.locator('[data-project-filter="paid"]').getAttribute('aria-pressed'),'true');
+    assert.match(await page.locator('#dashboard-recent').innerText(), /No agreements saved yet/);
+    await page.locator('#btn-dashboard-refresh').click();
+    await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('No saved agreements'));
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    const reducedMotion = await page.locator('#dashboard-track-review').evaluate(node => getComputedStyle(node).transitionDuration);
+    assert.equal(reducedMotion, '0s', 'Snapshot should not animate under reduced-motion preference');
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await page.screenshot({path:path.join(out,'dashboard-empty-desktop.png'),fullPage:true});
+    await page.goto(url, {waitUntil:'domcontentloaded'});
+    await page.locator('#view-landing.active').waitFor();
+
     // Keyboard navigation: focus-managed Sandbox help modal and 4-stage demo tabs.
     await page.locator('#btn-quick-helper').click();
     await page.locator('#helper-modal:not(.hidden)').waitFor();
@@ -162,6 +184,31 @@ async function waitForHealth(url, server) {
     assert.match(await page.locator('.receipt-subheading').innerText(), /No new payment has been made/);
     assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
     await page.screenshot({ path: path.join(out, 'saved-receipt-desktop.png'), fullPage: true });
+
+    // Real ledger after mocked capture: only captured Sandbox test funds count as "Paid".
+    await page.locator('.nav-tab[data-view="dashboard"]').click();
+    await page.locator('#view-dashboard.active').waitFor();
+    await page.waitForFunction(() => document.querySelector('#stat-paid')?.textContent === '1');
+    assert.equal(await page.locator('#stat-revenue').innerText(), '$900.00');
+    assert.equal(await page.locator('#dashboard-paid-count').innerText(), '1');
+    assert.equal(await page.locator('#dashboard-checkout-count').innerText(), '0');
+    assert.equal(await page.locator('#dashboard-pulse-title').innerText(), '1 saved agreement tracked');
+    await page.locator('[data-project-filter="pending"]').click();
+    assert.match(await page.locator('#dashboard-recent').innerText(), /All your saved agreements are paid/);
+    await page.locator('[data-project-filter="paid"]').click();
+    assert.equal(await page.locator('.dashboard-project-row').count(),1);
+    assert.equal(await page.locator('[data-project-filter="paid"]').getAttribute('aria-pressed'),'true');
+    assert.match(await page.locator('.dashboard-project-status').innerText(), /Paid.*capture verified/);
+    await page.locator('#btn-dashboard-refresh').click();
+    await page.waitForFunction(() => document.querySelector('#dashboard-sync-state')?.textContent.includes('Updated from local ledger'));
+    assert.equal(await page.locator('.dashboard-project-row').count(),1);
+    await page.screenshot({path:path.join(out,'dashboard-paid-desktop.png'),fullPage:true});
+    await page.setViewportSize({width:390,height:844});
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2),true,'Dashboard V2 has no mobile overflow');
+    await page.screenshot({path:path.join(out,'dashboard-paid-mobile.png'),fullPage:true});
+    await page.setViewportSize({width:1440,height:900});
+    await page.locator('.nav-tab[data-view="new-project"]').click();
+    await page.locator('#step-receipt:not(.hidden-step)').waitFor();
     await page.emulateMedia({ media: 'print' });
     assert.equal(await page.locator('.workbench-masthead').evaluate(node => getComputedStyle(node).display), 'none');
     assert.notEqual(await page.locator('.receipt-card-styled').evaluate(node => getComputedStyle(node).display), 'none');
@@ -231,7 +278,9 @@ async function waitForHealth(url, server) {
         'mobile receipt responsive', 'receipt print stylesheet',
         'saved receipt reopened from history with no extra capture',
         'Scope Guard human-review draft', 'keyboard tabs and modal focus management',
-        'responsive 320px / 375px / 768px widths']
+        'responsive 320px / 375px / 768px widths',
+        'dashboard V2 truthful empty/paid states', 'accessible live filters and refresh',
+        'dashboard paid mobile screenshot', 'dashboard reduced-motion compliance']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +

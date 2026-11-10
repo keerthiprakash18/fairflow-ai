@@ -96,3 +96,26 @@ test('Scope Guard drafts reviewable change-order without changing checkout',()=>
   assert.match(js,/Copy draft summary/);
   assert.match(js,/original approved quote/);
 });
+
+test('Dashboard V2 contains real-ledger insights and native accessible filters',()=>{
+  const ids=['dashboard-pulse-title','dashboard-status-track','dashboard-review-count',
+    'dashboard-checkout-count','dashboard-paid-count','dashboard-sync-state',
+    'dashboard-recent','btn-dashboard-refresh','ai-current-model'];
+  for(const id of ids)assert.match(html,new RegExp('id="'+id+'"'));
+  for(const value of ['all','pending','paid'])assert.match(html,new RegExp('data-project-filter="'+value+'"'));
+  assert.match(js,/function dashboardFilteredProjects\(projects\)/);
+  assert.match(js,/function initDashboardControls\(\)/);
+  assert.match(js,/data\.projects/);
+  assert.match(js,/aria-pressed/);
+  assert.match(js,/Sandbox test funds/);
+  assert.doesNotMatch(html,/Primary: gemini-3\.8-flash/);
+});
+test('Design system and motion contracts are checked in',()=>{
+  const design=fs.readFileSync(path.join(root,'DESIGN.md'),'utf8');
+  assert.match(design,/Quiet Intelligence/);
+  assert.match(design,/prefers-reduced-motion/);
+  assert.match(design,/actual|real ledger|Real ledger|Real records/i);
+  assert.match(css,/\.dashboard-pulse\s*\{/);
+  assert.match(css,/@media \(prefers-reduced-motion:reduce\)/);
+  assert.match(css,/\.dashboard-filter\.active\s*\{/);
+});
