@@ -1167,81 +1167,143 @@ function renderPayPalButtons() {
 // ─── VERIFIED SANDBOX RECEIPT ───
 function renderReceipt(confirmed) {
   const container = $('receipt-container');
-  container.innerHTML = '';
+  container.replaceChildren();
 
-  const card = el('div', {
+  const amount = Number(confirmed.amount);
+  const formattedAmount = Number.isFinite(amount)
+    ? amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+    : '—';
+  const projectTitle = confirmed.projectTitle || state.quote?.title || 'Freelance Agreement';
+  const verifiedAt = confirmed.paidAt
+    ? new Date(confirmed.paidAt).toUTCString()
+    : new Date().toUTCString();
+
+  const receipt = el('article', {
     cls: 'receipt-card-styled',
+    attr: { 'aria-label': 'Verified PayPal Sandbox payment receipt' },
     children: [
-      el('div', { cls: 'receipt-hologram-seal', text: 'VERIFIED SANDBOX' }),
-      el('div', {
-        cls: 'receipt-header-styled',
+      el('header', {
+        cls: 'receipt-brandbar',
         children: [
-          el('div', { cls: 'receipt-check-ring', text: '✓' }),
-          el('h1', { cls: 'receipt-status-title', text: 'Payment Verified & Captured' }),
-          el('p', { text: 'PayPal Sandbox capture COMPLETED, verified against the approved order.', attr: { style: 'font-size: 13px; color: var(--text-secondary);' } })
+          el('div', {
+            cls: 'receipt-brand',
+            children: [
+              el('span', { cls: 'receipt-brand-mark', text: 'FF', attr: { 'aria-hidden': 'true' } }),
+              el('div', { children: [
+                el('strong', { cls: 'receipt-brand-name', text: 'FAIRFLOW' }),
+                el('span', { cls: 'receipt-brand-caption', text: 'FINANCIAL WORKBENCH  /  2026' })
+              ] })
+            ]
+          }),
+          el('span', { cls: 'receipt-env-pill', text: '● SANDBOX VERIFIED' })
         ]
       }),
       el('div', {
-        cls: 'receipt-body-styled',
+        cls: 'receipt-hero',
         children: [
-          renderMetaRow('Project Title:', confirmed.projectTitle || state.quote?.title || 'Freelance Agreement'),
-          renderMetaRow('Captured Amount:', `$${Number(confirmed.amount).toFixed(2)} USD (Test Funds)`),
-          renderMetaRow('PayPal Order ID:', confirmed.orderId, true),
-          renderMetaRow('PayPal Capture ID:', confirmed.captureId || 'Verified Record', Boolean(confirmed.captureId)),
-          renderMetaRow('Capture Status:', confirmed.status),
-          renderMetaRow('Verified Timestamp:', confirmed.paidAt ? new Date(confirmed.paidAt).toUTCString() : new Date().toUTCString()),
-          renderMetaRow('Environment:', 'api-m.sandbox.paypal.com')
+          el('div', { cls: 'receipt-check-ring', text: '✓', attr: { 'aria-hidden': 'true' } }),
+          el('span', { cls: 'receipt-eyebrow', text: 'PAYPAL ORDERS V2  /  CAPTURE CONFIRMED' }),
+          el('h1', { cls: 'receipt-status-title', text: 'Payment complete.' }),
+          el('p', { cls: 'receipt-subheading', text: 'The Sandbox capture was verified by FairFlow against the approved order.' }),
+          el('div', {
+            cls: 'receipt-amount-panel',
+            children: [
+              el('span', { cls: 'receipt-amount-label', text: 'TOTAL CAPTURED · TEST FUNDS' }),
+              el('div', {
+                cls: 'receipt-amount-line',
+                children: [
+                  el('strong', { cls: 'receipt-amount-value', text: '$' + formattedAmount }),
+                  el('span', { cls: 'receipt-currency', text: 'USD' })
+                ]
+              }),
+              el('span', { cls: 'receipt-amount-note', text: 'PayPal Sandbox · No real money transferred' })
+            ]
+          })
+        ]
+      }),
+      el('section', {
+        cls: 'receipt-details',
+        children: [
+          el('div', { cls: 'receipt-section-heading', children: [
+            el('span', { text: '01  /  TRANSACTION RECORD' }),
+            el('span', { cls: 'receipt-record-pill', text: 'COMPLETED' })
+          ] }),
+          el('div', {
+            cls: 'receipt-meta-list',
+            children: [
+              renderMetaRow('Project', projectTitle),
+              renderMetaRow('Capture status', confirmed.status || 'COMPLETED'),
+              renderMetaRow('PayPal order ID', confirmed.orderId || 'Unavailable', Boolean(confirmed.orderId)),
+              renderMetaRow('PayPal capture ID', confirmed.captureId || 'Unavailable', Boolean(confirmed.captureId)),
+              renderMetaRow('Verified on (UTC)', verifiedAt),
+              renderMetaRow('Environment', 'api-m.sandbox.paypal.com')
+            ]
+          })
         ]
       }),
       el('div', {
-        cls: 'receipt-actions-row',
+        cls: 'receipt-verification',
         children: [
-          (() => {
-            const btn = el('button', {
-              cls: 'btn-secondary-glass',
-              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Print Escrow Receipt</span>'
-            });
-            btn.onclick = () => {
-              haptic('light');
-              window.print();
-            };
-            return btn;
-          })(),
-          (() => {
-            const btn = el('button', {
-              cls: 'btn-primary-glow',
-              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>Create Another Project</span>'
-            });
-            btn.onclick = () => {
-              haptic('light');
-              state.quoteId = null;
-              state.quote = null;
-              state.approvedAmount = null;
-              state.paypalRendered = false;
-              descEl.value = '';
-              $('char-count').textContent = '0';
-              showStep('brief');
-              showView('new-project');
-            };
-            return btn;
-          })(),
-          (() => {
-            const btn = el('button', {
-              cls: 'btn-secondary-glass',
-              html: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg><span>View History</span>'
-            });
-            btn.onclick = () => {
-              haptic('light');
-              showView('history');
-            };
-            return btn;
-          })()
+          el('span', { cls: 'receipt-verification-icon', text: '✓', attr: { 'aria-hidden': 'true' } }),
+          el('div', { children: [
+            el('strong', { text: 'Order amount and capture status checked' }),
+            el('span', { text: 'The server verified the USD amount, order ID and completed capture before recording this receipt.' })
+          ] })
+        ]
+      }),
+      el('footer', {
+        cls: 'receipt-footnote',
+        children: [
+          el('span', { text: 'FAIRFLOW  /  EVERY CHANGE DESERVES FAIR PAY.' }),
+          el('span', { text: 'SANDBOX TEST RECORD · NOT AN ESCROW SERVICE' })
         ]
       })
     ]
   });
 
-  container.appendChild(card);
+  const actions = el('div', {
+    cls: 'receipt-actions-row',
+    children: [
+      (() => {
+        const btn = el('button', {
+          cls: 'btn-secondary-glass',
+          attr: { type: 'button' },
+          html: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg><span>Print receipt</span>'
+        });
+        btn.onclick = () => window.print();
+        return btn;
+      })(),
+      (() => {
+        const btn = el('button', {
+          cls: 'btn-primary-glow',
+          attr: { type: 'button' },
+          html: '<span>Create new agreement</span><span aria-hidden="true"> ↗</span>'
+        });
+        btn.onclick = () => {
+          state.quoteId = null;
+          state.quote = null;
+          state.approvedAmount = null;
+          state.paypalRendered = false;
+          state.pendingScopeScenario = null;
+          descEl.value = '';
+          $('char-count').textContent = '0';
+          showStep('brief');
+          showView('new-project');
+        };
+        return btn;
+      })(),
+      (() => {
+        const btn = el('button', {
+          cls: 'btn-secondary-glass',
+          attr: { type: 'button' },
+          html: '<span>View audit trail</span><span aria-hidden="true"> ↗</span>'
+        });
+        btn.onclick = () => showView('history');
+        return btn;
+      })()
+    ]
+  });
+  container.append(receipt, actions);
 }
 
 function renderMetaRow(label, value, copyable = false) {
@@ -1272,7 +1334,7 @@ function renderMetaRow(label, value, copyable = false) {
         copyBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><span>Copy</span>';
       }, 2000);
     } catch {
-      toast('Copied to clipboard', 'info');
+      toast('Clipboard unavailable. You can select and copy the ID manually.', 'error');
     }
   });
 

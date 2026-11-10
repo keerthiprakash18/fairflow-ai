@@ -56,3 +56,14 @@ test('global toast exists so async quote approval never crashes on feedback',()=
   assert.ok(js.includes("const toastEl = $('toast')"));
   assert.ok(css.includes('#toast.show'));
 });
+
+test('actual verified receipt markup has matching premium styles and no escrow claim',()=>{
+  for(const cls of ['receipt-card-styled','receipt-brandbar','receipt-amount-panel','receipt-meta-row','receipt-verification','receipt-actions-row']){
+    assert.ok(js.includes(cls),'Missing rendered '+cls);
+    assert.ok(css.includes('.'+cls),'Missing styles for '+cls);
+  }
+  assert.ok(js.includes('Print receipt'));
+  assert.doesNotMatch(js,/Print Escrow Receipt/);
+  assert.match(css,/@media print\s*\{/);
+  assert.ok(js.includes('No real money transferred'));
+});

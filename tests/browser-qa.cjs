@@ -114,8 +114,25 @@ async function waitForHealth(url, server) {
     await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
     await page.locator('#mock-paypal-approve').click();
     await page.locator('#step-receipt:not(.hidden-step)').waitFor({ timeout: 15000 });
-    assert.match(await page.locator('#step-receipt').innerText(), /Payment Verified & Captured/);
+    assert.match(await page.locator('#step-receipt').innerText(), /Payment complete/);
+    assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
+    assert.equal(await page.locator('.receipt-meta-row').count(), 6);
+    const receiptStyle = await page.locator('.receipt-card-styled').evaluate(node => {
+      const style = getComputedStyle(node);
+      return { background: style.backgroundColor, radius: style.borderRadius, padding: getComputedStyle(node.querySelector('.receipt-hero')).paddingTop };
+    });
+    assert.equal(receiptStyle.background, 'rgb(255, 255, 255)');
+    assert.notEqual(receiptStyle.radius, '0px', 'Receipt must have styled card corners');
+    assert.notEqual(receiptStyle.padding, '0px', 'Receipt hero must have layout spacing');
     await page.screenshot({ path: path.join(out, 'mocked-payment-receipt.png'), fullPage: true });
+    await page.emulateMedia({ media: 'print' });
+    assert.equal(await page.locator('.workbench-masthead').evaluate(node => getComputedStyle(node).display), 'none');
+    assert.notEqual(await page.locator('.receipt-card-styled').evaluate(node => getComputedStyle(node).display), 'none');
+    await page.emulateMedia({ media: 'screen' });
+    await page.setViewportSize({ width: 390, height: 844 });
+    const receiptMobile = await page.evaluate(() => ({ viewport: innerWidth, content: document.documentElement.scrollWidth }));
+    assert.ok(receiptMobile.content <= receiptMobile.viewport + 2, 'Receipt mobile overflow: ' + JSON.stringify(receiptMobile));
+    await page.screenshot({ path: path.join(out, 'mocked-payment-receipt-mobile.png'), fullPage: true });
 
     // Mobile layout - check for unintended horizontal page scrolling and capture evidence.
     await page.setViewportSize({ width: 390, height: 844 });
@@ -144,7 +161,8 @@ async function waitForHealth(url, server) {
       desktop, mobile, exceptions,
       checks: ['landing visible', 'responsive overflow', 'Scope Lab handoff',
         'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward',
-        'mocked PayPal SDK checkout', 'server mock capture', 'verified receipt rendered']
+        'mocked PayPal SDK checkout', 'server mock capture', 'premium receipt styled',
+        'mobile receipt responsive', 'receipt print stylesheet']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +
