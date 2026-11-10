@@ -35,6 +35,9 @@ async function waitForHealth(url, server) {
 }
 const accessibilityReports = [];
 async function auditAccessibility(page, context, scenario) {
+  // The editorial SPA fades cards into view. Axe must measure the settled
+  // foreground/background, not a transient 70%-opacity animation frame.
+  await page.waitForTimeout(700);
   if (!await page.evaluate(() => typeof window.axe !== 'undefined')) {
     await page.addScriptTag({ path: axePath });
   }
