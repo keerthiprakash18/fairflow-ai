@@ -1292,7 +1292,7 @@ async function loadAndRenderPayPal() {
     }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
-    renderPayPalButtons();
+    await renderPayPalButtons();
   } catch (err) {
     const target = $('paypal-buttons');
     if (target) {
@@ -1465,11 +1465,12 @@ function showPayPalTroubleshooting() {
   area.append(button, result, directButton, directResult);
 }
 
-function renderPayPalButtons() {
+async function renderPayPalButtons() {
   if (!window.paypal || !$('paypal-buttons') || state.paypalRendered) return;
   state.paypalRendered = true;
 
-  window.paypal.Buttons({
+  try {
+  await window.paypal.Buttons({
     style: { layout: 'vertical', shape: 'rect', label: 'paypal', color: 'blue', height: 48 },
 
     createOrder: async () => {
@@ -1513,6 +1514,10 @@ function renderPayPalButtons() {
       showPayPalTroubleshooting();
     }
   }).render('#paypal-buttons');
+  } catch (error) {
+    state.paypalRendered = false;
+    throw new Error('PayPal buttons could not render. ' + (error?.message || 'Reload the checkout'));
+  }
 }
 
 // ─── VERIFIED SANDBOX RECEIPT ───
