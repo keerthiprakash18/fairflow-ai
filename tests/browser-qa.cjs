@@ -53,8 +53,25 @@ async function waitForHealth(url, server) {
     const page = await browser.newPage({ viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 });
     const exceptions = [];
     page.on('pageerror', error => exceptions.push(error.message));
+    // PayPal SDK is mocked only for this browser test; no provider credentials or money used.
+    await page.route('https://www.paypal.com/sdk/js?**', route => route.fulfill({
+      status: 200, contentType: 'application/javascript', body: `
+        window.paypal = { Buttons: function(callbacks) { return { render: function(selector) {
+          var host = document.querySelector(selector);
+          var btn = document.createElement('button');
+          btn.id = 'mock-paypal-approve';
+          btn.textContent = 'Complete offline mock payment';
+          btn.addEventListener('click', async function(){
+            var id = await callbacks.createOrder();
+            await callbacks.onApprove({ orderID: id });
+          });
+          host.appendChild(btn); return Promise.resolve();
+        } }; } };
+      `
+    }));
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.locator('#view-landing.active').waitFor();
+    await page.waitForTimeout(1100); // Wait for editorial entrance animation to finish before visual capture.
     await page.screenshot({ path: path.join(out, 'landing-desktop.png'), fullPage: true });
     const desktop = await page.evaluate(() => ({
       viewport: window.innerWidth,
@@ -92,15 +109,30 @@ async function waitForHealth(url, server) {
     await page.locator('#btn-analyze-scope').click();
     await page.waitForTimeout(800);
     await page.screenshot({ path: path.join(out, 'scope-guard-desktop.png'), fullPage: true });
+    await page.locator('#btn-skip-scope').click();
+    await page.locator('#step-checkout:not(.hidden-step)').waitFor({ timeout: 10000 });
+    await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
+    await page.locator('#mock-paypal-approve').click();
+    await page.locator('#step-receipt:not(.hidden-step)').waitFor({ timeout: 15000 });
+    assert.match(await page.locator('#step-receipt').innerText(), /Payment Verified & Captured/);
+    await page.screenshot({ path: path.join(out, 'mocked-payment-receipt.png'), fullPage: true });
 
     // Mobile layout - check for unintended horizontal page scrolling and capture evidence.
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     await page.locator('#view-landing.active').waitFor();
+    await page.waitForTimeout(1100);
     const mobile = await page.evaluate(() => ({
       viewport: window.innerWidth,
       content: document.documentElement.scrollWidth,
-      heading: document.querySelector('.landing-main-title')?.textContent.trim()
+      heading: document.querySelector('.landing-main-title')?.textContent.trim(),
+      overflowing: [...document.querySelectorAll('body *')].filter(element => {
+        const box = element.getBoundingClientRect();
+        return box.width > 0 && box.right > window.innerWidth + 3;
+      }).slice(0,12).map(element => ({
+        tag: element.tagName, className: String(element.className?.baseVal || element.className).slice(0,90),
+        right: Math.round(element.getBoundingClientRect().right)
+      }))
     }));
     await page.screenshot({ path: path.join(out, 'landing-mobile.png'), fullPage: true });
     assert.match(mobile.heading || '', /Every Change/);
@@ -111,7 +143,8 @@ async function waitForHealth(url, server) {
       screenshotViewport: { desktop: [1440, 900], mobile: [390, 844] },
       desktop, mobile, exceptions,
       checks: ['landing visible', 'responsive overflow', 'Scope Lab handoff',
-        'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward']
+        'Gemini mocked quote generated', 'quote approved', 'scope scenario carried forward',
+        'mocked PayPal SDK checkout', 'server mock capture', 'verified receipt rendered']
     }, null, 2));
     console.log('PASS: browser QA with real Chromium; screenshots saved under browser-artifacts');
     console.log('Desktop width ' + desktop.content + '/' + desktop.viewport +
