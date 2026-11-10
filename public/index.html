@@ -690,6 +690,29 @@
               </div>
             </div>
 
+            <!-- Live status snapshot: derived entirely from the local project ledger. -->
+            <section class="dashboard-pulse" aria-label="Saved agreement status breakdown">
+              <div class="dashboard-pulse-heading">
+                <div>
+                  <span class="dashboard-eyebrow">LIVE WORKSPACE / LOCAL SANDBOX RECORDS</span>
+                  <h2>Agreement pulse</h2>
+                  <p id="dashboard-pulse-title" aria-live="polite">Loading saved records…</p>
+                </div>
+                <span class="dashboard-pulse-scope">Real records · no sample metrics</span>
+              </div>
+              <div id="dashboard-status-track" class="dashboard-status-track"
+                   role="img" aria-label="Loading status breakdown">
+                <span id="dashboard-track-review" class="dashboard-track-segment review"></span>
+                <span id="dashboard-track-checkout" class="dashboard-track-segment checkout"></span>
+                <span id="dashboard-track-paid" class="dashboard-track-segment paid"></span>
+              </div>
+              <div class="dashboard-pulse-legend">
+                <span><i class="pulse-dot review" aria-hidden="true"></i> In review <strong id="dashboard-review-count">0</strong></span>
+                <span><i class="pulse-dot checkout" aria-hidden="true"></i> In checkout <strong id="dashboard-checkout-count">0</strong></span>
+                <span><i class="pulse-dot paid" aria-hidden="true"></i> Captured <strong id="dashboard-paid-count">0</strong></span>
+              </div>
+            </section>
+
             <!-- Active Agreements Ledger Table -->
             <div class="editorial-sheet">
               <div class="sheet-header-row">
@@ -700,7 +723,18 @@
                 <button class="btn-inline-link" data-view="history">Audit Archive →</button>
               </div>
               
-              <div id="dashboard-recent" class="pipeline-ledger-list">
+              <div class="dashboard-ledger-toolbar">
+                <div class="dashboard-ledger-filters" role="group" aria-label="Filter saved agreements">
+                  <button type="button" class="dashboard-filter active" data-project-filter="all" aria-pressed="true">All <span id="dashboard-filter-all">0</span></button>
+                  <button type="button" class="dashboard-filter" data-project-filter="pending" aria-pressed="false">Needs action <span id="dashboard-filter-pending">0</span></button>
+                  <button type="button" class="dashboard-filter" data-project-filter="paid" aria-pressed="false">Paid <span id="dashboard-filter-paid">0</span></button>
+                </div>
+                <button type="button" class="dashboard-refresh" id="btn-dashboard-refresh" aria-label="Refresh saved agreements">
+                  <span aria-hidden="true">↻</span> Refresh
+                </button>
+              </div>
+              <p id="dashboard-sync-state" class="dashboard-sync-state" role="status" aria-live="polite">Loading records…</p>
+              <div id="dashboard-recent" class="pipeline-ledger-list" aria-live="polite">
                 <!-- Dynamically populated by app.js -->
               </div>
             </div>
@@ -741,7 +775,7 @@
               <div class="metric-line-item">
                 <span class="metric-label">TOTAL VOLUME</span>
                 <span class="metric-figure font-mono" id="stat-revenue">$0.00</span>
-                <span class="metric-sub">Verified USD Volume</span>
+                <span class="metric-sub">Captured Sandbox USD · test funds only</span>
               </div>
 
               <div class="metric-line-divider"></div>
@@ -750,7 +784,7 @@
                 <div class="metric-mini-tile">
                   <span class="mini-label">PENDING ACTION</span>
                   <span class="mini-val" id="stat-pending">0</span>
-                  <span class="mini-tag">Awaiting approval</span>
+                  <span class="mini-tag">Requires action</span>
                 </div>
                 <div class="metric-mini-tile">
                   <span class="mini-label">SETTLED PAYMENTS</span>
@@ -775,7 +809,7 @@
               <div class="ai-status-row">
                 <div class="ai-status-pill">
                   <span class="dot-green"></span>
-                  <span>Primary: gemini-3.8-flash</span>
+                  <span id="ai-current-model">Configured Gemini model: checking…</span>
                 </div>
               </div>
 

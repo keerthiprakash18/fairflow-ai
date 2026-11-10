@@ -1,6 +1,6 @@
 /**
- * FairFlow AI — Elite Frontend Application (1000x Edition)
- * Zero frameworks, vanilla JS, pristine 60fps micro-interactions
+ * FairFlow AI — Editorial Fintech Frontend
+ * Zero frameworks; reduced-motion-friendly interactions and verified data displays
  */
 'use strict';
 
@@ -15,6 +15,7 @@ const state = {
   paypalRendered: false,
   pendingScopeScenario: null,
   projects: [],
+  dashboardFilter: 'all',
 };
 
 // ─── DOM SELECTORS & UTILITIES ───
@@ -174,63 +175,140 @@ function showStep(stepName) {
 }
 
 // ─── DASHBOARD RENDERING ───
+let dashboardLoadSerial = 0;
+
 async function loadDashboard() {
+  const loadId = ++dashboardLoadSerial;
+  const refresh = $('btn-dashboard-refresh');
+  const sync = $('dashboard-sync-state');
+  refresh.disabled = true;
+  sync.textContent = 'Checking saved agreements…';
   try {
     const data = await apiGet('/api/projects');
-    state.projects = data.projects || [];
+    if (loadId !== dashboardLoadSerial) return;
+    state.projects = Array.isArray(data.projects) ? data.projects : [];
     renderDashboardStats(state.projects);
-    renderDashboardRecent(state.projects.slice(0, 5));
+    renderDashboardRecent(state.projects);
+    sync.textContent = state.projects.length
+      ? 'Updated from local ledger · amounts are PayPal Sandbox test funds.'
+      : 'No saved agreements yet · ready for your first project.';
   } catch (err) {
+    if (loadId !== dashboardLoadSerial) return;
     console.error('Failed to load dashboard:', err);
+    sync.textContent = 'Could not load saved agreements. Try Refresh.';
+    $('dashboard-pulse-title').textContent = 'Ledger unavailable';
+    $('dashboard-recent').replaceChildren(el('p', {
+      cls: 'dashboard-empty-message dashboard-error',
+      text: 'The saved ledger could not be read. No records have been changed.'
+    }));
+  } finally {
+    if (loadId === dashboardLoadSerial) refresh.disabled = false;
   }
 }
 
-function renderDashboardStats(projects) {
-  const total = projects.length;
-  const paid = projects.filter(p => p.status === 'paid').length;
-  const pending = projects.filter(p => ['draft', 'approved', 'checkout-started', 'scope-change-requested'].includes(p.status)).length;
-  const revenue = projects.filter(p => p.status === 'paid').reduce((s, p) => s + (Number(p.amountUSD) || 0), 0);
+function projectCounts(projects) {
+  return {
+    total: projects.length,
+    paid: projects.filter(p => p.status === 'paid').length,
+    checkout: projects.filter(p => p.status === 'checkout-started').length,
+    review: projects.filter(p => p.status !== 'paid' && p.status !== 'checkout-started').length
+  };
+}
 
-  $('stat-total').textContent = total;
+function renderDashboardStats(projects) {
+  const counts = projectCounts(projects);
+  const pending = counts.total - counts.paid;
+  const volume = projects.filter(p => p.status === 'paid')
+    .reduce((sum, p) => sum + (Number(p.amountUSD) || 0), 0);
+  $('stat-total').textContent = counts.total;
   $('stat-pending').textContent = pending;
-  $('stat-paid').textContent = paid;
-  $('stat-revenue').textContent = revenue > 0 ? `$${revenue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '$0.00';
+  $('stat-paid').textContent = counts.paid;
+  $('stat-revenue').textContent = volume.toLocaleString('en-US', {
+    style:'currency', currency:'USD', minimumFractionDigits:2, maximumFractionDigits:2
+  });
+
+  $('dashboard-pulse-title').textContent = counts.total
+    ? counts.total + (counts.total === 1 ? ' saved agreement' : ' saved agreements') + ' tracked'
+    : 'No saved agreements yet';
+  $('dashboard-review-count').textContent = counts.review;
+  $('dashboard-checkout-count').textContent = counts.checkout;
+  $('dashboard-paid-count').textContent = counts.paid;
+  $('dashboard-filter-all').textContent = counts.total;
+  $('dashboard-filter-pending').textContent = pending;
+  $('dashboard-filter-paid').textContent = counts.paid;
+  const track = $('dashboard-status-track');
+  track.setAttribute('aria-label',
+    counts.total + ' saved agreements: ' + counts.review +
+    ' in review, ' + counts.checkout + ' in checkout, ' + counts.paid + ' paid');
+  for (const [segment, amount] of [
+    ['review', counts.review], ['checkout', counts.checkout], ['paid', counts.paid]
+  ]) {
+    $('dashboard-track-' + segment).style.width =
+      (counts.total ? amount / counts.total * 100 : 0) + '%';
+  }
+}
+
+function dashboardFilteredProjects(projects) {
+  const sorted = [...projects].sort((a, b) => {
+    const recent = p => Date.parse(p.paidAt || p.createdAt || '') || 0;
+    return recent(b) - recent(a);
+  });
+  if (state.dashboardFilter === 'paid') return sorted.filter(p => p.status === 'paid');
+  if (state.dashboardFilter === 'pending') return sorted.filter(p => p.status !== 'paid');
+  return sorted;
 }
 
 function renderDashboardRecent(projects) {
   const container = $('dashboard-recent');
-  if (!projects.length) {
-    container.innerHTML = `
-      <div style="text-align: center; padding: 48px 20px;">
-        <div style="width: 48px; height: 48px; border-radius: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid var(--glass-border); display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; color: var(--label-tertiary);">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-        </div>
-        <h3 style="font-size: 16px; font-weight: 700; margin-bottom: 6px;">No projects created yet</h3>
-        <p style="font-size: 13px; color: var(--label-tertiary); margin-bottom: 20px;">Describe your first freelance project to test Gemini scoping &amp; PayPal Sandbox.</p>
-        <button class="btn-primary-glow" data-view="new-project">✦ Create First Proposal</button>
-      </div>`;
-    bindViewButtons(container);
+  const records = dashboardFilteredProjects(projects);
+  const showing = records.slice(0, 5);
+  container.replaceChildren();
+  if (!showing.length) {
+    const wording = projects.length === 0 ? 'No agreements saved yet'
+      : state.dashboardFilter === 'paid' ? 'No completed Sandbox captures yet'
+      : state.dashboardFilter === 'pending' ? 'All your saved agreements are paid'
+      : 'No records in this view';
+    const empty = el('div', {
+      cls: 'dashboard-empty-state',
+      children: [
+        el('span', { cls:'dashboard-empty-icon', text:'◈', attr:{'aria-hidden':'true'} }),
+        el('h3', { text:wording }),
+        el('p', { text:'This view uses your saved ledger only. No demo transactions are invented.' })
+      ]
+    });
+    if (!projects.length) {
+      const button = el('button', { cls:'btn-primary-glow', text:'Create your first agreement', attr:{type:'button'} });
+      button.addEventListener('click', () => showView('new-project'));
+      empty.appendChild(button);
+    }
+    container.appendChild(empty);
     return;
   }
-
-  container.innerHTML = '';
-  projects.forEach(p => {
-    const isPaid = p.status === 'paid';
-    const item = el('div', {
-      cls: 'pipeline-item',
+  const statusText = {
+    paid:'Paid · capture verified',
+    approved:'Approved · ready for checkout',
+    'checkout-started':'Buyer approval pending',
+    'scope-change-requested':'Scope change in review',
+    draft:'Draft · awaiting review'
+  };
+  for (const p of showing) {
+    const paid = p.status === 'paid';
+    const label = statusText[p.status] || 'Needs review';
+    container.appendChild(el('div', {
+      cls: 'pipeline-item dashboard-project-row',
       children: [
         el('div', {
           cls: 'item-left',
           children: [
             el('div', {
-              cls: `item-status-icon ${isPaid ? 'status-paid-bg' : 'status-draft-bg'}`,
-              text: isPaid ? '✓' : '◈'
+              cls: 'item-status-icon ' + (paid ? 'status-paid-bg' : 'status-draft-bg'),
+              text: paid ? '✓' : '◈', attr:{'aria-hidden':'true'}
             }),
             el('div', {
               cls: 'item-details',
               children: [
-                el('strong', { text: p.title || 'Freelance Agreement' }),
-                el('span', { cls: 'item-meta', text: isPaid ? `Paid • ${formatDate(p.paidAt)}` : `Draft • ${formatDate(p.createdAt)}` })
+                el('strong', { text:p.title || 'Freelance Agreement' }),
+                el('span', { cls:'item-meta', text:label + ' · ' + formatDate(p.paidAt || p.createdAt) })
               ]
             })
           ]
@@ -239,15 +317,40 @@ function renderDashboardRecent(projects) {
           cls: 'item-right',
           children: [
             el('span', {
-              cls: 'item-amount',
-              text: p.amountUSD ? `$${Number(p.amountUSD).toFixed(2)} USD` : '—'
-            })
+              cls:'item-amount',
+              text: Number.isFinite(Number(p.amountUSD))
+                ? Number(p.amountUSD).toLocaleString('en-US', {
+                  style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2
+                }) + ' USD'
+                : '—'
+            }),
+            el('span', { cls:'dashboard-project-status ' + (paid ? 'is-paid' : 'is-pending'), text:label })
           ]
         })
       ]
+    }));
+  }
+  if (records.length > showing.length) {
+    container.appendChild(el('p', {
+      cls:'dashboard-showing-note',
+      text:'Showing ' + showing.length + ' of ' + records.length + ' matching saved agreements. See Audit Trail for the full history.'
+    }));
+  }
+}
+
+function initDashboardControls() {
+  qsa('[data-project-filter]').forEach(button => {
+    button.addEventListener('click', () => {
+      state.dashboardFilter = button.dataset.projectFilter;
+      qsa('[data-project-filter]').forEach(b => {
+        const selected = b === button;
+        b.classList.toggle('active', selected);
+        b.setAttribute('aria-pressed', String(selected));
+      });
+      renderDashboardRecent(state.projects);
     });
-    container.appendChild(item);
   });
+  $('btn-dashboard-refresh').addEventListener('click', loadDashboard);
 }
 
 function formatDate(iso) {
@@ -1686,10 +1789,16 @@ async function refreshIntegrationStatus() {
     paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
     gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
     chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';
+    const modelStatus = $('ai-current-model');
+    if (modelStatus) modelStatus.textContent = s.aiConfigured
+      ? 'Configured model: ' + (s.model || 'Gemini API')
+      : 'Gemini API key not configured';
   } catch {
     chip.classList.add('status-needs-setup');
     paypal.textContent = 'SERVER OFFLINE';
     gemini.textContent = 'CHECK CONNECTION';
+    const modelStatus = $('ai-current-model');
+    if (modelStatus) modelStatus.textContent = 'Model configuration unavailable';
   }
 }
 
@@ -1705,6 +1814,7 @@ function init() {
   if (new URLSearchParams(window.location.search).has('paypal_return'))
     setTimeout(() => toast('PayPal returned here. Switch to the ORIGINAL FairFlow checkout tab and check the order status. This page did not capture payment.', 'info'), 250);
   bindViewButtons();
+  initDashboardControls();
   initShowcaseDemo();
   initScopeLab();
   refreshIntegrationStatus();
