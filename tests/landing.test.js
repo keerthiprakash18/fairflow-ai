@@ -49,3 +49,10 @@ test('landing does not overstate sandbox security or fabricate issued documents'
   assert.doesNotMatch(html,/automatically generates Change Order #02/i);
   assert.match(html,/sandbox buyer approves the order/i);
 });
+
+test('global toast exists so async quote approval never crashes on feedback',()=>{
+  assert.ok(html.includes('id="toast"'));
+  assert.ok(html.includes('aria-live="polite"'));
+  assert.ok(js.includes("const toastEl = $('toast')"));
+  assert.ok(css.includes('#toast.show'));
+});
