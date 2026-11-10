@@ -76,6 +76,11 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     const order=await post(base,'/api/paypal/create-order',{quoteId});
     assert.equal(order.status,200);
     assert.equal(order.data.id,'MOCK-ORDER-900');
+    const beforeCapture=await post(base,'/api/paypal/order-status',{quoteId});
+    assert.equal(beforeCapture.status,200);
+    assert.equal(beforeCapture.data.status,'CREATED');
+    assert.equal(beforeCapture.data.capturedAtPayPal,false);
+    assert.equal(beforeCapture.data.recordedPaidLocally,false);
     await stopApp(proc);proc=null;
     proc=await startApp(port,dataDir);
     const captured=await post(base,'/api/paypal/capture-order',{orderId:order.data.id});
@@ -83,6 +88,11 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     assert.equal(captured.data.status,'COMPLETED');
     assert.equal(captured.data.amount,'900.00');
     assert.equal(captured.data.captureId,'MOCK-CAPTURE-900');
+    const afterCapture=await post(base,'/api/paypal/order-status',{quoteId});
+    assert.equal(afterCapture.status,200);
+    assert.equal(afterCapture.data.status,'COMPLETED');
+    assert.equal(afterCapture.data.capturedAtPayPal,true);
+    assert.equal(afterCapture.data.recordedPaidLocally,true);
     const duplicate=await post(base,'/api/paypal/capture-order',{orderId:order.data.id});
     assert.equal(duplicate.status,409);
     const history=await(await fetch(base+'/api/projects')).json();

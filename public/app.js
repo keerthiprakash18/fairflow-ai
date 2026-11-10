@@ -1010,7 +1010,8 @@ function renderCheckoutStep() {
     children: [
       el('h4', { text: 'Complete Payment via PayPal', attr: { style: 'font-family: var(--font-heading); font-size: 16px; font-weight: 800; margin-bottom: 8px;' } }),
       el('p', { text: 'Click below to authorize via PayPal Sandbox. Server will independently capture and verify the order status.', attr: { style: 'font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;' } }),
-      el('div', { id: 'paypal-buttons' })
+      el('div', { id: 'paypal-buttons' }),
+      el('div', { id: 'paypal-troubleshooting', attr: { hidden: 'hidden', 'aria-live': 'polite' } })
     ]
   });
 
@@ -1025,25 +1026,52 @@ async function loadAndRenderPayPal() {
   try {
     const config = await apiGet('/api/config');
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
-    await loadPayPalSdk(config.clientId);
+    await loadPayPalSdk(config.clientId, config.buyerCountry);
     renderPayPalButtons();
   } catch (err) {
     const target = $('paypal-buttons');
     if (target) {
       target.replaceChildren();const errEl=document.createElement('div');errEl.style.cssText='padding:16px;border:1px solid #f9a8a8;border-radius:8px;color:var(--red-400);font-size:12px';errEl.textContent='⚠️ '+err.message;target.appendChild(errEl);
+      showPayPalTroubleshooting();
     }
   }
 }
 
-function loadPayPalSdk(clientId) {
+function loadPayPalSdk(clientId, buyerCountry = 'US') {
   if (window.paypal) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&components=buttons`;
+    const country = /^[A-Z]{2}$/.test(buyerCountry) ? buyerCountry : 'US';
+    script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&commit=true&components=buttons&buyer-country=${country}`;
     script.onload = resolve;
     script.onerror = () => reject(new Error('Failed to load PayPal JS SDK. Check internet connection.'));
     document.head.appendChild(script);
   });
+}
+
+function showPayPalTroubleshooting() {
+  const area = $('paypal-troubleshooting');
+  if (!area) return;
+  area.hidden = false;
+  area.style.cssText = 'margin-top:16px;padding:15px;border:1px solid #d9ba83;border-radius:10px;background:#fff9ee;color:#263544;font-size:13px;line-height:1.65';
+  area.replaceChildren();
+  area.appendChild(el('strong', { text: 'PayPal Sandbox checkout troubleshooting' }));
+  area.appendChild(el('p', { text: 'Use a Personal Sandbox buyer different from the merchant account. For a US buyer, set PAYPAL_SANDBOX_BUYER_COUNTRY=US in .env. If PayPal shows an error, check the order before attempting another payment.' }));
+  const button = el('button', { cls: 'btn-landing-secondary', text: 'Check PayPal order status', attr: { type: 'button', style: 'margin-top:10px;padding:9px 13px;' } });
+  const result = el('p', { attr: { style: 'margin-top:9px;overflow-wrap:anywhere;' } });
+  button.onclick = async () => {
+    button.disabled = true;
+    result.textContent = 'Checking the actual Sandbox order status...';
+    try {
+      const d = await api('/api/paypal/order-status', { quoteId: state.quoteId });
+      if (d.capturedAtPayPal || d.status === 'COMPLETED') result.textContent = 'PayPal reports COMPLETED. Stop retrying checkout; reconcile this transaction before another attempt.';
+      else if (d.status === 'APPROVED') result.textContent = 'PayPal reports APPROVED, but capture has not been confirmed. Do not create a new payment before reconciliation.';
+      else if (d.status === 'CREATED' || d.status === 'PAYER_ACTION_REQUIRED') result.textContent = 'PayPal order is ' + d.status + ': buyer approval has not completed. Log in with a different Personal Sandbox buyer, not the Business seller. A fresh agreement generates a fresh order.';
+      else result.textContent = 'PayPal order status: ' + d.status + '. Do not retry until this status is understood.';
+    } catch (err) { result.textContent = 'Could not inspect Sandbox order: ' + err.message; }
+    finally { button.disabled = false; }
+  };
+  area.append(button, result);
 }
 
 function renderPayPalButtons() {
@@ -1079,14 +1107,16 @@ function renderPayPalButtons() {
     },
 
     onCancel: () => {
-      toast('PayPal checkout cancelled. No funds transferred.', 'info');
+      toast('PayPal checkout closed. Check order status before trying again.', 'info');
       state.paypalRendered = false;
+      showPayPalTroubleshooting();
     },
 
     onError: err => {
       console.error('PayPal checkout error:', err);
-      toast('PayPal checkout error. Verify sandbox account credentials.', 'error');
+      toast('PayPal checkout failed. Check Sandbox order status and use a separate Personal buyer.', 'error');
       state.paypalRendered = false;
+      showPayPalTroubleshooting();
     }
   }).render('#paypal-buttons');
 }

@@ -4,6 +4,7 @@
 // Never use it to represent real Gemini connectivity or real PayPal payment.
 const actualFetch = globalThis.fetch;
 let currentAmount = '900.00';
+let captureCompleted = false;
 globalThis.fetch = async function offlineUpstream(url, options={}) {
   const addr=String(url);
   const reply = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
@@ -34,9 +35,17 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders' && options.method==='POST') {
     const data=JSON.parse(options.body||'{}');
     currentAmount=data?.purchase_units?.[0]?.amount?.value||'900.00';
+    if (process.env.FAIRFLOW_MOCK_MISMATCH !== '1' && data?.payment_source?.paypal?.experience_context?.shipping_preference !== 'NO_SHIPPING')
+      return reply({message:'Expected modern PayPal experience_context in mock checkout'},400);
+    captureCompleted = false;
     return reply({id:'MOCK-ORDER-900'},201);
   }
+  if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900' && options.method==='GET') {
+    return reply({id:'MOCK-ORDER-900',status:captureCompleted?'COMPLETED':'CREATED',
+      purchase_units:captureCompleted?[{payments:{captures:[{id:'MOCK-CAPTURE-900',status:'COMPLETED',amount:{currency_code:'USD',value:currentAmount}}]}}]:[]});
+  }
   if(addr==='https://api-m.sandbox.paypal.com/v2/checkout/orders/MOCK-ORDER-900/capture') {
+    captureCompleted = true;
     return reply({
       id:'MOCK-ORDER-900',status:'COMPLETED',purchase_units:[{payments:{captures:[{
         id:'MOCK-CAPTURE-900',status:'COMPLETED',

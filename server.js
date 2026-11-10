@@ -36,6 +36,8 @@ const GEMINI_MODELS      = Array.from(new Set([
 const GEMINI_API_BASE    = 'https://generativelanguage.googleapis.com';
 const PAYPAL_CLIENT_ID   = process.env.PAYPAL_CLIENT_ID   || '';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
+const PAYPAL_SANDBOX_BUYER_COUNTRY = /^[A-Z]{2}$/.test((process.env.PAYPAL_SANDBOX_BUYER_COUNTRY || 'US').trim().toUpperCase())
+  ? (process.env.PAYPAL_SANDBOX_BUYER_COUNTRY || 'US').trim().toUpperCase() : 'US';
 const GEMINI_API_KEY     = process.env.GEMINI_API_KEY || '';
 
 // ─── In-memory stores (TTL-evicted) ──────────────────────────────────────────
@@ -421,7 +423,7 @@ async function handle(req, res) {
   // ── Config (safe — only public client ID) ─────────────────────────────────
   if (req.method === 'GET' && route === '/api/config') {
     const clientId = isConfigured(PAYPAL_CLIENT_ID) ? PAYPAL_CLIENT_ID : '';
-    return send(res, 200, { clientId, sandbox: true, currency: 'USD' });
+    return send(res, 200, { clientId, sandbox: true, currency: 'USD', buyerCountry: PAYPAL_SANDBOX_BUYER_COUNTRY });
   }
 
   // ── Projects (persistence) ────────────────────────────────────────────────
@@ -548,17 +550,38 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
         amount:       { currency_code: 'USD', value: amount },
         custom_id:    quoteId,
       }],
-      application_context: {
+      // PayPal's current Orders v2 schema places the wallet experience here.
+      payment_source: { paypal: { experience_context: {
         brand_name: 'FairFlow AI (Sandbox)',
         user_action: 'PAY_NOW',
         shipping_preference: 'NO_SHIPPING',
-      },
+        landing_page: 'LOGIN',
+      } } },
     }, token, idempotencyKey);
     if (!data.id) throw new Error('PayPal order could not be created');
     orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false, capturing: false });
     quote.orderId = data.id;
     await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, createdAt: new Date().toISOString() });
     return send(res, 200, { id: data.id });
+  }
+
+  // ── Read-only Sandbox order diagnostics; never initiates a payment. ───────
+  if (req.method === 'POST' && route === '/api/paypal/order-status') {
+    const { quoteId } = await readBody(req);
+    const quote = await getQuote(quoteId);
+    if (!quote || !quote.orderId) return send(res, 404, { error: 'No Sandbox order found for this quote.' });
+    const token = await paypalToken();
+    const order = await paypalApi('GET', '/v2/checkout/orders/' + encodeURIComponent(quote.orderId), null, token, 'inspect-' + quote.orderId);
+    const captures = order.purchase_units?.flatMap(unit => unit.payments?.captures || []) || [];
+    // Never disclose payer identity, account data, access tokens, or payment-source details.
+    const matchingCapture = captures.find(c => c.status === 'COMPLETED' && c.amount?.currency_code === 'USD' &&
+      Math.abs(Number(c.amount?.value) - quote.amountUSD) < 0.001);
+    return send(res, 200, {
+      status: order.status || 'UNKNOWN',
+      amountUSD: quote.amountUSD,
+      capturedAtPayPal: Boolean(matchingCapture),
+      recordedPaidLocally: Boolean(quote.paid)
+    });
   }
 
   // ── Capture PayPal order ──────────────────────────────────────────────────
