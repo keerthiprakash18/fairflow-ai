@@ -216,6 +216,18 @@ Open your browser and navigate to:
 
 ---
 
+### Verify REAL Gemini and PayPal Sandbox connectivity
+
+With private credentials stored only in your local `.env`, run:
+
+```powershell
+npm run verify:integrations
+```
+
+This command makes a **real, small Gemini generation request** and gets a **real PayPal Sandbox OAuth token**. It does not create or capture a payment and does not print credentials.
+
+For real end-to-end PayPal verification, approve a test checkout using a **Sandbox Personal Buyer** account in the app and check that the capture ID and USD amount match the receipt. Offline CI tests are mocked and are not proof of live provider connectivity.
+
 ## PayPal Sandbox Testing Credentials
 
 To test the payment checkout flow:
