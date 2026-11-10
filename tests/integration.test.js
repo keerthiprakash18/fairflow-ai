@@ -83,6 +83,10 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     assert.deepEqual(scope.data.analysis.unknowns,['How many seller roles need different permissions?']);
     assert.equal(scope.data.analysis.warning.includes('approved quote remains unchanged'),true);
     assert.equal(scope.data.originalQuote.amountUSD,900);
+    const uncertain=await post(base,'/api/scope-change',{quoteId,newRequest:'UNCERTAIN_EFFORT_TEST: Can we add something? The requirements are not yet specified.'});
+    assert.equal(uncertain.status,200);
+    assert.equal(uncertain.data.analysis.estimatedEffortHours,null);
+    assert.equal(uncertain.data.originalQuote.amountUSD,900);
     const order=await post(base,'/api/paypal/create-order',{quoteId});
     assert.equal(order.status,200);
     assert.equal(order.data.id,'MOCK-ORDER-900');
