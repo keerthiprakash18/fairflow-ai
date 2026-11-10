@@ -28,3 +28,18 @@ test('animation accessibility and required payment APIs remain',()=>{
   assert.match(server,/\/api\/scope-change/);
   assert.match(server,/api-m\.sandbox\.paypal\.com/);
 });
+test('Scope Lab hands selected scenario into the real Gemini wizard',()=>{
+  assert.match(html,/id="btn-lab-open-scenario"/);
+  assert.match(html,/id="lab-cta-label"/);
+  assert.match(js,/const LAB_SCOPE_REQUESTS/);
+  assert.match(js,/pendingScopeScenario=LAB_SCOPE_REQUESTS\[selected\]/);
+  assert.match(js,/showView\('new-project'\)/);
+  assert.match(js,/input\.value = state\.pendingScopeScenario/);
+});
+test('demo templates are correctly labelled and payment copy is not misleading',()=>{
+  assert.match(html,/SaaS Finance Dashboard · sample brief/);
+  assert.match(html,/Architecture Portfolio · sample brief/);
+  assert.doesNotMatch(html,/Health &amp; Fitness iOS App/);
+  assert.match(js,/Full Quote Payment/);
+  assert.match(js,/milestone splits are planning estimates/);
+});

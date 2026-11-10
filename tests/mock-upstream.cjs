@@ -20,7 +20,7 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
       })}]}}]});
     }
     if(prompt.includes('Expand this into an articulate')) {
-      return reply({candidates:[{content:{parts:[{text:'"Build a responsive boutique storefront with search, checkout and catalog."'}]}}]});
+      return reply({candidates:[{content:{parts:[{text:JSON.stringify({technical_brief:'Build a responsive boutique storefront with search, checkout and catalog.'})}]}}]});
     }
     return reply({candidates:[{content:{parts:[{text:JSON.stringify({
       title:'Boutique Store', summary:'A boutique commerce project.',

@@ -314,3 +314,12 @@ This project is open-source and licensed under the **[MIT License](LICENSE)** â€
 ### Verification and public-hosting limitations
 Automated tests are not live Gemini/PayPal API verification. Health only shows credential configuration, never live provider connectivity. Verify Gemini requests and PayPal Sandbox buyer approval/capture manually with private credentials before submitting.
 This app currently has **no user authentication** and `/api/projects` can expose project history. It is a local hackathon prototype, **not a public multi-user finance service**. Do not enter private client data or expose the service directly to the Internet without adding authentication and secured storage.
+
+
+### November 2026 implementation refinements
+
+- The interactive **Scope Lab** stays a clearly labelled sample. Choose a change, then click **Open ... in the workbench** to prefill the matching ecommerce baseline and carry the selected change into the real AI Scope Guard after quote approval. Live Gemini calls require a private API key.
+- Demo scenario chip titles now match the briefs they actually insert. The PayPal Sandbox checkout is a **single full-quote capture**; milestone percentages are a planning breakdown, **not** separate scheduled payments or escrow.
+- By default the prototype listens on `127.0.0.1` only. To run on another host, configure `HOST` deliberately; do **not** expose `/api/projects` publicly without authentication and secured storage.
+- `npm run verify:integrations` performs optional real Gemini generation and PayPal Sandbox **OAuth-only** checks using local `.env`, without creating or capturing any payment. A successful result is still **not** a successful buyer checkout test.
+- Inspo MCP is configured in `.codex/config.toml` for compatible, trusted Codex workspaces. It is not automatically connected to each ChatGPT session.

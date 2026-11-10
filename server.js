@@ -23,6 +23,7 @@ const { randomUUID } = require('node:crypto');
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT               = Number(process.env.PORT || 3000);
+const HOST               = process.env.HOST || '127.0.0.1';
 const PAYPAL_BASE        = 'https://api-m.sandbox.paypal.com';
 const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
 const GEMINI_MODELS      = Array.from(new Set([
@@ -450,7 +451,7 @@ async function handle(req, res) {
 The freelancer provided a draft idea: "${brief.trim().slice(0, 1000)}".
 Expand this into an articulate, professional 3 to 4 sentence technical brief.
 Mention key features, deliverables, typical technology stack, and realistic timeline.
-Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
+Return ONLY valid JSON with a single key, "technical_brief", containing the complete 3-4 sentence brief. Do not wrap the JSON in markdown.`;
     const raw = await geminiJson(prompt);
     let cleaned = raw.replace(/^```(?:json|text)?/i, '').replace(/```$/i, '').trim();
     try {
@@ -608,9 +609,9 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
 ensureDataDir().then(() => {
   http.createServer((req, res) =>
     Promise.resolve(handle(req, res)).catch(err => jsonError(res, err))
-  ).listen(PORT, () => {
+  ).listen(PORT, HOST, () => {
     console.log(`\n  ✦ FairFlow AI v2 — Sandbox mode`);
-    console.log(`  ➜ http://localhost:${PORT}`);
+    console.log(`  ➜ http://${HOST}:${PORT}`);
     console.log(`  ➜ AI model: ${GEMINI_MODEL}`);
     console.log(`  ➜ PayPal: Sandbox\n`);
   });

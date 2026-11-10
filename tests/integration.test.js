@@ -55,6 +55,7 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     const enhanced=await post(base,'/api/enhance-brief',{brief:'boutique'});
     assert.equal(enhanced.status,200);
     assert.ok(enhanced.data.enhanced.length>20);
+    assert.match(enhanced.data.enhanced,/responsive boutique storefront/);
     const q=await post(base,'/api/quote',{description:'Build a responsive e-commerce website with checkout, a catalog and an admin panel.'});
     assert.equal(q.status,200);
     const quoteId=q.data.quoteId;

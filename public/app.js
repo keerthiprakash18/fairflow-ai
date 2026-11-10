@@ -13,6 +13,7 @@ const state = {
   approvedAmount: null,
   paypalLoaded: false,
   paypalRendered: false,
+  pendingScopeScenario: null,
   projects: [],
 };
 
@@ -328,6 +329,7 @@ const descEl = $('description');
 if (descEl) {
   descEl.addEventListener('input', () => {
     $('char-count').textContent = descEl.value.length;
+    state.pendingScopeScenario = null;
   });
 }
 
@@ -362,6 +364,7 @@ qsa('[data-template]').forEach(btn => {
     const key = btn.dataset.template;
     if (TEMPLATES[key]) {
       descEl.value = TEMPLATES[key];
+      state.pendingScopeScenario = null;
       $('char-count').textContent = descEl.value.length;
       toast(`Loaded template: ${btn.textContent.trim()}`, 'info');
     }
@@ -813,6 +816,11 @@ function renderProposal(quoteId, quote) {
 
 // ─── SCOPE CHANGE DETECTOR ───
 function renderScopeStep() {
+  if (state.pendingScopeScenario) {
+    const input = $('scope-request');
+    if (input) input.value = state.pendingScopeScenario;
+    state.pendingScopeScenario = null;
+  }
   $('btn-skip-scope').onclick = () => {
     renderCheckoutStep();
     showStep('checkout');
@@ -987,8 +995,8 @@ function renderCheckoutStep() {
           }),
           el('div', {
             children: [
-              el('strong', { text: 'PayPal Sandbox Authorized Milestone Payment', attr: { style: 'font-size: 12px; display: block;' } }),
-              el('span', { text: 'Payment is captured server-side upon client sign-off. Test environment only.', attr: { style: 'font-size: 11px; color: var(--text-tertiary);' } })
+              el('strong', { text: 'PayPal Sandbox · Full Quote Payment', attr: { style: 'font-size: 12px; display: block;' } }),
+              el('span', { text: 'This demo captures the approved quote in one test transaction; milestone splits are planning estimates.', attr: { style: 'font-size: 11px; color: var(--text-tertiary);' } })
             ]
           })
         ]
@@ -1362,6 +1370,12 @@ function initShowcaseDemo() {
 
 
 // The Scope Lab is illustrative. No AI API or payment API is called here.
+// Its CTA takes the selected scenario into the actual Gemini-powered workflow.
+const LAB_SCOPE_REQUESTS = Object.freeze({
+  marketplace: SCOPE_TEMPLATES.marketplace,
+  assistant: 'The client now wants an AI support assistant that searches the product FAQ, answers common questions in a chat widget, and routes unanswered issues to a human.',
+  rush: SCOPE_TEMPLATES.rush
+});
 const LAB_EXAMPLES = Object.freeze({
   marketplace:{impact:'IMPACT / HIGH',title:'Multi-vendor marketplace',description:'Seller accounts, split payouts and a new marketplace admin layer.',amount:'+$1,400 USD',timeline:'+18 days'},
   assistant:{impact:'IMPACT / MEDIUM',title:'AI support assistant',description:'Knowledge retrieval, a support chat UI and quality evaluation.',amount:'+$650 USD',timeline:'+8 days'},
@@ -1373,7 +1387,19 @@ function initScopeLab(){
     const example=LAB_EXAMPLES[button.dataset.labScenario];if(!example)return;
     buttons.forEach(b=>{const selected=b===button;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',String(selected));});
     [['lab-impact-label',example.impact],['lab-change-title',example.title],['lab-change-description',example.description],['lab-change-amount',example.amount],['lab-change-timeline',example.timeline]].forEach(([id,value])=>{const target=$(id);if(target)target.textContent=value;});
+    const label=$('lab-cta-label');if(label)label.textContent='Open '+example.title+' in the workbench';
   }));
+  $('btn-lab-open-scenario')?.addEventListener('click',()=>{
+    const selected=buttons.find(b=>b.classList.contains('is-selected'))?.dataset.labScenario || 'marketplace';
+    if(!descEl || !LAB_SCOPE_REQUESTS[selected])return;
+    state.pendingScopeScenario=LAB_SCOPE_REQUESTS[selected];
+    descEl.value=TEMPLATES.ecommerce;
+    const count=$('char-count');if(count)count.textContent=String(descEl.value.length);
+    showView('new-project');
+    showStep('brief');
+    descEl.focus();
+    toast('Example brief ready. Generate and approve a quote to analyze your selected scope change.', 'info');
+  });
 }
 
 // Status means credentials are present, never that a real payment or AI request succeeded.
