@@ -4331,3 +4331,16 @@ body.on-landing .mobile-nav-bar {
 .scope-retry-card {padding:20px 22px; min-height:135px;}
 .scope-retry-card strong {font-size:15px; font-weight:750;}
 .scope-retry-card p {margin:8px 0 0; font-size:13px; line-height:1.65;}
+
+
+/* One small composited receipt cue replaces the render-blocking third-party confetti library. */
+@keyframes receipt-confirmation {
+  0% { transform:scale(.992); opacity:.92; }
+  100% { transform:scale(1); opacity:1; }
+}
+#receipt-container.receipt-just-verified .receipt-amount-panel {
+  animation:receipt-confirmation 440ms ease-out both;
+}
+@media (prefers-reduced-motion:reduce) {
+  #receipt-container.receipt-just-verified .receipt-amount-panel { animation:none!important; }
+}

@@ -22,6 +22,8 @@ const state = {
 // ─── DOM SELECTORS & UTILITIES ───
 const $ = id => document.getElementById(id);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
+const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const scrollBehavior = () => prefersReducedMotion() ? 'instant' : 'smooth';
 
 function el(tag, opts = {}) {
   const e = document.createElement(tag);
@@ -122,7 +124,7 @@ function showView(viewName) {
   const target = $(`view-${viewName}`);
   if (target) {
     target.classList.add('active');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 
   // Toggle masthead navigation bar modes
@@ -156,6 +158,7 @@ function showView(viewName) {
     t.classList.toggle('active', isTarget);
   });
 
+  syncDemoAutoPlay();
   if (viewName === 'dashboard') loadDashboard();
   if (viewName === 'history') loadHistory();
   if (viewName === 'new-project' && state.currentStep === 'brief') {
@@ -210,7 +213,7 @@ function showStep(stepName) {
     }
   });
 
-  window.scrollTo({ top: 0, behavior: 'smooth' });
+  window.scrollTo({ top: 0, behavior: scrollBehavior() });
 }
 
 // ─── DASHBOARD RENDERING ───
@@ -1441,12 +1444,14 @@ function renderPayPalButtons() {
         toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
 
-        // Trigger victory confetti (respecting prefers-reduced-motion)
-        if (typeof confetti === 'function' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-          confetti({ particleCount: 120, spread: 80, origin: { y: 0.6 } });
-        }
-
+        // Celebration stays first-party and GPU-friendly; no third-party animation
+        // download is allowed on initial load or after a verified payment.
         renderReceipt(confirmed);
+        if (!prefersReducedMotion()) {
+          const receiptRoot = $('receipt-container');
+          receiptRoot.classList.add('receipt-just-verified');
+          setTimeout(() => receiptRoot.classList.remove('receipt-just-verified'), 950);
+        }
         showStep('receipt');
         toast('Sandbox transaction captured and verified!', 'success');
         setTimeout(loadDashboard, 1000);
@@ -1741,6 +1746,7 @@ let demoInterval = null;
 let autoPlayPaused = false;
 let userPausedDemo = false;
 let pauseTimeout = null;
+let showcaseVisible = false;
 
 const STAGE_LABELS = {
   1: '01 / 04 · AGREEMENT EXAMPLE',
@@ -1770,26 +1776,47 @@ function setDemoStage(stageNum) {
   });
 }
 
+function syncDemoAutoPlay() {
+  const shouldPlay = showcaseVisible && !document.hidden && state.currentView === 'landing' &&
+    !autoPlayPaused && !userPausedDemo && !prefersReducedMotion();
+  if (!shouldPlay) {
+    if (demoInterval !== null) clearInterval(demoInterval);
+    demoInterval = null;
+    return;
+  }
+  if (demoInterval !== null) return;
+  demoInterval = setInterval(() => {
+    const next = currentDemoStage === 4 ? 1 : currentDemoStage + 1;
+    setDemoStage(next);
+  }, 6000);
+}
 function pauseDemoAutoPlay() {
   autoPlayPaused = true;
   clearTimeout(pauseTimeout);
-  pauseTimeout = setTimeout(() => { autoPlayPaused = false; }, 15000);
+  syncDemoAutoPlay();
+  pauseTimeout = setTimeout(() => { autoPlayPaused = false; syncDemoAutoPlay(); }, 15000);
 }
 
 function startDemoAutoPlay() {
-  if (demoInterval) clearInterval(demoInterval);
-  if(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-  demoInterval = setInterval(() => {
-    if (state.currentView !== 'landing' || autoPlayPaused || userPausedDemo) return;
-    let next = currentDemoStage + 1;
-    if (next > 4) next = 1;
-    setDemoStage(next);
-  }, 6000);
+  const showcase = $('showcase');
+  if (showcase && 'IntersectionObserver' in window) {
+    const observer = new IntersectionObserver(entries => {
+      showcaseVisible = Boolean(entries[0]?.isIntersecting);
+      syncDemoAutoPlay();
+    }, { threshold:0.05 });
+    observer.observe(showcase);
+  } else {
+    showcaseVisible = true;
+  }
+  document.addEventListener('visibilitychange', syncDemoAutoPlay);
+  window.matchMedia('(prefers-reduced-motion: reduce)')
+    .addEventListener('change', syncDemoAutoPlay);
+  syncDemoAutoPlay();
 }
 
 function initShowcaseDemo() {
   const pause=$('showcase-playback-toggle');
-  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));pause.setAttribute('aria-label',userPausedDemo?'Resume demo animation':'Pause demo animation');});
+  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));pause.setAttribute('aria-label',userPausedDemo?'Resume demo animation':'Pause demo animation');syncDemoAutoPlay();});
   qsa('.scrubber-tab, .showcase-dot').forEach(btn => {
     btn.addEventListener('click', () => {
       const st = Number(btn.dataset.stage);
@@ -1836,7 +1863,7 @@ function initShowcaseDemo() {
   if (showcaseCard) {
     showcaseCard.addEventListener('mouseenter', pauseDemoAutoPlay);
     showcaseCard.addEventListener('focusin', pauseDemoAutoPlay);
-    showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; });
+    showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; syncDemoAutoPlay(); });
   }
 
   // Smooth scroll for in-page anchor links
@@ -1847,7 +1874,7 @@ function initShowcaseDemo() {
         const targetEl = document.querySelector(href);
         if (targetEl) {
           e.preventDefault();
-          targetEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          targetEl.scrollIntoView({ behavior: scrollBehavior(), block: 'start' });
         }
       }
     });
