@@ -4117,3 +4117,26 @@ body.on-landing .mobile-nav-bar {
   .change-order-textarea { font-size:12px; }
 }
 @media print { .scope-change-order-card,.scope-payment-boundary {display:none!important;} }
+
+
+/* Ultra-small phone fixes proven by Chromium: fit real masthead and footer, don't mask overflow. */
+@media (max-width:359px) {
+  .brand-tagline { display:none; }
+  .brand-title { font-size:12px; letter-spacing:.03em; }
+  .brand-masthead { min-width:0; gap:7px; }
+  .workbench-masthead { gap:6px; }
+  .masthead-right { gap:5px; flex-shrink:0; }
+  .status-chip-sandbox { padding:4px 6px; gap:4px; font-size:9px; }
+  .btn-editorial-icon { flex-shrink:0; }
+  .footer-split-row { min-width:0; max-width:100%; }
+  .footer-brand { min-width:0; max-width:100%; }
+  .footer-brand-info { min-width:0; max-width:100%; }
+  .footer-brand-info strong,.footer-brand-info span {
+    min-width:0; max-width:100%; white-space:normal; overflow-wrap:anywhere;
+  }
+  .footer-nav-links {
+    display:flex; flex-wrap:wrap; max-width:100%; min-width:0;
+    column-gap:10px; row-gap:9px;
+  }
+  .footer-license-note { max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; }
+}
