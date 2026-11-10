@@ -79,7 +79,7 @@ async function waitForHealth(url, server) {
       heading: document.querySelector('.landing-main-title')?.textContent.trim()
     }));
     assert.match(desktop.heading || '', /Every Change/);
-    assert.ok(desktop.content <= desktop.viewport + 24, 'Desktop horizontal overflow: ' + JSON.stringify(desktop));
+    assert.ok(desktop.content <= desktop.viewport + 2, 'Desktop horizontal overflow: ' + JSON.stringify(desktop));
 
     // Product scenario: sample -> actual workbench -> mocked Gemini quote -> scoped change.
     await page.locator('[data-lab-scenario="assistant"]').click();
@@ -136,7 +136,7 @@ async function waitForHealth(url, server) {
     }));
     await page.screenshot({ path: path.join(out, 'landing-mobile.png'), fullPage: true });
     assert.match(mobile.heading || '', /Every Change/);
-    assert.ok(mobile.content <= mobile.viewport + 24, 'Mobile horizontal overflow: ' + JSON.stringify(mobile));
+    assert.ok(mobile.content <= mobile.viewport + 2, 'Mobile horizontal overflow: ' + JSON.stringify(mobile));
     assert.deepEqual(exceptions, [], 'Unexpected browser JavaScript exceptions');
     await fs.writeFile(path.join(out, 'qa-results.json'), JSON.stringify({
       simulatedProviders: true,
