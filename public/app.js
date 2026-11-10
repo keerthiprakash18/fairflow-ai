@@ -1854,7 +1854,7 @@ function startDemoAutoPlay() {
 
 function initShowcaseDemo() {
   const pause=$('showcase-playback-toggle');
-  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));pause.setAttribute('aria-label',userPausedDemo?'Resume demo animation':'Pause demo animation');syncDemoAutoPlay();});
+  pause?.addEventListener('click',()=>{userPausedDemo=!userPausedDemo;pause.textContent=userPausedDemo?'Play preview':'Pause preview';pause.setAttribute('aria-pressed',String(userPausedDemo));syncDemoAutoPlay();});
   qsa('.scrubber-tab, .showcase-dot').forEach(btn => {
     btn.addEventListener('click', () => {
       const st = Number(btn.dataset.stage);

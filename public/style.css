@@ -4359,3 +4359,31 @@ body.on-landing .mobile-nav-bar {
   padding:0!important;margin:-1px!important;overflow:hidden!important;
   clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important;
 }
+
+
+/* Axe WCAG A/AA corrections from real Chromium: visible contrast + accessible touch targets. */
+.lab-stage-tag {color:#3F5874;font-size:11px;}
+.lab-paper-index span:last-child {color:#8D3C28;font-size:10px;}
+.lab-paper-line {color:#4C6278;font-size:12px;}
+.lab-paper-stamp {color:#32654E;font-size:11px;}
+.lab-stamp-alert {color:#963E2A;}
+.lab-paper-label {color:#3F5D75;font-size:11px;}
+.problem-editorial-header > .section-kicker {color:#A63224;}
+.stat-big-number,.stat-fraction {color:#A93627;}
+/* Keep the appearance as dots without making the ACTUAL button a tiny touch target. */
+.showcase-step-dots {gap:3px;}
+.showcase-dot,.showcase-dot.active {
+  display:inline-grid; place-items:center;
+  width:28px; min-width:28px; height:28px; min-height:28px;
+  background:transparent; border-radius:999px; padding:0;
+}
+.showcase-dot::before {
+  content:""; display:block; width:8px; height:8px;
+  border-radius:999px; background:#738092;
+  transition:width 160ms ease,background-color 160ms ease;
+}
+.showcase-dot.active::before {width:20px;background:#2555F4;}
+.showcase-dot:focus-visible {outline:3px solid #2555F4;outline-offset:1px;}
+@media (prefers-reduced-motion:reduce) {
+  .showcase-dot::before {transition:none!important;}
+}
