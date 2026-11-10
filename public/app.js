@@ -213,6 +213,13 @@ function showStep(stepName) {
     }
   });
 
+  const announcement = $('wizard-step-announcement');
+  if (announcement) {
+    const stepNameForSpeech = {brief:'Project brief',proposal:'AI proposal',scope:'Scope Guard',
+      checkout:'PayPal Sandbox checkout',receipt:'Payment receipt'};
+    announcement.textContent = 'Step ' + (activeIdx + 1) + ' of ' + STEPS.length +
+      ': ' + (stepNameForSpeech[stepName] || stepName);
+  }
   window.scrollTo({ top: 0, behavior: scrollBehavior() });
 }
 
@@ -1289,7 +1296,22 @@ async function loadAndRenderPayPal() {
   } catch (err) {
     const target = $('paypal-buttons');
     if (target) {
-      target.replaceChildren();const errEl=document.createElement('div');errEl.style.cssText='padding:16px;border:1px solid #f9a8a8;border-radius:8px;color:var(--red-400);font-size:12px';errEl.textContent='⚠️ '+err.message;target.appendChild(errEl);
+      target.replaceChildren();
+      target.append(
+        el('div', { cls:'paypal-load-error',attr:{role:'alert'},children:[
+          el('strong',{text:'PayPal checkout could not load'}),
+          el('p',{text:err.message + ' No payment has been initiated by this error.'})
+        ]}),
+        (() => {
+          const retry = el('button',{cls:'btn-secondary-glass paypal-sdk-retry',id:'btn-retry-paypal-sdk',
+            text:'Retry loading PayPal checkout',attr:{type:'button'}});
+          retry.addEventListener('click', () => {
+            retry.disabled = true;
+            loadAndRenderPayPal(); // only load the SDK; never captures any existing order
+          });
+          return retry;
+        })()
+      );
       showPayPalTroubleshooting();
     }
   }
@@ -1328,13 +1350,29 @@ function renderOfflineDemoCheckout() {
 }
 
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
-  if (window.paypal) return Promise.resolve();
+  if (window.paypal?.Buttons) return Promise.resolve();
   return new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const country = /^[A-Z]{2}$/.test(buyerCountry) ? buyerCountry : 'US';
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&commit=true&components=buttons&buyer-country=${country}`;
-    script.onload = resolve;
-    script.onerror = () => reject(new Error('Failed to load PayPal JS SDK. Check internet connection.'));
+    script.async = true;
+    let settled = false;
+    const fail = message => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(watchdog);
+      script.remove();
+      reject(new Error(message));
+    };
+    const watchdog = setTimeout(() => fail('PayPal checkout loading timed out. Check internet access and retry.'), 25000);
+    script.onload = () => {
+      if (settled) return;
+      if (!window.paypal?.Buttons) return fail('PayPal SDK loaded without checkout buttons. Retry loading the SDK.');
+      settled = true;
+      clearTimeout(watchdog);
+      resolve();
+    };
+    script.onerror = () => fail('Failed to load the PayPal SDK. Check your internet connection, then retry.');
     document.head.appendChild(script);
   });
 }
