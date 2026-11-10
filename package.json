@@ -5,10 +5,11 @@
   "scripts": {
     "start": "node --env-file-if-exists=.env server.js",
     "dev": "node --watch --env-file-if-exists=.env server.js",
-    "check": "node --check server.js && node --check public/app.js && node --check scripts/verify-integrations.js && node --check scripts/diagnose-paypal.js",
+    "check": "node --check server.js && node --check public/app.js && node --check scripts/verify-integrations.js && node --check scripts/diagnose-paypal.js && node --check scripts/verify-scope.js",
     "test": "node --test tests/*.test.js",
     "verify:integrations": "node --env-file-if-exists=.env scripts/verify-integrations.js",
-    "diagnose:paypal": "node --env-file-if-exists=.env scripts/diagnose-paypal.js"
+    "diagnose:paypal": "node --env-file-if-exists=.env scripts/diagnose-paypal.js",
+    "verify:scope": "node --env-file-if-exists=.env scripts/verify-scope.js"
   },
   "repository": {
     "type": "git",

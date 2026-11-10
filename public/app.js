@@ -485,7 +485,7 @@ $('btn-generate').addEventListener('click', async () => {
   haptic('light');
   const btn = $('btn-generate');
   btn.disabled = true;
-  btn.innerHTML = '<span class="sparkle">✦</span> <span>Analyzing with Gemini 3.8 Flash...</span>';
+  btn.innerHTML = '<span class="sparkle">✦</span> <span>Analyzing project scope with Gemini AI...</span>';
 
   // Render shimmer skeleton immediately so user sees layout without lag
   showStep('proposal');
@@ -530,7 +530,7 @@ function renderProposal(quoteId, quote) {
       el('div', {
         cls: 'proposal-tag-row',
         children: [
-          el('span', { cls: 'tag-ai-badge', html: '<span class="sparkle">✦</span> GEMINI 3.8 FLASH SCOPED' }),
+          el('span', { cls: 'tag-ai-badge', html: '<span class="sparkle">✦</span> GEMINI AI · ESTIMATED' }),
           quote.timeline ? el('span', { cls: 'proposal-timeline-pill', text: `⏱️ ${quote.timeline}` }) : null
         ]
       }),

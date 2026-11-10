@@ -88,3 +88,11 @@ test('POST API is same-origin, rate-limited and has safety headers',()=>withServ
   }
   assert.equal(limited,true,'AI API must reject excessive calls with HTTP 429');
 }));
+
+test('oversized requests are rejected with 413 and CSP is present',()=>withServer(async base=>{
+ const r=await fetch(base+'/api/quote',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({description:'x'.repeat(33000)})});
+ assert.equal(r.status,413);
+ assert.equal(r.headers.get('x-frame-options'),'DENY');
+ assert.match(r.headers.get('content-security-policy'),/frame-ancestors/);
+}));

@@ -25,13 +25,13 @@ const { randomUUID } = require('node:crypto');
 const PORT               = Number(process.env.PORT || 3000);
 const HOST               = process.env.HOST || '127.0.0.1';
 const PAYPAL_BASE        = 'https://api-m.sandbox.paypal.com';
-const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 const GEMINI_MODELS      = Array.from(new Set([
   process.env.GEMINI_MODEL,
-  'gemini-3.8-flash',
-  'gemini-3.5-flash-lite',
   'gemini-3.1-flash-lite',
-  'gemini-flash-lite-latest'
+  'gemini-flash-lite-latest',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash-lite'
 ].filter(Boolean)));
 const GEMINI_API_BASE    = 'https://generativelanguage.googleapis.com';
 const PAYPAL_CLIENT_ID   = process.env.PAYPAL_CLIENT_ID   || '';
@@ -188,14 +188,18 @@ function jsonError(res, err) {
 function readBody(req) {
   return new Promise((resolve, reject) => {
     let input = '';
+    let tooLarge = false;
     req.on('data', chunk => {
-      input += chunk;
-      if (input.length > 32000) {
+      if (tooLarge) return;
+      if (Buffer.byteLength(input, 'utf8') + chunk.length > 32768) {
+        tooLarge = true;
         reject(Object.assign(new Error('Request too large'), { httpStatus: 413 }));
-        req.destroy();
+        return; // Discard further chunks but keep the response socket intact.
       }
+      input += chunk.toString('utf8');
     });
     req.on('end', () => {
+      if (tooLarge) return;
       try { resolve(JSON.parse(input || '{}')); }
       catch { reject(Object.assign(new Error('Invalid JSON'), { httpStatus: 400 })); }
     });
@@ -507,6 +511,7 @@ async function handle(req, res) {
   // CORS headers for local dev
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
+  res.setHeader('Content-Security-Policy', "frame-ancestors 'none'; object-src 'none'; base-uri 'self'");
   res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
   res.setHeader('Cross-Origin-Resource-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
@@ -516,6 +521,8 @@ async function handle(req, res) {
       res.setHeader('Retry-After', '60');
       return send(res, 429, { error: 'Too many requests. Try again shortly.' });
     }
+    if (Number(req.headers['content-length'] || 0) > 32768)
+      return send(res, 413, { error: 'Request exceeds 32 KiB limit.' });
     if (req.headers['content-type'] && !String(req.headers['content-type']).toLowerCase().startsWith('application/json'))
       return send(res, 415, { error: 'API requests require application/json.' });
   }
@@ -807,6 +814,9 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
+// No authentication has been implemented: do not allow a public network bind.
+if (!['127.0.0.1','localhost','::1'].includes(HOST))
+  throw new Error('Local-only FairFlow prototype: set HOST=127.0.0.1. Public access requires real authentication.');
 ensureDataDir().then(() => {
   http.createServer((req, res) =>
     Promise.resolve(handle(req, res)).catch(err => jsonError(res, err))
