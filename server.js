@@ -437,7 +437,8 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
 
   // ── Generate quote ────────────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/quote') {
-    const { description } = await readBody(req);
+    const body = await readBody(req);
+    const description = body?.description || body?.brief;
     if (typeof description !== 'string' || description.trim().length < 20 || description.length > 4000)
       return send(res, 400, { error: 'Please describe your project in 20–4000 characters.' });
     const quote = await generateQuote(description.trim());
@@ -473,7 +474,7 @@ Do NOT return JSON or markdown formatting. Return only plain text sentences.`;
     quote.amountUSD = amount;
     quote.locked    = true;
     await saveProject({ quoteId, title: quote.title, amountUSD: amount, milestones: quote.milestones, status: 'approved', createdAt: new Date().toISOString() });
-    return send(res, 200, { quoteId, amountUSD: amount, milestones: quote.milestones });
+    return send(res, 200, { quoteId, amountUSD: amount, milestones: quote.milestones, locked: quote.locked });
   }
 
   // ── Scope-change analysis ─────────────────────────────────────────────────
