@@ -24,6 +24,9 @@ const { randomUUID } = require('node:crypto');
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT               = Number(process.env.PORT || 3000);
 const HOST               = process.env.HOST || '127.0.0.1';
+const OFFLINE_DEMO_MODE = process.env.FAIRFLOW_DEMO_MODE === '1';
+if (OFFLINE_DEMO_MODE && process.env.FAIRFLOW_MOCK_STRICT !== '1')
+  throw new Error('Offline demo requires npm run demo:offline. Refusing to confuse live and mock providers.');
 const PAYPAL_BASE        = 'https://api-m.sandbox.paypal.com';
 const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
 const GEMINI_MODELS      = Array.from(new Set([
@@ -495,11 +498,13 @@ function verifiedExistingCapture(order, orderId, entry, quote) {
 async function persistVerifiedCapture(orderId, entry, quote, captureId) {
   const paidAt = new Date().toISOString();
   await saveProject({ quoteId:entry.quoteId, title:quote.title, amountUSD:quote.amountUSD,
-    status:'paid', orderId, captureId, paidAt });
+    status:'paid', orderId, captureId, paidAt,
+    paymentEnvironment: OFFLINE_DEMO_MODE ? 'offline-mock' : 'paypal-sandbox' });
   entry.captured=true;
   quote.paid=true;
   return { status:'COMPLETED', orderId, captureId, amount:quote.amountUSD.toFixed(2),
-    currency:'USD', projectTitle:quote.title, paidAt, sandbox:true };
+    currency:'USD', projectTitle:quote.title, paidAt, sandbox:true,
+    offlineDemo:OFFLINE_DEMO_MODE };
 }
 
 // ─── Main request handler ─────────────────────────────────────────────────────
@@ -542,6 +547,7 @@ async function handle(req, res) {
     return send(res, 200, {
       ok: true,
       sandbox: true,
+      offlineDemo: OFFLINE_DEMO_MODE,
       aiConfigured: isConfigured(GEMINI_API_KEY),
       paypalConfigured: isConfigured(PAYPAL_CLIENT_ID) && isConfigured(PAYPAL_CLIENT_SECRET),
       model: GEMINI_MODEL,
@@ -552,7 +558,7 @@ async function handle(req, res) {
   // ── Config (safe — only public client ID) ─────────────────────────────────
   if (req.method === 'GET' && route === '/api/config') {
     const clientId = isConfigured(PAYPAL_CLIENT_ID) ? PAYPAL_CLIENT_ID : '';
-    return send(res, 200, { clientId, sandbox: true, currency: 'USD', buyerCountry: PAYPAL_SANDBOX_BUYER_COUNTRY });
+    return send(res, 200, { clientId, sandbox: true, offlineDemo: OFFLINE_DEMO_MODE, currency: 'USD', buyerCountry: PAYPAL_SANDBOX_BUYER_COUNTRY });
   }
 
   // ── Projects (persistence) ────────────────────────────────────────────────
@@ -568,6 +574,7 @@ async function handle(req, res) {
       paidAt:    p.paidAt || null,
       orderId:   p.orderId || null,
       captureId: p.captureId || null,
+      offlineDemo: p.paymentEnvironment === 'offline-mock',
     }));
     return send(res, 200, { projects: safe });
   }
@@ -831,7 +838,7 @@ ensureDataDir().then(() => {
   http.createServer((req, res) =>
     Promise.resolve(handle(req, res)).catch(err => jsonError(res, err))
   ).listen(PORT, HOST, () => {
-    console.log(`\n  ✦ FairFlow AI v2 — Sandbox mode`);
+    console.log(`\n  ✦ FairFlow AI v2 — ${OFFLINE_DEMO_MODE ? 'OFFLINE SIMULATION (NO REAL GEMINI OR PAYPAL)' : 'Real provider Sandbox mode'}`);
     console.log(`  ➜ http://${HOST}:${PORT}`);
     console.log(`  ➜ AI model: ${GEMINI_MODEL}`);
     console.log(`  ➜ PayPal: Sandbox\n`);

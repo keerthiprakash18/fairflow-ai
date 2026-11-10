@@ -1,5 +1,5 @@
 'use strict';
-// This helper is preloaded ONLY by tests/integration.test.js in a child process.
+// This helper is preloaded by offline tests and the explicitly simulated judge walkthrough.
 // It intercepts the *real server's outbound fetch* for Google Gemini and PayPal.
 // Never use it to represent real Gemini connectivity or real PayPal payment.
 const actualFetch = globalThis.fetch;
@@ -65,5 +65,7 @@ globalThis.fetch = async function offlineUpstream(url, options={}) {
       }]}}]
     },201);
   }
+  if (process.env.FAIRFLOW_MOCK_STRICT === '1')
+    throw new Error('Offline demo blocked an unexpected external call. No real provider was contacted.');
   return actualFetch(url,options);
 };
