@@ -4140,3 +4140,15 @@ body.on-landing .mobile-nav-bar {
   }
   .footer-license-note { max-width:100%; min-width:0; white-space:normal; overflow-wrap:anywhere; }
 }
+
+
+/* Keep the fixed-height masthead flush with its 16px mobile shell at tablet breakpoint.
+   Previously the desktop -24px margins produced an 8px overflow at exactly 768px. */
+@media (max-width:768px) {
+  .workbench-masthead {
+    margin-left:-16px;
+    margin-right:-16px;
+    padding-left:16px;
+    padding-right:16px;
+  }
+}
