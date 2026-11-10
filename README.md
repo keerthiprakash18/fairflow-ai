@@ -345,3 +345,11 @@ Official references: https://developer.paypal.com/sdk/js/configuration/ and http
 ### Repeated PayPal Sandbox `genericError` despite using a different buyer
 
 Stop repeatedly recreating accounts. Under **PayPal error? Check order status** there is now **Try direct PayPal approval (bypass popup)**, which fetches a HTTPS PayPal-hosted buyer approval URL from the Orders API (no payment created or captured by the lookup). Use it with a fresh, preferably $1 Sandbox agreement; old orders expire. If the direct approval page fails with the same error, the problem is PayPal-hosted or merchant-specific, not the popup code—check sandbox merchant restrictions and contact PayPal technical support. If the direct page succeeds, switch back to the original FairFlow checkout, choose **Check PayPal order status**, and only when PayPal reports **APPROVED** and the USD amount matches use **Capture this APPROVED Sandbox order**. Never retry if PayPal reports **COMPLETED**. Redirecting back does not auto-capture.
+
+
+### Demo video and submission materials
+
+- [Devpost-ready English copy, 2:40 spoken demo script, and recording checklist](DEMO_VIDEO_SCRIPT.md)
+- [Full submission kit and owner confirmation checklist](HACKATHON_SUBMISSION.md)
+- The verified Sandbox receipt can be reopened from **Audit Trail → View saved receipt**, including after restarting the local server, without a new payment.
+- Owner testing on Nov 10, 2026 showed an actual Gemini API PASS, PayPal Sandbox OAuth PASS, and a completed real Sandbox capture/receipt. GitHub Actions intentionally use **mocked** payment responses and do not prove a new real transaction.

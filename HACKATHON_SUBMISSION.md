@@ -41,6 +41,8 @@ This repository is public and MIT-licensed. No production server or shared API k
 
 The offline unit/integration tests and optional Browser QA workflow are **developer regression tests only**. Mocked browser receipt screenshots must never be represented as evidence of a real PayPal payment. If a hosted demonstration is set up, add authentication and secure persistence before exposing private client data or payment workflows.
 
+**Ready-to-record narration and final Devpost project copy:** [DEMO_VIDEO_SCRIPT.md](DEMO_VIDEO_SCRIPT.md). A saved paid receipt can now be reopened from **Audit Trail → View saved receipt**, without creating another transaction.
+
 ## Video shot list — target 2:35 (maximum less than 3 minutes)
 
 | Timing | Visual | Narration point |
@@ -57,8 +59,9 @@ Record the running application itself; do not substitute static mockups for the 
 
 ## Required owner-only submission steps
 
-- [ ] Verify `npm run verify:integrations` passes with your real private Gemini and PayPal Sandbox credentials.
-- [ ] Complete a genuine Sandbox Personal buyer approval and verify the capture/receipt before filming.
+- [x] **Owner-verified November 10, 2026:** `npm run verify:integrations` returned PASS for real Gemini generation (`gemini-3.1-flash-lite`) and PayPal Sandbox OAuth.
+- [x] **Owner-verified November 10, 2026:** FairFlow displayed a real PayPal Sandbox verified receipt with status `COMPLETED`, an order ID, a capture ID and a $3,500.00 USD **test** capture. No real funds transferred. This confirmation is from the owner's local screenshot; it has not been independently reproduced in GitHub CI.
+- [ ] Check the same capture in the PayPal Sandbox activity dashboard and retain private evidence for the submission.
 - [ ] Record the actual running product, less than 3 minutes, and upload a public YouTube video.
 - [ ] Complete the Devpost text, tools-used fields, project access instructions, public GitHub repository URL, and video link.
 - [ ] Ensure the public repo MIT license is visible in the GitHub About panel, and check official eligibility/rules.
