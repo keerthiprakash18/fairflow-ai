@@ -25,7 +25,10 @@ async function startApp(port,dir,opts={}){
     FAIRFLOW_MOCK_MISMATCH:opts.mismatch?'1':'0',
     FAIRFLOW_MOCK_ALREADY_CAPTURED:opts.alreadyCaptured?'1':'0',
     FAIRFLOW_MOCK_RECONCILE_MISMATCH:opts.reconcileMismatch?'1':'0',
-    FAIRFLOW_MOCK_BAD_OWNER:opts.badOwner?'1':'0'
+    FAIRFLOW_MOCK_BAD_OWNER:opts.badOwner?'1':'0',
+    FAIRFLOW_MOCK_GEMINI_FAIL_FIRST:opts.failFirstGemini?'1':'0',
+    FAIRFLOW_MOCK_GEMINI_ALL_UNAVAILABLE:opts.allGeminiUnavailable?'1':'0',
+    FAIRFLOW_MOCK_GEMINI_CLIENT_ERROR:opts.geminiClientError?'1':'0'
   },stdio:'ignore'});
   for(let i=0;i<100;i++){
     if(proc.exitCode!==null)throw Error('App exited while starting');
@@ -234,4 +237,116 @@ test('read-only existing Sandbox capture audit compares saved receipt with PayPa
     assert.match(rejection.stderr,/capture mismatch/);
     assert.doesNotMatch(rejection.stderr,/FORGED-CAPTURE-ID/);
   }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('Gemini fallback verifies usable JSON after a transient provider error; status distinguishes configured from verified',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-gemini-fallback-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir,{failFirstGemini:true});
+    const before=await(await fetch(base+'/api/health')).json();
+    assert.equal(before.aiProviderState,'configured-unverified');
+    assert.equal(before.paypalProviderState,'configured-unverified');
+    const q=await post(base,'/api/quote',{description:'Build an accessible e-commerce store with checkout, reports and inventory.'});
+    assert.equal(q.status,200,JSON.stringify(q.data));
+    const after=await(await fetch(base+'/api/health')).json();
+    assert.equal(after.aiProviderState,'verified-response');
+    assert.equal(after.aiVerifiedModel,'gemini-flash-lite-latest');
+    assert.ok(after.aiLastVerifiedAt);
+    assert.equal(after.paypalProviderState,'configured-unverified');
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    assert.equal((await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId})).status,200);
+    const paypal=await(await fetch(base+'/api/health')).json();
+    assert.equal(paypal.paypalProviderState,'oauth-verified');
+    assert.ok(paypal.paypalLastOAuthVerifiedAt);
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('Gemini unavailable and non-retryable responses are bounded and do not persist a fake proposal',async()=>{
+  for (const options of [{allGeminiUnavailable:true},{geminiClientError:true}]) {
+    const dir=await mkdtemp(path.join(os.tmpdir(),'ff-ai-fail-'));
+    const port=await freePort(),base='http://127.0.0.1:'+port;
+    let proc;
+    try {
+      proc=await startApp(port,dir,options);
+      const start=Date.now();
+      const q=await post(base,'/api/quote',{description:'Build a boutique marketplace with checkout, stock and customer support.'});
+      assert.equal(q.status,502);
+      assert.ok(Date.now()-start < 42000,'AI error must respect the overall server deadline');
+      const h=await(await fetch(base+'/api/health')).json();
+      assert.equal(h.aiProviderState,'configured-unverified');
+      const records=await(await fetch(base+'/api/projects')).json();
+      assert.equal(records.projects.length,0);
+    }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+  }
+});
+
+test('missing AI cost remains null, real zero stays zero and approved payment is unchanged',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-cost-guard-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir);
+    const q=await post(base,'/api/quote',{description:'Build a boutique e-commerce site with search, checkout and an admin dashboard.'});
+    assert.equal(q.status,200);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    const unknown=await post(base,'/api/scope-change',{quoteId:q.data.quoteId,
+      newRequest:'INVALID_COST_TEST: add a feature whose price cannot yet be estimated.'});
+    assert.equal(unknown.status,200);
+    assert.equal(unknown.data.analysis.additionalCostUSD,null);
+    assert.equal(unknown.data.analysis.newTotalUSD,null);
+    assert.equal(unknown.data.originalQuote.amountUSD,900);
+    const zero=await post(base,'/api/scope-change',{quoteId:q.data.quoteId,
+      newRequest:'ZERO_COST_TEST: only change the wording of existing copy with no extra cost.'});
+    assert.equal(zero.status,200);
+    assert.equal(zero.data.analysis.additionalCostUSD,0);
+    assert.equal(zero.data.analysis.newTotalUSD,900);
+    const saved=await(await fetch(base+'/api/agreements/'+q.data.quoteId+'/resume')).json();
+    assert.equal(saved.quote.amountUSD,900);
+    assert.equal(saved.status,'approved');
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('read-only resume survives restart at draft, approved and pending-checkout; paid record cannot resume',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-resume-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try {
+    proc=await startApp(port,dir);
+    const q=await post(base,'/api/quote',{description:'Build a boutique website with searchable catalog, cart, inventory and checkout.'});
+    assert.equal(q.status,200);
+    const resumeUrl=base+'/api/agreements/'+q.data.quoteId+'/resume';
+    let saved=await(await fetch(resumeUrl)).json();
+    assert.equal(saved.status,'draft');
+    assert.equal(saved.quote.title,'Boutique Store');
+    await stopApp(proc);proc=await startApp(port,dir);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    saved=await(await fetch(resumeUrl)).json();
+    assert.equal(saved.status,'approved');
+    const scope=await post(base,'/api/scope-change',{quoteId:q.data.quoteId,
+      newRequest:'Please add seller accounts and a marketplace split payment dashboard.'});
+    assert.equal(scope.status,200);
+    await stopApp(proc);proc=await startApp(port,dir);
+    saved=await(await fetch(resumeUrl)).json();
+    assert.equal(saved.status,'approved');
+    assert.match(saved.scopeChangeRequest,/seller accounts/);
+    assert.equal(saved.scopeAnalysis.additionalCostUSD,450);
+    const o=await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId});
+    assert.equal(o.status,200);
+    await stopApp(proc);proc=await startApp(port,dir);
+    saved=await(await fetch(resumeUrl)).json();
+    assert.equal(saved.status,'checkout-started');
+    assert.equal(saved.hasExistingOrder,true);
+    assert.equal(saved.quote.amountUSD,900);
+    const before=await(await fetch(base+'/api/projects')).json();
+    assert.equal(before.projects[0].status,'checkout-started');
+    const capture=await post(base,'/api/paypal/capture-order',{orderId:o.data.id});
+    assert.equal(capture.status,200);
+    assert.equal((await fetch(resumeUrl)).status,409);
+    assert.equal((await fetch(base+'/api/agreements/'+('a'.repeat(36))+'/resume')).status,404);
+    const after=await(await fetch(base+'/api/projects')).json();
+    assert.equal(after.projects[0].status,'paid');
+    assert.equal(after.projects.length,1);
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
 });

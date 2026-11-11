@@ -17,6 +17,9 @@ const state = {
   projects: [],
   dashboardFilter: 'all',
   offlineDemo: false,
+  aiProviderState: 'unknown',
+  paypalProviderState: 'unknown',
+  aiRequestInProgress: false,
 };
 
 // ─── DOM SELECTORS & UTILITIES ───
@@ -400,7 +403,8 @@ function renderDashboardRecent(projects) {
                 }) + ' USD'
                 : '—'
             }),
-            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label })
+            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label }),
+            !paid ? createResumeButton(p) : null
           ]
         })
       ]
@@ -505,13 +509,73 @@ function renderHistory(projects) {
               });
               button.onclick = () => openStoredReceipt(p);
               return button;
-            })() : null
+            })() : null,
+            !isPaid ? createResumeButton(p) : null
           ].filter(Boolean)
         })
       ]
     });
     container.appendChild(row);
   });
+}
+
+function createResumeButton(project) {
+  const button = el('button', {
+    cls:'resume-agreement-button',
+    text: project.status === 'checkout-started' ? 'Review existing checkout ↗' : 'Resume agreement ↗',
+    attr:{type:'button','aria-label':'Resume saved agreement '+(project.title || 'project')}
+  });
+  button.addEventListener('click',()=>resumeSavedAgreement(project.quoteId));
+  return button;
+}
+
+async function resumeSavedAgreement(quoteId) {
+  if (!quoteId || !/^[0-9a-f-]{36}$/.test(quoteId)) {
+    toast('Saved agreement ID is invalid. No changes made.', 'error');
+    return;
+  }
+  try {
+    // Only load data; never create an order or automatically capture payment.
+    const saved = await apiGet('/api/agreements/' + encodeURIComponent(quoteId) + '/resume');
+    if (!['draft','approved','checkout-started'].includes(saved.status))
+      throw new Error('This record cannot be resumed.');
+    if (saved.offlineDemo !== state.offlineDemo)
+      throw new Error('Saved provider mode differs from this server. Use the same local mode.');
+    state.quoteId = saved.quoteId;
+    state.quote = saved.quote;
+    state.approvedAmount = saved.status === 'draft' ? null : saved.quote.amountUSD;
+    state.pendingScopeScenario = null;
+    state.paypalRendered = false;
+    descEl.value = saved.description || '';
+    $('char-count').textContent = descEl.value.length;
+    $('scope-request').value = saved.scopeChangeRequest || '';
+    if (saved.status === 'draft') {
+      renderProposal(saved.quoteId, saved.quote);
+      showView('new-project');
+      showStep('proposal');
+    } else if (saved.status === 'approved') {
+      showView('new-project');
+      showStep('scope');
+      renderScopeStep();
+      if (saved.scopeAnalysis) renderScopeAnalysis({
+        analysis:saved.scopeAnalysis,
+        originalQuote:{title:saved.quote.title,amountUSD:saved.quote.amountUSD,deliverables:saved.quote.deliverables}
+      });
+    } else {
+      renderCheckoutStep();
+      showView('new-project');
+      showStep('checkout');
+      // An existing Sandbox order may have been approved/captured remotely.
+      // Show diagnostics rather than silently creating or capturing a new order.
+      showPayPalTroubleshooting();
+      const area = $('paypal-troubleshooting');
+      if (area) area.prepend(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
+        text:'Existing Sandbox order detected. Check PayPal order status BEFORE approving or capturing anything again.'}));
+    }
+    toast('Saved agreement restored from the local ledger. No new payment was made.', 'success');
+  } catch(err) {
+    toast('Could not resume agreement: '+err.message, 'error');
+  }
 }
 
 function openStoredReceipt(project) {
@@ -638,7 +702,7 @@ function updateProviderModeLabels() {
   const flow = $('flow-provider-label');
   if (flow) flow.textContent = state.offlineDemo
     ? 'SIMULATED WORKFLOW · NO LIVE PROVIDERS'
-    : 'LIVE WORKFLOW · GEMINI + PAYPAL SANDBOX';
+    : 'REAL-PROVIDER WORKFLOW · GEMINI + PAYPAL SANDBOX';
   const proposal = document.querySelector('[data-provider-label="proposal"]');
   const scope = document.querySelector('[data-provider-label="scope"]');
   if (state.offlineDemo) {
@@ -662,6 +726,11 @@ function showAiRequestProgress(container, kind) {
     : 'Real Gemini request in progress. Please keep this tab open.'});
   panel.append(heading, detail);
   container.prepend(panel);
+  if (!simulated) {
+    state.aiRequestInProgress = true;
+    const label = $('status-ai');
+    if (label) label.textContent = 'AI IN PROGRESS';
+  }
   const reminders = [
     setTimeout(() => {detail.textContent = simulated
       ? 'Still running the offline simulation. No provider contacted.'
@@ -670,7 +739,14 @@ function showAiRequestProgress(container, kind) {
       ? 'Offline simulation is taking longer than expected. You can retry if it fails.'
       : 'The provider is taking longer than usual. We will show the result or a retry option when it responds.';}, 30000)
   ];
-  return () => { reminders.forEach(clearTimeout); panel.remove(); };
+  return () => {
+    reminders.forEach(clearTimeout);
+    panel.remove();
+    if (!simulated) {
+      state.aiRequestInProgress = false;
+      refreshIntegrationStatus(); // server distinguishes configured from verified JSON response
+    }
+  };
 }
 
 function renderScopeSkeleton() {
@@ -1164,7 +1240,16 @@ function renderScopeAnalysis(data) {
   });
   layout.appendChild(diffGrid);
 
-  // Financial & Timeline Variance Metrics
+  // An unavailable AI price estimate must not be shown as a free change.
+  const hasCostEstimate = typeof analysis.additionalCostUSD === 'number'
+    && Number.isFinite(analysis.additionalCostUSD) && analysis.additionalCostUSD >= 0;
+  const costLabel = hasCostEstimate
+    ? '+$' + analysis.additionalCostUSD.toFixed(2) + ' USD'
+    : 'Estimate unavailable — manual review required';
+  const totalLabel = hasCostEstimate && typeof analysis.newTotalUSD === 'number'
+    && Number.isFinite(analysis.newTotalUSD)
+    ? '$' + analysis.newTotalUSD.toFixed(2) + ' USD'
+    : 'Not calculated — manual review required';
   const metricsRow = el('div', {
     cls: 'impact-metric-row',
     children: [
@@ -1172,14 +1257,14 @@ function renderScopeAnalysis(data) {
         cls: 'impact-metric-box',
         children: [
           el('span', { cls: 'impact-metric-label', text: 'ESTIMATED ADDITIONAL COST' }),
-          el('span', { cls: 'impact-metric-val color-amber', text: `+$${analysis.additionalCostUSD.toFixed(2)} USD` })
+          el('span', { cls: 'impact-metric-val color-amber', text: costLabel })
         ]
       }),
       el('div', {
         cls: 'impact-metric-box',
         children: [
           el('span', { cls: 'impact-metric-label', text: 'SUGGESTED REVISED TOTAL' }),
-          el('span', { cls: 'impact-metric-val color-mint', text: `$${analysis.newTotalUSD.toFixed(2)} USD` })
+          el('span', { cls: 'impact-metric-val color-mint', text: totalLabel })
         ]
       })
     ]
@@ -1193,6 +1278,10 @@ function renderScopeAnalysis(data) {
   const basis = Array.isArray(analysis.estimateBasis) ? analysis.estimateBasis : [];
   const unknowns = Array.isArray(analysis.unknowns) ? analysis.unknowns : [];
   const reasons = el('section', { cls:'estimate-explanation', attr:{'aria-label':'How the AI estimated this change'} });
+  if (!hasCostEstimate) {
+    reasons.appendChild(el('p', {cls:'manual-cost-review',attr:{role:'status'},
+      text:'Estimate unavailable — manual review required. No additional charge is approved, and the original payment is unchanged.'}));
+  }
   reasons.appendChild(el('h4', { text:'Why this estimate?' }));
   reasons.appendChild(el('p', { text:'AI-generated planning estimate, not a verified market quote. Confirm effort and price with the client before any change is approved.' }));
   if (basis.length) {
@@ -1232,8 +1321,8 @@ function renderScopeAnalysis(data) {
     'New requirements:',
     ...(additions.length ? additions.map((feature,i) => (i + 1) + '. ' + feature) : ['Further requirements to review']),
     '',
-    'AI-estimated extra cost: +$' + Number(analysis.additionalCostUSD || 0).toFixed(2) + ' USD',
-    'AI-suggested total: $' + Number(analysis.newTotalUSD || approved).toFixed(2) + ' USD',
+    'AI-estimated extra cost: ' + costLabel,
+    'AI-suggested total: ' + totalLabel,
     'Estimated time impact: ' + (analysis.timelineImpact || 'To be agreed'),
     ...(basis.length ? ['Estimate drivers:', ...basis.map((reason,i) => (i + 1) + '. ' + reason)] : []),
     ...(unknowns.length ? ['Questions to confirm:', ...unknowns.map((question,i) => (i + 1) + '. ' + question)] : []),
@@ -2077,13 +2166,24 @@ async function refreshIntegrationStatus() {
       if (modelStatus) modelStatus.textContent = 'Offline model mock — NOT real Gemini';
       return;
     }
-    paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
-    gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
-    chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';
+    state.aiProviderState = s.aiProviderState || 'configured-unverified';
+    state.paypalProviderState = s.paypalProviderState || 'configured-unverified';
+    paypal.textContent = s.paypalProviderState === 'oauth-verified'
+      ? 'PAYPAL OAUTH OK' : s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
+    gemini.textContent = state.aiRequestInProgress ? 'AI IN PROGRESS'
+      : s.aiProviderState === 'verified-response' ? 'AI RESPONSE OK'
+      : s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
+    chip.title = 'Gemini: ' + (s.aiProviderState || 'unknown') +
+      (s.aiLastVerifiedAt ? ' · last valid JSON '+s.aiLastVerifiedAt : '') +
+      '. PayPal: ' + (s.paypalProviderState || 'unknown') +
+      (s.paypalLastOAuthVerifiedAt ? ' · last OAuth '+s.paypalLastOAuthVerifiedAt : '') +
+      '. OAuth verification does NOT prove a payment capture.';
     const modelStatus = $('ai-current-model');
-    if (modelStatus) modelStatus.textContent = s.aiConfigured
-      ? 'Configured model: ' + (s.model || 'Gemini API')
-      : 'Gemini API key not configured';
+    if (modelStatus) modelStatus.textContent = !s.aiConfigured
+      ? 'Gemini API key not configured'
+      : s.aiProviderState === 'verified-response'
+        ? 'Gemini JSON response verified this server session (' + (s.aiVerifiedModel || 'model not reported') + ')'
+        : 'Configured model: ' + (s.model || 'Gemini API') + ' · not yet verified this session';
   } catch {
     chip.classList.add('status-needs-setup');
     qsa('[data-provider-label]').forEach(label => {
@@ -2115,17 +2215,18 @@ function init() {
   initScopeLab();
   refreshIntegrationStatus();
 
-  // Check initial URL hash for direct deep links
-  const hash = window.location.hash.toLowerCase();
-  if (hash === '#workbench' || hash === '#dashboard') {
-    showView('dashboard');
-  } else if (hash === '#new-project' || hash === '#create') {
-    showView('new-project');
-  } else if (hash === '#history' || hash === '#audit') {
-    showView('history');
-  } else {
-    showView('landing');
+  // Handle both fresh loads and same-document hash navigation (including
+  // browser back/forward); view routing must not depend on a full reload.
+  function navigateFromHash() {
+    const hash = window.location.hash.toLowerCase();
+    if (hash === '#workbench' || hash === '#dashboard') showView('dashboard');
+    else if (hash === '#new-project' || hash === '#create') showView('new-project');
+    else if (hash === '#history' || hash === '#audit') showView('history');
+    else showView('landing');
   }
+  window.addEventListener('hashchange', navigateFromHash);
+  window.addEventListener('popstate', navigateFromHash);
+  navigateFromHash();
 }
 
 init();

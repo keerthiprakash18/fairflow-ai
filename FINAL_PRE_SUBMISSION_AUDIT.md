@@ -34,3 +34,15 @@ npm run verify:submission
 npm run verify:payments
 ```
 `verify:payments` reads private paid receipt data and performs only GET PayPal Orders v2 lookups after obtaining an OAuth token; it has **no payment-creating endpoints**. It is intentionally not included in CI or default submission test, because the private completed receipt is never committed.
+
+
+## Additional reliability audit — November 11, 2026
+| Earlier finding | Implemented remediation | Evidence / limitations |
+|---|---|---|
+| Multiple slow Gemini fallback models | Small deliberate fallback set, 42s global budget and 16s per attempt, only transient/model errors trigger next model | Offline mocked tests verify successful fallback, failed-provider and auth-error paths; real quota/network still depend on provider |
+| Invalid AI cost silently changed to $0 | Invalid/missing/negative/out-of-range estimates normalize to `null`; UI and draft show manual-review warning | Mocked tests cover null and explicitly valid zero; payment always preserves approved quote |
+| Refresh could strand approved/pending work | Read-only resume endpoint and UI buttons on Dashboard / Audit Trail | Offline restart regression; pending checkout diagnostics advise checking existing PayPal order before any further action |
+| Configured API keys looked like live connectivity | Server-session verified Gemini JSON and PayPal OAuth timestamps, with UI configured/in-progress/verified/simulated states | Does not claim successful buyer approval or capture from OAuth alone |
+| Docs stale on test count and capture evidence | Historical owner result updated: 34/34 tests and 3 real Sandbox captures verified on Nov 11 | Final new-code owner rerun remains a separate gate |
+
+**Release gate:** Before video, pull the final merged commit and run `npm run verify:submission` and `npm run verify:payments` privately. No new checkout required. The final exact-SHA CI and Chromium Browser QA must be green before merge. Browser automation and server tests use mocked external providers, not real funds.

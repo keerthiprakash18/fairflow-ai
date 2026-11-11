@@ -5,17 +5,29 @@
 const actualFetch = globalThis.fetch;
 let currentAmount = '900.00';
 let captureCompleted = false;
+let geminiCalls = 0;
 globalThis.fetch = async function offlineUpstream(url, options={}) {
   const addr=String(url);
   const reply = (body,status=200) => new Response(JSON.stringify(body),{status,headers:{'Content-Type':'application/json'}});
   if(addr.startsWith('https://generativelanguage.googleapis.com/v1beta/models/')) {
+    geminiCalls++;
+    if(process.env.FAIRFLOW_MOCK_GEMINI_CLIENT_ERROR==='1')
+      return reply({error:{message:'Offline test: invalid API key'}},401);
+    if(process.env.FAIRFLOW_MOCK_GEMINI_ALL_UNAVAILABLE==='1')
+      return reply({error:{message:'Offline test: provider temporarily unavailable'}},503);
+    if(process.env.FAIRFLOW_MOCK_GEMINI_FAIL_FIRST==='1' && geminiCalls===1)
+      return reply({error:{message:'Offline test: temporary upstream outage'}},503);
     const payload=JSON.parse(options.body||'{}');
     const prompt=payload?.contents?.[0]?.parts?.[0]?.text||'';
     if(prompt.includes('ORIGINAL APPROVED SCOPE:')) {
       return reply({candidates:[{content:{parts:[{text:JSON.stringify({
         originalScope:'An agreed boutique store.',newRequests:['Add marketplace sellers'],
         addedFeatures:['Seller accounts'],removedItems:[],changes:['Multi-seller flow'],
-        timelineImpact:'+2 weeks',additionalCostUSD:450,newTotalUSD:1350,
+        timelineImpact:'+2 weeks',
+        additionalCostUSD:prompt.includes('INVALID_COST_TEST') ? null
+          : prompt.includes('ZERO_COST_TEST') ? 0 : 450,
+        newTotalUSD:prompt.includes('INVALID_COST_TEST') ? null
+          : prompt.includes('ZERO_COST_TEST') ? 900 : 1350,
         updatedMilestones:[{name:'Build',percent:100}],summary:'Additional seller platform.',
         severity:'high',recommendation:'Seek explicit approval before repricing.',
         estimateBasis:['New seller accounts require account management and permission checks','Multi-seller order flow adds integration work'],

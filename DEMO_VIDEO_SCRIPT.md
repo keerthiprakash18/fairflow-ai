@@ -91,3 +91,15 @@ A hosted URL is **not mandatory**: the official rules permit a public code repos
 ### Ready-to-import subtitles
 
 [DEMO_VIDEO_SUBTITLES.srt](DEMO_VIDEO_SUBTITLES.srt) contains a 2:40 English caption timeline for the **actual screen recording**. Adjust cue boundaries to match your real footage before uploading. Never imply that an archived receipt is a newly executed charge.
+
+
+## Final pre-recording safety checks — November 11
+**App verification before OBS:** `git pull --ff-only origin main`, `npm run verify:submission`, then `npm run verify:payments` (read-only). The last command checks **existing** records; no new Sandbox checkout needed. Keep `.env`, `data/projects.json`, buyer logins and payment IDs out of the recording.
+
+**Demonstration clarity:** The landing Scope Lab is a **preset sample**; the New Agreement and Scope Guard workflow are real Gemini API requests when using `npm start` with configured private credentials. Wait for the **AI RESPONSE OK** badge after a successful response; **AI KEY SET** alone does not verify connectivity. **PAYPAL OAUTH OK** means authorization only, not buyer capture.
+
+**Recovery if recording is interrupted:** Reload, select **Audit Trail** or **Dashboard**, and choose **Resume agreement** for a draft/approved project. If a PayPal order is already pending, click **Review existing checkout** and inspect its **existing order status** before proceeding; do not blindly repeat buyer approval/capture. For already completed payments use **View saved receipt**. The live financial ledger must stay intact.
+
+**Pricing trust:** If Gemini cannot estimate an additional cost, display **Estimate unavailable — manual review required**; do not narrate it as a free change. The original approved payment never changes automatically.
+
+**Recording:** Keep the microphone muted if using post-produced narration. Show truthful screen recording, concise navigation and real results; using existing verified receipt is appropriate if clearly labelled. Edit clips into one under-three-minute 1080p MP4, upload public/unlisted according to competition requirements (verify visibility), and confirm the Devpost final submission state. This document alone is not the video.
