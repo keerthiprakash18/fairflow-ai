@@ -550,6 +550,7 @@ async function auditAccessibility(page, context, scenario) {
       });
       assert.ok(created.quoteId);
       await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
+      await resumePage.reload({waitUntil:'domcontentloaded'}); // real browser refresh recovery
       try { await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000}); }
       catch(err) {
         console.error('Resume browser diagnostic:',await resumePage.evaluate(()=>({
@@ -566,6 +567,7 @@ async function auditAccessibility(page, context, scenario) {
       await resumePage.locator('#btn-approve-quote').click();
       await resumePage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:10000});
       await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
+      await resumePage.reload({waitUntil:'domcontentloaded'});
       await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000});
       await resumePage.locator('#history-list .resume-agreement-button').first().click();
       await resumePage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:10000});
