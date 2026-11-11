@@ -550,7 +550,16 @@ async function auditAccessibility(page, context, scenario) {
       });
       assert.ok(created.quoteId);
       await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
-      await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000});
+      try { await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000}); }
+      catch(err) {
+        console.error('Resume browser diagnostic:',await resumePage.evaluate(()=>({
+          hash:location.hash,active:[...document.querySelectorAll('.app-view.active')].map(x=>x.id),
+          history:document.querySelector('#history-list')?.textContent.slice(0,1100),
+          html:document.querySelector('#history-list')?.innerHTML.slice(0,600),
+          projectRows:document.querySelectorAll('#history-list .pipeline-item').length
+        })));
+        throw err;
+      }
       await resumePage.locator('#history-list .resume-agreement-button').first().click();
       await resumePage.locator('#step-proposal:not(.hidden-step)').waitFor({timeout:10000});
       assert.match(await resumePage.locator('#proposal-container').innerText(),/Boutique Store/);
