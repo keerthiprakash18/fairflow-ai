@@ -59,7 +59,7 @@ Record the running application itself; do not substitute static mockups for the 
 
 ## Required owner-only submission steps
 
-- [x] **Owner-verified November 10, 2026:** full `npm run verify:submission` passed (32/32 offline automated tests, real Gemini generation via `gemini-flash-lite-latest` fallback after `gemini-3.1-flash-lite` returned HTTP 503, real Gemini proposal + Scope Guard, and PayPal Sandbox OAuth). No new PayPal charge occurred.
+- [x] **Owner-verified November 10–11:** the owner's earlier `npm run verify:submission` passed **34/34** offline tests plus real Gemini (via `gemini-flash-lite-latest` fallback), real Scope Guard and PayPal Sandbox OAuth. The newly updated branch passed **38/38 mocked CI tests**; re-run the complete live command on the final Windows checkout before recording. These verification commands do not capture payment.
 - [x] **Owner-verified November 10, 2026:** FairFlow displayed a real PayPal Sandbox verified receipt with status `COMPLETED`, an order ID, a capture ID and a $3,500.00 USD **test** capture. No real funds transferred. This confirmation is from the owner's local screenshot; it has not been independently reproduced in GitHub CI.
 - [x] **Owner-verified November 11:** `npm run verify:payments` matched **3/3 existing real Sandbox capture records** against live PayPal Orders API (read-only; no new charge). Repeat after final code pull for the last gate.
 - [ ] Record the actual running product, less than 3 minutes, and upload a public YouTube video.
