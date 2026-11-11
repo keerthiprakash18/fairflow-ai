@@ -235,6 +235,18 @@ Open your browser and navigate to:
 
 These UX and reliability improvements preserve the local-only, single-user/no-public-auth security boundary and the existing real PayPal Sandbox capture safeguards.
 
+
+### Final audit fixes and release evidence — November 11, 2026
+- **AI proposal integrity:** Missing/out-of-range Gemini estimated price remains `null` (manual USD review required before approval), never an invented $100. A malformed title or deliverable list rejects the proposal. A malformed milestone breakdown uses clearly labelled *system-default* milestones which the user must review before approving.
+- **Demo correctness:** Offline mocked Scope Guard scenarios now have separate marketplace, AI support/FAQ and rush-delivery analysis fixtures. These are **simulation only**, never independent Gemini evidence.
+- **Checkout recovery:** Pending PayPal Sandbox orders reopened after refresh show **read-only status inspection first**, before a buyer-approval button can appear. A completed order is sent to reconciliation, and an already approved order is reviewed for explicit existing-order capture. Resume itself never creates an order/capture.
+- **Concurrency:** In-process order-creation requests for one quote share a single in-flight promise; PayPal's idempotency key remains in place. Regression tests reject any duplicate upstream order creation.
+- **Status and visual polish:** Provider badges refresh after PayPal OAuth and capture. Financial warnings, recovery actions, and mobile secondary text have readable styling.
+- **Automated verification:** Final audit PR exercises 42 mocked tests (including invalid AI pricing/schema, scenario identity, and concurrent order creation) plus Chromium desktop/mobile/browser recovery QA. The actual owner-only real Gemini/PayPal credential check remains `npm run verify:submission` plus read-only `npm run verify:payments`.
+- **Scope limitation:** This is a loopback-only, single-user hackathon prototype. It is not a publicly hosted production payment system and has no multi-user login/authorization. Neither CI nor a visual audit proves 100% security or every possible button/network case.
+
+See [One-pass final audit](FINAL_ONE_PASS_AUDIT.md) for the precise acceptance checklist, test evidence and release freeze.
+
 ### Verify REAL Gemini and PayPal Sandbox connectivity
 
 With private credentials stored only in your local `.env`, run:

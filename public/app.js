@@ -4,7 +4,6 @@
  */
 'use strict';
 
-// ─── STATE MANAGEMENT ───
 const state = {
   currentView: 'landing',
   currentStep: 'brief',
@@ -22,7 +21,6 @@ const state = {
   aiRequestInProgress: false,
 };
 
-// ─── DOM SELECTORS & UTILITIES ───
 const $ = id => document.getElementById(id);
 const qsa = (sel, ctx = document) => [...ctx.querySelectorAll(sel)];
 const prefersReducedMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -39,7 +37,6 @@ function el(tag, opts = {}) {
   return e;
 }
 
-// ─── TOAST NOTIFICATIONS ───
 const toastEl = $('toast');
 let toastTimer;
 function toast(msg, type = 'info') {
@@ -58,7 +55,6 @@ function setInlineError(id, message = '') {
   region.hidden = !message;
 }
 
-// ─── BOUNDED API CLIENT: avoid indefinite spinners on unreliable connections ───
 function requestTimeout(route) {
   if (/^\/api\/(quote|scope-change|enhance-brief)$/.test(route)) return 140000;
   if (/^\/api\/paypal\/(create-order|capture-order|reconcile-order)$/.test(route)) return 110000;
@@ -104,7 +100,6 @@ async function apiGet(route) {
   return requestApi(route, undefined, 'GET');
 }
 
-// ─── 1-CLICK DEMO TEMPLATES ───
 const TEMPLATES = {
   ecommerce: "I am developing a 10-page e-commerce website for a local clothing boutique. It needs product listings with search and category filters, a shopping cart, customer registration and login, PayPal checkout integration, and an admin dashboard to manage inventory and view orders. The deadline is 30 days. The client has provided their brand logo and color palette.",
   saas: "Building an MVP mobile-responsive SaaS dashboard for personal habit and finance tracking. Needs Firebase auth, monthly budget overview with interactive charts, Stripe/PayPal subscription billing, and CSV transaction export. Target delivery is 6 weeks.",
@@ -117,12 +112,10 @@ const SCOPE_TEMPLATES = {
   rush: "The client requests to expedite the entire launch deadline from 30 days down to 10 days, while keeping the full deliverable list intact."
 };
 
-// ─── VIEW ROUTING ───
 function showView(viewName) {
   if (state.currentView !== viewName) haptic('light');
   state.currentView = viewName;
 
-  // Toggle active view pane
   qsa('.app-view').forEach(v => v.classList.remove('active'));
   const target = $(`view-${viewName}`);
   if (target) {
@@ -130,7 +123,6 @@ function showView(viewName) {
     window.scrollTo({ top: 0, behavior: scrollBehavior() });
   }
 
-  // Toggle masthead navigation bar modes
   const landingNav = $('masthead-landing-nav');
   const workbenchNav = $('masthead-workbench-nav');
 
@@ -148,14 +140,12 @@ function showView(viewName) {
     if (viewName === 'history') try { history.replaceState(null, '', '#history'); } catch {}
   }
 
-  // Update active state on tab buttons
   qsa('.nav-tab', workbenchNav || document).forEach(t => {
     const isTarget = t.dataset.view === viewName;
     t.classList.toggle('active', isTarget);
     t.setAttribute('aria-current', isTarget ? 'page' : 'false');
   });
 
-  // Update mobile nav buttons
   qsa('.mobile-nav-item').forEach(t => {
     const isTarget = t.dataset.view === viewName;
     t.classList.toggle('active', isTarget);
@@ -169,7 +159,6 @@ function showView(viewName) {
   }
 }
 
-// ─── STEP ROUTING (WIZARD) ───
 const STEPS = ['brief', 'proposal', 'scope', 'checkout', 'receipt'];
 let previousStepIdx = 0;
 
@@ -203,7 +192,6 @@ function showStep(stepName) {
     }
   });
 
-  // Update Stepper Progress Bar
   STEPS.forEach((s, idx) => {
     const item = $(`stepper-step-${idx + 1}`);
     const line = $(`stepper-line-${idx + 1}`);
@@ -237,7 +225,6 @@ function showStep(stepName) {
   window.scrollTo({ top: 0, behavior: scrollBehavior() });
 }
 
-// ─── DASHBOARD RENDERING ───
 let dashboardLoadSerial = 0;
 
 async function loadDashboard() {
@@ -397,7 +384,7 @@ function renderDashboardRecent(projects) {
           children: [
             el('span', {
               cls:'item-amount',
-              text: Number.isFinite(Number(p.amountUSD))
+              text: p.amountUSD !== null && Number.isFinite(Number(p.amountUSD))
                 ? Number(p.amountUSD).toLocaleString('en-US', {
                   style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2
                 }) + ' USD'
@@ -440,7 +427,6 @@ function formatDate(iso) {
   } catch { return iso.slice(0, 10); }
 }
 
-// ─── HISTORY RENDERING ───
 async function loadHistory() {
   const container = $('history-list');
   container.innerHTML = '<div style="padding: 40px; text-align: center; color: var(--text-muted);">Loading persistent records...</div>';
@@ -499,7 +485,8 @@ function renderHistory(projects) {
           children: [
             el('span', {
               cls: 'item-amount',
-              text: p.amountUSD ? `${Number(p.amountUSD).toFixed(2)} USD` : '—'
+              text: p.amountUSD !== null && Number.isFinite(Number(p.amountUSD))
+                ? `${Number(p.amountUSD).toFixed(2)} USD` : 'Estimate pending'
             }),
             isPaid && p.captureId && p.orderId ? (() => {
               const button = el('button', {
@@ -535,7 +522,6 @@ async function resumeSavedAgreement(quoteId) {
     return;
   }
   try {
-    // Only load data; never create an order or automatically capture payment.
     const saved = await apiGet('/api/agreements/' + encodeURIComponent(quoteId) + '/resume');
     if (!['draft','approved','checkout-started'].includes(saved.status))
       throw new Error('This record cannot be resumed.');
@@ -562,15 +548,9 @@ async function resumeSavedAgreement(quoteId) {
         originalQuote:{title:saved.quote.title,amountUSD:saved.quote.amountUSD,deliverables:saved.quote.deliverables}
       });
     } else {
-      renderCheckoutStep();
+      renderCheckoutStep({requireOrderReview:true});
       showView('new-project');
       showStep('checkout');
-      // An existing Sandbox order may have been approved/captured remotely.
-      // Show diagnostics rather than silently creating or capturing a new order.
-      showPayPalTroubleshooting();
-      const area = $('paypal-troubleshooting');
-      if (area) area.prepend(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
-        text:'Existing Sandbox order detected. Check PayPal order status BEFORE approving or capturing anything again.'}));
     }
     toast('Saved agreement restored from the local ledger. No new payment was made.', 'success');
   } catch(err) {
@@ -579,7 +559,6 @@ async function resumeSavedAgreement(quoteId) {
 }
 
 function openStoredReceipt(project) {
-  // Only paid local ledger entries have a capture ID. This is a re-display, NOT a new capture.
   if (!project || project.status !== 'paid' || !project.orderId || !project.captureId) {
     toast('This agreement has no completed payment receipt.', 'error');
     return;
@@ -598,7 +577,6 @@ function openStoredReceipt(project) {
   showStep('receipt');
 }
 
-// ─── CHAR COUNTER & ENHANCE TOOL ───
 const descEl = $('description');
 if (descEl) {
   descEl.addEventListener('input', () => {
@@ -607,7 +585,6 @@ if (descEl) {
   });
 }
 
-// Enhance with AI
 $('btn-enhance-brief').addEventListener('click', async () => {
   const current = descEl.value.trim();
   if (current.length < 5) {
@@ -632,7 +609,6 @@ $('btn-enhance-brief').addEventListener('click', async () => {
   }
 });
 
-// Template chips handlers
 qsa('[data-template]').forEach(btn => {
   btn.addEventListener('click', () => {
     const key = btn.dataset.template;
@@ -656,7 +632,6 @@ qsa('[data-scope-template]').forEach(btn => {
   });
 });
 
-// ─── SHIMMER SKELETONS (§11 Perceived Performance) ───
 function renderProposalSkeleton() {
   const container = $('proposal-container');
   container.innerHTML = `
@@ -714,7 +689,6 @@ function updateProviderModeLabels() {
   }
 }
 
-// Communicate an in-flight provider request without inventing completion percentages.
 function showAiRequestProgress(container, kind) {
   if (!container) return () => {};
   const panel = el('div', {cls:'ai-request-progress', attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
@@ -771,7 +745,6 @@ function renderScopeSkeleton() {
   `;
 }
 
-// ─── PROPOSAL GENERATION ───
 $('btn-generate').addEventListener('click', async () => {
   const description = descEl.value.trim();
   setInlineError('brief-error');
@@ -785,7 +758,6 @@ $('btn-generate').addEventListener('click', async () => {
   btn.disabled = true;
   btn.innerHTML = '<span class="sparkle">✦</span> <span>Analyzing project scope with Gemini AI...</span>';
 
-  // Render shimmer skeleton immediately so user sees layout without lag
   showStep('proposal');
   renderProposalSkeleton();
   const stopProgress = showAiRequestProgress($('proposal-container'), 'proposal');
@@ -813,18 +785,14 @@ $('btn-new-proposal').addEventListener('click', () => {
   showStep('brief');
 });
 
-// ─── RENDER PROPOSAL VIEW ───
 function renderProposal(quoteId, quote) {
   const container = $('proposal-container');
   container.innerHTML = '';
 
-  // Local mutable state for direct manipulation of milestones
   let currentMilestones = (quote.milestones || []).map(m => ({ ...m }));
 
-  // Main Column
   const mainCol = el('div', { cls: 'proposal-main-col' });
 
-  // 1. Overview Card
   const heroBox = el('div', {
     cls: 'glass-card proposal-hero-box',
     children: [
@@ -841,7 +809,6 @@ function renderProposal(quoteId, quote) {
   });
   mainCol.appendChild(heroBox);
 
-  // 2. Deliverables Card
   if (quote.deliverables?.length) {
     const delivBox = el('div', {
       cls: 'glass-card deliverables-box',
@@ -862,7 +829,6 @@ function renderProposal(quoteId, quote) {
     mainCol.appendChild(delivBox);
   }
 
-  // 3. Interactive Milestones Card (§2 Direct Manipulation & §4 Balance Math)
   if (currentMilestones.length) {
     const milesBox = el('div', {
       cls: 'glass-card milestones-box',
@@ -945,7 +911,6 @@ function renderProposal(quoteId, quote) {
     mainCol.appendChild(milesBox);
   }
 
-  // 4. Assumptions & AI Risk Audit Card
   if (quote.assumptions?.length || quote.risks?.length || quote.questions?.length) {
     const auditCard = el('div', {
       cls: 'glass-card assumptions-box',
@@ -991,12 +956,19 @@ function renderProposal(quoteId, quote) {
     mainCol.appendChild(auditCard);
   }
 
-  // Side Column: Price Approval Box
   const sideCol = el('div', { cls: 'proposal-side-col' });
   const approveBox = el('div', {
     cls: 'glass-card pricing-approval-card',
     children: [
       el('span', { cls: 'pricing-title', text: 'HUMAN APPROVAL REQUIRED' }),
+      quote.priceNeedsReview ? el('p', {
+        cls:'manual-price-review', attr:{role:'status'},
+        text:'AI price estimate unavailable — manual pricing review required. Enter an agreed USD amount before approval.'
+      }) : null,
+      quote.milestonesAreFallback ? el('p', {
+        cls:'manual-milestone-review', attr:{role:'status'},
+        text:'Milestones are a clearly labeled system-default plan because Gemini did not return a valid 100% breakdown. Review and edit before approving.'
+      }) : null,
       el('div', {
         cls: 'pricing-editor',
         children: [
@@ -1013,7 +985,7 @@ function renderProposal(quoteId, quote) {
                   min: '1',
                   max: '10000',
                   step: '0.01',
-                  value: Number(quote.amountUSD).toFixed(2),
+                  value: quote.amountUSD === null ? '' : Number(quote.amountUSD).toFixed(2),
                   'aria-label': 'Approved project quotation amount in USD'
                 }
               })
@@ -1038,7 +1010,6 @@ function renderProposal(quoteId, quote) {
   container.appendChild(mainCol);
   container.appendChild(sideCol);
 
-  // Auto-balance helper
   function autoBalanceMilestones() {
     haptic('light');
     const n = currentMilestones.length;
@@ -1046,7 +1017,6 @@ function renderProposal(quoteId, quote) {
     const currentSum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
     const diff = 100 - currentSum;
     currentMilestones[n - 1].percent = Math.max(1, currentMilestones[n - 1].percent + diff);
-    // If still off, distribute equally
     const newSum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
     if (newSum !== 100) {
       const base = Math.floor(100 / n);
@@ -1063,9 +1033,11 @@ function renderProposal(quoteId, quote) {
     toast('Milestones balanced to exactly 100%!', 'info');
   }
 
-  // Live display updater
   function updateMilestoneDisplays() {
-    const totalAmount = Number($('approved-amount-input')?.value || quote.amountUSD) || 0;
+    const rawAmount = String($('approved-amount-input')?.value || '').trim();
+    const totalAmount = Number(rawAmount);
+    const amountValid = /^\d+(\.\d{1,2})?$/.test(rawAmount) &&
+      Number.isFinite(totalAmount) && totalAmount >= 1 && totalAmount <= 10000;
     const sum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
     const badge = $('milestone-sum-badge');
     const balanceBtn = $('btn-balance-milestones');
@@ -1080,8 +1052,9 @@ function renderProposal(quoteId, quote) {
       balanceBtn.style.display = isValid ? 'none' : 'inline-flex';
     }
     if (approveBtn) {
-      approveBtn.disabled = !isValid;
+      approveBtn.disabled = !isValid || !amountValid;
       if (!isValid) approveBtn.title = 'Milestones must total 100% before approving';
+      else if (!amountValid) approveBtn.title = 'Enter and review a valid USD amount (1 to 10,000, max 2 decimals)';
       else approveBtn.removeAttribute('title');
     }
 
@@ -1089,25 +1062,22 @@ function renderProposal(quoteId, quote) {
       const p = Number(m.percent) || 0;
       const usdEl = $(`milestone-usd-${idx}`);
       const fillEl = $(`milestone-fill-${idx}`);
-      const val = (totalAmount * (p / 100)).toFixed(2);
-      if (usdEl) usdEl.textContent = `$${val} USD`;
+      const val = amountValid ? (totalAmount * (p / 100)).toFixed(2) : null;
+      if (usdEl) usdEl.textContent = val === null ? 'Enter quote to preview USD' : `${val} USD`;
       if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, p))}%`;
     });
   }
 
-  // Listen to total price edits to dynamically update milestone USD
   $('approved-amount-input')?.addEventListener('input', () => {
     updateMilestoneDisplays();
   });
 
-  // Initial calculations
   updateMilestoneDisplays();
 
-  // Approve button event
   $('btn-approve-quote').addEventListener('click', async () => {
     const inputVal = $('approved-amount-input').value;
     const num = Number(inputVal);
-    if (!num || num < 1 || num > 10000) {
+    if (!/^\d+(\.\d{1,2})?$/.test(inputVal.trim()) || !Number.isFinite(num) || num < 1 || num > 10000) {
       toast('Please enter a valid amount between $1.00 and $10,000.00', 'error');
       return;
     }
@@ -1130,6 +1100,8 @@ function renderProposal(quoteId, quote) {
         milestones: currentMilestones
       });
       state.approvedAmount = res.amountUSD;
+      state.quote.amountUSD = res.amountUSD;
+      state.quote.priceNeedsReview = false;
       if (res.milestones) state.quote.milestones = res.milestones;
       haptic('success');
       toast(`Quotation locked at $${Number(res.amountUSD).toFixed(2)} USD!`, 'success');
@@ -1143,7 +1115,6 @@ function renderProposal(quoteId, quote) {
   });
 }
 
-// ─── SCOPE CHANGE DETECTOR ───
 function renderScopeStep() {
   if (state.pendingScopeScenario) {
     const input = $('scope-request');
@@ -1201,7 +1172,6 @@ function renderScopeAnalysis(data) {
 
   const layout = el('div', { cls: 'glass-card primary-card scope-analysis-layout' });
 
-  // Header Bar with Severity
   const header = el('div', {
     cls: 'scope-header-bar',
     children: [
@@ -1214,7 +1184,6 @@ function renderScopeAnalysis(data) {
   });
   layout.appendChild(header);
 
-  // Side-by-side Diffs
   const diffGrid = el('div', {
     cls: 'scope-diff-grid',
     children: [
@@ -1240,7 +1209,6 @@ function renderScopeAnalysis(data) {
   });
   layout.appendChild(diffGrid);
 
-  // An unavailable AI price estimate must not be shown as a free change.
   const hasCostEstimate = typeof analysis.additionalCostUSD === 'number'
     && Number.isFinite(analysis.additionalCostUSD) && analysis.additionalCostUSD >= 0;
   const costLabel = hasCostEstimate
@@ -1274,7 +1242,6 @@ function renderScopeAnalysis(data) {
     layout.appendChild(el('p',{cls:'scope-timeline-impact',text:'Estimated schedule impact: ' + analysis.timelineImpact}));
   }
 
-  // Explainable estimate panel: model-supplied reasons only, never fabricated confidence.
   const basis = Array.isArray(analysis.estimateBasis) ? analysis.estimateBasis : [];
   const unknowns = Array.isArray(analysis.unknowns) ? analysis.unknowns : [];
   const reasons = el('section', { cls:'estimate-explanation', attr:{'aria-label':'How the AI estimated this change'} });
@@ -1299,7 +1266,6 @@ function renderScopeAnalysis(data) {
   }
   layout.appendChild(reasons);
 
-  // Advisory text
   if (analysis.recommendation) {
     layout.appendChild(el('div', {
       cls: 'advisory-box',
@@ -1310,7 +1276,6 @@ function renderScopeAnalysis(data) {
     }));
   }
 
-  // AI's change impact is a reviewable DRAFT, never an authorized payment.
   const approved = Number(originalQuote.amountUSD);
   const additions = analysis.addedFeatures?.length ? analysis.addedFeatures : (analysis.newRequests || []);
   const summaryLines = [
@@ -1356,7 +1321,6 @@ function renderScopeAnalysis(data) {
   layout.appendChild(panel);
   layout.appendChild(el('p',{cls:'scope-payment-boundary',text:'Not included in payment: this additional AI estimate is not approved. Checkout uses only your original approved quote.'}));
 
-  // Action Button
   const proceedBtn = el('button', {
     cls: 'btn-primary-glow btn-full',
     html: '<span class="btn-glow-text">Proceed to Checkout with Original Terms</span> <span class="btn-arrow">→</span>'
@@ -1370,12 +1334,9 @@ function renderScopeAnalysis(data) {
   container.appendChild(layout);
 }
 
-// ─── CHECKOUT & PAYPAL INTEGRATION ───
-// A rebuilt checkout removes its previous PayPal button DOM. Track each render
-// so an earlier asynchronous SDK/config response cannot populate a newer host.
 let checkoutRenderVersion = 0;
 let paypalSdkLoading = null;
-function renderCheckoutStep() {
+function renderCheckoutStep(options = {}) {
   const version = ++checkoutRenderVersion;
   state.paypalRendered = false;
   const container = $('checkout-container');
@@ -1384,7 +1345,6 @@ function renderCheckoutStep() {
   const amount = Number(state.approvedAmount || state.quote.amountUSD);
   const title = state.quote?.title || 'Freelance Agreement';
 
-  // Left: Order Summary Breakdown
   const summaryCard = el('div', {
     cls: 'glass-card checkout-summary-card',
     children: [
@@ -1434,7 +1394,6 @@ function renderCheckoutStep() {
     ]
   });
 
-  // Right: PayPal Checkout Buttons Area
   const paypalCard = el('div', {
     cls: 'glass-card paypal-buttons-container',
     children: [
@@ -1450,7 +1409,44 @@ function renderCheckoutStep() {
   container.appendChild(paypalCard);
   $('btn-show-paypal-help')?.addEventListener('click', showPayPalTroubleshooting);
 
-  loadAndRenderPayPal(version);
+  if (options.requireOrderReview) {
+    const host = $('paypal-buttons');
+    host.appendChild(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
+      text:'Existing PayPal Sandbox order found. Check its current status before choosing any buyer action. No new payment is created by this check.'}));
+    const inspect=el('button',{cls:'resume-agreement-button',attr:{type:'button'},
+      text:'Check existing PayPal order (read-only)'});
+    const status=el('p',{cls:'checkout-resume-status',attr:{role:'status','aria-live':'polite'}});
+    inspect.addEventListener('click',async()=>{
+      inspect.disabled=true;status.textContent='Checking existing Sandbox order…';
+      try {
+        const d=await api('/api/paypal/order-status',{quoteId:state.quoteId});
+        if (version !== checkoutRenderVersion) return;
+        refreshIntegrationStatus();
+        if (d.status==='CREATED' || d.status==='PAYER_ACTION_REQUIRED') {
+          status.textContent='Existing order awaits buyer approval; continuing reuses this order ID.';
+          const proceed=el('button',{cls:'resume-agreement-button',attr:{type:'button'},
+            text:'Continue approval for this existing Sandbox order'});
+          proceed.addEventListener('click',()=>{
+            proceed.disabled=true;
+            host.replaceChildren();
+            loadAndRenderPayPal(version);
+          });
+          status.appendChild(proceed);
+        } else if (d.status==='APPROVED') {
+          status.textContent='Order already APPROVED. Check the amount and use explicit existing-order capture, not a new checkout.';
+          showPayPalTroubleshooting();
+        } else if (d.status==='COMPLETED' || d.capturedAtPayPal) {
+          status.textContent='PayPal reports a completed capture. Use read-only diagnostics and reconcile the existing receipt. Do not pay again.';
+          showPayPalTroubleshooting();
+        } else {
+          status.textContent='Order status '+String(d.status || 'UNKNOWN')+
+            ' cannot be resumed safely. Inspect PayPal before any buyer action.';
+        }
+      } catch(err) {status.textContent='Status not verified: '+err.message+'. No buyer action enabled.';}
+      finally {inspect.disabled=false;}
+    });
+    host.append(inspect,status);
+  } else loadAndRenderPayPal(version);
 }
 
 async function loadAndRenderPayPal(version = checkoutRenderVersion) {
@@ -1466,8 +1462,6 @@ async function loadAndRenderPayPal(version = checkoutRenderVersion) {
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
     if (version !== checkoutRenderVersion) return;
-    // A failed SDK attempt leaves an alert + retry button in the container.
-    // Once the SDK is healthy, remove these stale controls before rendering it.
     $('paypal-buttons')?.replaceChildren();
     const previousErrorHelp = $('paypal-troubleshooting');
     if (previousErrorHelp) previousErrorHelp.hidden = true;
@@ -1532,8 +1526,6 @@ function renderOfflineDemoCheckout() {
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
   if (window.paypal?.Buttons) return Promise.resolve();
   if (paypalSdkLoading) return paypalSdkLoading;
-  // Multiple checkout renders share one SDK request; retries remain possible
-  // if that request failed. No orders or captures are created by SDK loading.
   paypalSdkLoading = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const country = /^[A-Z]{2}$/.test(buyerCountry) ? buyerCountry : 'US';
@@ -1588,6 +1580,7 @@ function showPayPalTroubleshooting() {
             recovery.disabled=true;
             try {
               const receipt=await api('/api/paypal/reconcile-order',{quoteId:state.quoteId});
+              refreshIntegrationStatus();
               renderReceipt(receipt);
               showStep('receipt');
               toast('Existing Sandbox capture restored. No additional charge.', 'success');
@@ -1609,6 +1602,7 @@ function showPayPalTroubleshooting() {
             captureButton.disabled = true;
             try {
               const confirmed = await api('/api/paypal/capture-order', { orderId:d.orderId });
+              refreshIntegrationStatus();
               renderReceipt(confirmed);
               showStep('receipt');
               toast('Approved Sandbox transaction captured and verified.', 'success');
@@ -1659,6 +1653,7 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
 
     createOrder: async () => {
       const data = await api('/api/paypal/create-order', { quoteId: state.quoteId });
+      refreshIntegrationStatus();
       return data.id;
     },
 
@@ -1666,9 +1661,8 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
       try {
         toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
+        refreshIntegrationStatus();
 
-        // Celebration stays first-party and GPU-friendly; no third-party animation
-        // download is allowed on initial load or after a verified payment.
         renderReceipt(confirmed);
         if (!prefersReducedMotion()) {
           const receiptRoot = $('receipt-container');
@@ -1707,7 +1701,6 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
   }
 }
 
-// ─── VERIFIED SANDBOX RECEIPT ───
 function renderReceipt(confirmed) {
   const simulated = Boolean(confirmed.offlineDemo);
   const container = $('receipt-container');
@@ -1906,7 +1899,6 @@ function renderMetaRow(label, value, copyable = false) {
   });
 }
 
-// ─── CREDENTIALS HELPER MODAL (§7 Fluid Spatial Consistency) ───
 const helperModal = $('helper-modal');
 const helperBtn   = $('btn-quick-helper');
 const modalDialog = helperModal ? helperModal.querySelector('.modal-dialog') : null;
@@ -1970,7 +1962,6 @@ $('btn-watch-flow')?.addEventListener('click', () => {
   showView('new-project');
 });
 
-// ─── INTERACTIVE SHOWCASE CONTROLLER ───
 let currentDemoStage = 3;
 let demoInterval = null;
 let autoPlayPaused = false;
@@ -2096,7 +2087,6 @@ function initShowcaseDemo() {
     showcaseCard.addEventListener('mouseleave', () => { autoPlayPaused = false; syncDemoAutoPlay(); });
   }
 
-  // Smooth scroll for in-page anchor links
   qsa('a[href^="#"]').forEach(anchor => {
     anchor.addEventListener('click', e => {
       const href = anchor.getAttribute('href');
@@ -2114,8 +2104,6 @@ function initShowcaseDemo() {
 }
 
 
-// The Scope Lab is illustrative. No AI API or payment API is called here.
-// Its CTA takes the selected scenario into the actual Gemini-powered workflow.
 const LAB_SCOPE_REQUESTS = Object.freeze({
   marketplace: SCOPE_TEMPLATES.marketplace,
   assistant: 'The client now wants an AI support assistant that searches the product FAQ, answers common questions in a chat widget, and routes unanswered issues to a human.',
@@ -2147,7 +2135,6 @@ function initScopeLab(){
   });
 }
 
-// Status means credentials are present, never that a real payment or AI request succeeded.
 async function refreshIntegrationStatus() {
   const chip = document.querySelector('.status-chip-sandbox');
   const paypal = $('status-sandbox'), gemini = $('status-ai');
@@ -2198,14 +2185,12 @@ async function refreshIntegrationStatus() {
   }
 }
 
-// ─── GLOBAL VIEW BUTTON BINDINGS ───
 function bindViewButtons(ctx = document) {
   qsa('[data-view]', ctx).forEach(b => {
     b.onclick = () => showView(b.dataset.view);
   });
 }
 
-// ─── INITIALIZATION ───
 function init() {
   if (new URLSearchParams(window.location.search).has('paypal_return'))
     setTimeout(() => toast('PayPal returned here. Switch to the ORIGINAL FairFlow checkout tab and check the order status. This page did not capture payment.', 'info'), 250);
@@ -2215,8 +2200,6 @@ function init() {
   initScopeLab();
   refreshIntegrationStatus();
 
-  // Handle both fresh loads and same-document hash navigation (including
-  // browser back/forward); view routing must not depend on a full reload.
   function navigateFromHash() {
     const hash = window.location.hash.toLowerCase();
     if (hash === '#workbench' || hash === '#dashboard') showView('dashboard');

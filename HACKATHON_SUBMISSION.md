@@ -114,3 +114,10 @@ See [FINAL_QUALITY_GATE.md](FINAL_QUALITY_GATE.md): test-only axe-core WCAG scan
 - Provider badges distinguish **KEY SET**, **AI RESPONSE OK**, **AI IN PROGRESS**, **PAYPAL OAUTH OK**, and **OFFLINE SIMULATION**. OAuth proves only merchant authentication, not a completed capture.
 - The owner previously reported **34/34** passing offline tests and **3 existing Sandbox captures** verified against the live PayPal Orders API (Nov 11). New code has separate mocked CI/browser tests; repeat `npm run verify:submission` and `npm run verify:payments` on the final local checkout to close the latest-build gate.
 - Do not claim the newly edited build has passed the owner's live provider test until the post-pull commands actually pass.
+
+## November 11 — final unified reliability patch
+Current release-candidate automated suite: **42/42 mocked tests** and Chromium Browser QA PASS in the PR. The earlier **32/32** and **34/34** reports are older historical checkpoints, not today's test count. The owner independently verified 3 existing real Sandbox captures before this last patch; repeat the read-only check against the final locally pulled checkout.
+
+**Repaired in one patch:** price-unavailable Gemini proposals require manually entered USD amount; malformed title/deliverable structure fails closed; system-fallback milestone templates are disclosed; offline sample Scope Guard matches marketplace/AI support/rush client request; pending PayPal checkout requires a read-only status check before resumed approval; concurrent order creation shares an in-flight promise and keeps PayPal idempotency; badges update after provider actions; mobile financial and recovery text is more readable.
+
+**Release sequence:** exact-head CI+Browser QA must both PASS → merge once → `git pull --ff-only origin main` on Windows → `npm run verify:submission` (real Gemini/API checks, no payment) → `npm run verify:payments` (read-only comparison of existing Sandbox captures) → record real UI demo + narrate/edit → YouTube + final Devpost submission. Preserve private `.env` and `data/projects.json`; neither belongs in Git.

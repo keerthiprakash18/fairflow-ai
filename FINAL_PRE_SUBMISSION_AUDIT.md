@@ -11,14 +11,14 @@
 | Documentation contradicted November 10 verification | Updated README, judge guide, security audit, release guide and Devpost kit with confirmed owner-run real Gemini fallback / scope checks | Docs review |
 
 ## Verified from owner's November 10 console
-- `npm run verify:submission`: **32/32 offline tests**, real Gemini generated usable JSON via `gemini-flash-lite-latest` fallback, real Gemini quote/approval/scope comparison passed, real PayPal Sandbox OAuth passed. This test performs **no payment capture**.
+- `npm run verify:submission`: **32/32 offline tests at the November 10 historical checkpoint**, real Gemini generated usable JSON via `gemini-flash-lite-latest` fallback, real Gemini quote/approval/scope comparison passed, real PayPal Sandbox OAuth passed. This test performs **no payment capture**.
 - Owner's screenshot shows an existing **$3,500.00 USD test-funds** receipt with `COMPLETED` status, order/capture IDs and Sandbox endpoint. The screenshot alone is not independent live API confirmation.
 - The repository includes MIT `LICENSE`, public source, local setup and credential-free **SIMULATED** walkthrough. Judges must distinguish that simulation from the owner's real-provider recording.
 
 ## Mandatory exact-release gates
 - [ ] GitHub CI and Chromium Browser QA both green on **the exact final head SHA** before merge/release. CI mocks upstream providers.
 - [ ] On owner's private Windows checkout after `git pull --ff-only origin main`: `npm run verify:submission` (no payment).
-- [ ] On same Windows machine, where existing private `data/projects.json` holds actual receipt: `npm run verify:payments` (READ-ONLY; no create/capture). It must print `PASS` for the saved capture. **Do not upload private ledger or tokens**. If local private ledger is missing, use PayPal Sandbox merchant dashboard instead.
+- [x] Owner verified 3 existing Sandbox captures against PayPal on November 11 (historical evidence). [ ] Re-run `npm run verify:payments` on the final local checkout (READ-ONLY; no create/capture). It must print `PASS` for all saved captures. **Do not upload private ledger or tokens**. If local private ledger is missing, use PayPal Sandbox merchant dashboard instead.
 - [ ] In GitHub's rendered About panel, confirm it visibly identifies the MIT license. Root `LICENSE` exists; About rendering is a GitHub UI check.
 - [ ] Owner records/upload a **real** running-app video under 3 minutes, public on YouTube; the simulation must be identified as such if shown.
 - [ ] Owner enters project copy, source URL, run instructions and video link in Devpost and verifies final **Submitted** state before 2026-11-13 01:30 IST.
@@ -46,3 +46,16 @@ npm run verify:payments
 | Docs stale on test count and capture evidence | Historical owner result updated: 34/34 tests and 3 real Sandbox captures verified on Nov 11 | Final new-code owner rerun remains a separate gate |
 
 **Release gate:** Before video, pull the final merged commit and run `npm run verify:submission` and `npm run verify:payments` privately. No new checkout required. The final exact-SHA CI and Chromium Browser QA must be green before merge. Browser automation and server tests use mocked external providers, not real funds.
+
+## One-pass audit closure — November 11, 2026
+| Remaining actionable concern | Implemented fix | Verification |
+|---|---|---|
+| Gemini estimated price missing silently became $100 | `null` plus mandatory manual amount before approval; no fabricated suggested price | Mocked quote integrity + browser warning + disabled approval without price |
+| Invalid proposal shape or milestones | Reject invalid title/deliverables; label system milestone fallback, review/approve required | Integration and browser QA |
+| Offline AI support/rush demo used marketplace analysis | Request-specific deterministic cases (marketplace, assistant FAQ, rush) | Integration tests + browser support scenario check |
+| Resumed pending checkout offered payment too early | Read-only PayPal order-status gate; only safe statuses allow explicit next action | Chromium pending-resume QA; server duplicate-capture tests |
+| Simultaneous order create requests | Per-quote in-flight promise serialization plus existing PayPal idempotency key | Strict mock rejects second upstream create; concurrent integration test |
+| Provider badge lag, small mobile financial text | Refresh after OAuth/capture, readable mobile/warning CSS | Chromium desktop/mobile QA, visual review |
+| Old docs mixed 32/34/38 tests | Historical checkpoints distinguished from current **42/42** mocked suite | This document, README, submission checklist |
+
+**Important boundary:** no production authentication, multi-user isolation, hardened DB, or production webhooks are implemented; public production deployment is intentionally out of scope. A passing source audit is not an exhaustive penetration test. The final local live-provider verification and video/Devpost submission are owner actions.

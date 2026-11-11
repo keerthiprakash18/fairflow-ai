@@ -103,3 +103,8 @@ A hosted URL is **not mandatory**: the official rules permit a public code repos
 **Pricing trust:** If Gemini cannot estimate an additional cost, display **Estimate unavailable — manual review required**; do not narrate it as a free change. The original approved payment never changes automatically.
 
 **Recording:** Keep the microphone muted if using post-produced narration. Show truthful screen recording, concise navigation and real results; using existing verified receipt is appropriate if clearly labelled. Edit clips into one under-three-minute 1080p MP4, upload public/unlisted according to competition requirements (verify visibility), and confirm the Devpost final submission state. This document alone is not the video.
+
+## One-pass final recording update — November 11, 2026
+Use the latest merged code before recording. The guide must distinguish the **preset illustrative Scope Lab** from **real Gemini** in New Agreement and Scope Guard. If Gemini returns no usable quote price, do not narrate a fictional suggested amount: show the manual-pricing warning and enter a human-approved amount. If system-default milestone templates appear, explain that these require review.
+
+For a previously started PayPal Sandbox order, use **Review existing checkout → Check existing PayPal order (read-only)**. Only after checking a pending/approved status should the next buyer action be shown. For an existing completed capture, show **Audit Trail → View saved receipt** or reconciliation; do not simulate a new buyer capture. The video can use the known saved verified receipt, accurately labelled as earlier Sandbox test funds. `npm run verify:payments` checks existing captures without placing a new order.

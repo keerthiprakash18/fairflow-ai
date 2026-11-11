@@ -50,6 +50,9 @@ const GEMINI_API_KEY     = process.env.GEMINI_API_KEY || '';
 // ─── In-memory stores (TTL-evicted) ──────────────────────────────────────────
 const quotes  = new Map();
 const orders  = new Map();
+// Serialize order creation per agreement within this local process, in addition
+// to PayPal-Request-Id idempotency on PayPal's side.
+const orderCreationPromises = new Map();
 const TTL     = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── Persistence (append-log to data/projects.json) ─────────────────────────
@@ -116,7 +119,10 @@ async function getQuote(quoteId) {
     title: saved.title, summary: saved.summary || '',
     deliverables: Array.isArray(saved.deliverables) ? saved.deliverables : [],
     milestones: Array.isArray(saved.milestones) ? saved.milestones : [],
-    amountUSD: Number(saved.amountUSD), timeline: saved.timeline || '',
+    amountUSD: saved.amountUSD === null ? null : Number(saved.amountUSD),
+    priceNeedsReview:Boolean(saved.priceNeedsReview),
+    milestonesAreFallback:Boolean(saved.milestonesAreFallback),
+    timeline: saved.timeline || '',
     createdAt: Date.now(), paid: saved.status === 'paid',
     locked: ['approved','checkout-started','paid'].includes(saved.status),
     orderId: saved.orderId || null
@@ -244,7 +250,15 @@ async function requestJson(url, options) {
 
 // ─── Quote normalization ──────────────────────────────────────────────────────
 function normalizeQuote(raw) {
-  const title    = String(raw.title || 'Freelance Project').slice(0, 90);
+  // A response can be valid JSON but still lack the core fields of a proposal.
+  // Fail closed instead of inventing a plausible contract from malformed AI data.
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw) ||
+      typeof raw.title !== 'string' || !raw.title.trim() ||
+      !Array.isArray(raw.deliverables) || !raw.deliverables.length ||
+      !raw.deliverables.every(v => typeof v === 'string' && v.trim())) {
+    throw Object.assign(new Error('Gemini proposal is missing required fields. Please generate again.'), {httpStatus:502});
+  }
+  const title    = raw.title.trim().slice(0, 90);
   const summary  = String(raw.summary || '').slice(0, 800);
   const scope    = Array.isArray(raw.deliverables)
     ? raw.deliverables.slice(0, 8).map(v => String(v).slice(0, 200))
@@ -264,7 +278,9 @@ function normalizeQuote(raw) {
     description: String(m.description || '').slice(0, 200),
   }));
   const totalPercent = milestones.reduce((a, m) => a + m.percent, 0);
-  if (milestones.length === 0 || totalPercent !== 100) {
+  const milestonesAreFallback = milestones.length === 0 || !milestones.every(m =>
+    Number.isInteger(m.percent) && m.percent >= 1 && m.percent <= 100) || totalPercent !== 100;
+  if (milestonesAreFallback) {
     milestones = [
       { name: 'Project Kickoff & Design', percent: 30, description: 'Initial setup, design mockups, project planning' },
       { name: 'Development Phase',        percent: 40, description: 'Core feature implementation' },
@@ -273,9 +289,12 @@ function normalizeQuote(raw) {
     ];
   }
 
-  const estimatedRaw   = Number(raw.estimatedPriceUSD || 100);
-  const estimatedPrice = Math.round(estimatedRaw * 100) / 100;
-  const amount = Number.isFinite(estimatedPrice) ? Math.min(10000, Math.max(1, estimatedPrice)) : 100;
+  // Null means Gemini did NOT supply a usable price. Never manufacture $100
+  // or silently clamp a fictional estimate; a human may enter a valid amount.
+  const validPrice = typeof raw.estimatedPriceUSD === 'number' &&
+    Number.isFinite(raw.estimatedPriceUSD) &&
+    raw.estimatedPriceUSD >= 1 && raw.estimatedPriceUSD <= 10000;
+  const amount = validPrice ? Math.round(raw.estimatedPriceUSD * 100) / 100 : null;
 
   const assumptions = Array.isArray(raw.assumptions)
     ? raw.assumptions.slice(0, 5).map(v => String(v).slice(0, 200))
@@ -283,8 +302,10 @@ function normalizeQuote(raw) {
 
   return {
     title, summary, deliverables: scope, milestones, amountUSD: amount,
+    priceNeedsReview: !validPrice, milestonesAreFallback,
     assumptions, timeline, risks, questions,
-    caution: 'AI-generated estimate — not financial advice. Review and adjust before checkout.',
+    caution: validPrice ? 'AI-generated estimate — not financial advice. Review and adjust before checkout.'
+      : 'Estimate unavailable — manual pricing review required before approval.',
   };
 }
 
@@ -628,7 +649,7 @@ async function handle(req, res) {
       return send(res,409,{error:'This agreement is already paid. Use Audit Trail to view its saved receipt.'});
     if (!['draft','approved','checkout-started'].includes(saved.status))
       return send(res,409,{error:'This saved agreement cannot be safely resumed.'});
-    if (!saved.title || !Number.isFinite(Number(saved.amountUSD)))
+    if (!saved.title || (saved.amountUSD !== null && !Number.isFinite(Number(saved.amountUSD))))
       return send(res,409,{error:'Saved agreement data is incomplete; no payment has been initiated.'});
     return send(res,200,{
       quoteId:saved.quoteId, status:saved.status, offlineDemo:OFFLINE_DEMO_MODE,
@@ -636,7 +657,10 @@ async function handle(req, res) {
         title:saved.title,summary:saved.summary || '',
         deliverables:Array.isArray(saved.deliverables)?saved.deliverables:[],
         milestones:Array.isArray(saved.milestones)?saved.milestones:[],
-        amountUSD:Number(saved.amountUSD), timeline:saved.timeline || '',
+        amountUSD:saved.amountUSD === null ? null : Number(saved.amountUSD),
+        priceNeedsReview:Boolean(saved.priceNeedsReview),
+        milestonesAreFallback:Boolean(saved.milestonesAreFallback),
+        timeline:saved.timeline || '',
         assumptions:Array.isArray(saved.assumptions)?saved.assumptions:[],
         risks:Array.isArray(saved.risks)?saved.risks:[],
         questions:Array.isArray(saved.questions)?saved.questions:[]
@@ -744,33 +768,44 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
     if (!quote || !quote.locked || quote.paid)
       return send(res, 400, { error: 'Confirm a valid quote before starting checkout.' });
     if (quote.orderId) return send(res, 200, { id: quote.orderId });
-    const token  = await paypalToken();
-    const amount = quote.amountUSD.toFixed(2);
-    const idempotencyKey = `create-${quoteId}`;
-    const data = await paypalApi('POST', '/v2/checkout/orders', {
-      intent: 'CAPTURE',
-      purchase_units: [{
-        reference_id: quoteId,
-        description:  quote.title.slice(0, 127),
-        amount:       { currency_code: 'USD', value: amount },
-        custom_id:    quoteId,
-      }],
-      // PayPal's current Orders v2 schema places the wallet experience here.
-      payment_source: { paypal: { experience_context: {
-        brand_name: 'FairFlow AI (Sandbox)',
-        user_action: 'PAY_NOW',
-        shipping_preference: 'NO_SHIPPING',
-        landing_page: 'LOGIN',
-        return_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=approved',
-        cancel_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=cancelled',
-      } } },
-    }, token, idempotencyKey);
-    if (!data.id) throw new Error('PayPal order could not be created');
-    const approvalUrl = safePayPalApprovalUrl(data.links);
-    orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false, capturing: false });
-    quote.orderId = data.id;
-    await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, paypalApprovalUrl: approvalUrl, createdAt: new Date().toISOString() });
-    return send(res, 200, { id: data.id });
+    let creation = orderCreationPromises.get(quoteId);
+    if (!creation) {
+      creation = (async () => {
+        const token = await paypalToken();
+        const data = await paypalApi('POST', '/v2/checkout/orders', {
+          intent: 'CAPTURE',
+          purchase_units: [{
+            reference_id: quoteId,
+            description: quote.title.slice(0, 127),
+            amount: { currency_code: 'USD', value: quote.amountUSD.toFixed(2) },
+            custom_id: quoteId,
+          }],
+          payment_source: { paypal: { experience_context: {
+            brand_name: 'FairFlow AI (Sandbox)',
+            user_action: 'PAY_NOW',
+            shipping_preference: 'NO_SHIPPING',
+            landing_page: 'LOGIN',
+            return_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=approved',
+            cancel_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=cancelled',
+          } } },
+        }, token, 'create-' + quoteId);
+        if (!data.id) throw new Error('PayPal order could not be created');
+        const approvalUrl = safePayPalApprovalUrl(data.links);
+        orders.set(data.id, { quoteId, createdAt:Date.now(), captured:false, capturing:false });
+        quote.orderId = data.id;
+        await saveProject({ quoteId, title:quote.title, amountUSD:quote.amountUSD,
+          status:'checkout-started', orderId:data.id, paypalApprovalUrl:approvalUrl,
+          createdAt:new Date().toISOString() });
+        return data.id;
+      })();
+      orderCreationPromises.set(quoteId, creation);
+    }
+    try {
+      return send(res, 200, { id: await creation });
+    } finally {
+      if (orderCreationPromises.get(quoteId) === creation)
+        orderCreationPromises.delete(quoteId);
+    }
   }
 
   // ── Read-only Sandbox order diagnostics; never initiates a payment. ───────
