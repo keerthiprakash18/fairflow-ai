@@ -41,3 +41,12 @@
 ## Final UX assurance (post-audit)
 
 The app now includes a labeled, copyable DRAFT change-order summary with an explicit NOT APPROVED flag and an unchanged original checkout amount, plus stronger coral-button text contrast, readable neutral metadata, keyboard-operated demo tabs, and modal focus trapping/return. These refinements do not change the PayPal capture endpoints. See [Judges Quick Start](JUDGES_START_HERE.md).
+
+
+## Reliability / recovery additions — November 11
+- **Local resume:** New read-only per-agreement recovery endpoint returns only proposal/approval/scope details needed by the UI. It runs under the existing loopback-only restriction, but is **not per-user authenticated**. Do not host it publicly.
+- **Pending checkout:** Resume neither creates an order nor captures it. The UI explicitly warns to check the pre-existing Sandbox order before another approval; server-side idempotency and reconciliation safeguards remain in force.
+- **Gemini failures:** Global 42s request budget and 16s per attempted model prevent serial 25s waits over speculative model IDs. Non-retryable request/auth errors fail fast.
+- **Price integrity:** Unknown/invalid AI additional-cost estimate is `null`, not $0; only valid explicit zero is free. No AI scope suggestion changes the approved capture amount.
+- **Provider labels:** Valid current-session Gemini JSON and PayPal Sandbox OAuth are separate indicators. Neither a configured key nor OAuth success is represented as a completed buyer payment.
+- Security scope remains **local single-user hackathon proof of concept**, not production or penetration-test certification.
