@@ -2215,17 +2215,18 @@ function init() {
   initScopeLab();
   refreshIntegrationStatus();
 
-  // Check initial URL hash for direct deep links
-  const hash = window.location.hash.toLowerCase();
-  if (hash === '#workbench' || hash === '#dashboard') {
-    showView('dashboard');
-  } else if (hash === '#new-project' || hash === '#create') {
-    showView('new-project');
-  } else if (hash === '#history' || hash === '#audit') {
-    showView('history');
-  } else {
-    showView('landing');
+  // Handle both fresh loads and same-document hash navigation (including
+  // browser back/forward); view routing must not depend on a full reload.
+  function navigateFromHash() {
+    const hash = window.location.hash.toLowerCase();
+    if (hash === '#workbench' || hash === '#dashboard') showView('dashboard');
+    else if (hash === '#new-project' || hash === '#create') showView('new-project');
+    else if (hash === '#history' || hash === '#audit') showView('history');
+    else showView('landing');
   }
+  window.addEventListener('hashchange', navigateFromHash);
+  window.addEventListener('popstate', navigateFromHash);
+  navigateFromHash();
 }
 
 init();
