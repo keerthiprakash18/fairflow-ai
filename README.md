@@ -222,6 +222,19 @@ Open your browser and navigate to:
 
 ---
 
+
+### Final reliability and recovery behavior
+
+**Gemini reliability:** The server attempts at most three *distinct* configured/known Gemini model names, with a **42-second overall deadline** and **16-second per-model timeout**. It falls back for model-not-found (404), timeout/rate-limit and transient server errors (408/429/5xx), but fails quickly for non-retryable request/auth failures. Invalid/non-JSON generations are not reported as verified. On a provider outage, the project brief and previously approved amount remain unchanged; the UI offers a retry.
+
+**Unknown vs free scope change:** An unavailable, malformed or out-of-range AI additional-cost estimate is `null`, *not* `$0`. The Scope Guard and the draft change order explicitly say **Estimate unavailable — manual review required**; only a valid explicit numeric zero is displayed as `$0.00`. Suggested price changes are NEVER charged automatically.
+
+**Resume after refresh or restart:** The **Dashboard** or **Audit Trail** shows **Resume agreement** on saved draft/approved records and **Review existing checkout** on pending orders. The read-only `GET /api/agreements/:quoteId/resume` endpoint restores the original proposal and approved amount from the existing private local ledger. A saved pending checkout opens with a warning to **check the existing PayPal order status before approving or capturing anything again**. Simply resuming never creates or captures a payment. Already paid records are viewed through **View saved receipt** instead.
+
+**Provider evidence labels:** An API key being present is shown as **KEY SET**, not connected. A valid Gemini JSON response generated during the *current server process* changes the status to **AI RESPONSE OK**; successful Sandbox OAuth changes it to **PAYPAL OAUTH OK**. PayPal OAuth is **not** buyer approval or capture proof. In-progress Gemini requests show **AI IN PROGRESS**. A server restart resets these session-only verification badges; offline mode remains clearly marked simulated. The health endpoint reports safe provider-state/timestamp metadata, never secrets.
+
+These UX and reliability improvements preserve the local-only, single-user/no-public-auth security boundary and the existing real PayPal Sandbox capture safeguards.
+
 ### Verify REAL Gemini and PayPal Sandbox connectivity
 
 With private credentials stored only in your local `.env`, run:
@@ -261,6 +274,7 @@ All endpoints are built using Node's standard HTTP server and return JSON respon
 | :--- | :--- | :--- | :--- |
 | `GET` | `/api/health` | Service health, model status, sandbox flag | Never exposes secrets |
 | `GET` | `/api/config` | Returns public PayPal Sandbox Client ID | Masks private secret |
+| `GET` | `/api/agreements/:quoteId/resume` | Restore saved draft/approved/pending checkout after refresh (read-only) | Loopback-only; no new payment |
 | `GET` | `/api/projects` | Reverse-chronological project history | Reads local private ledger |
 | `POST` | `/api/quote` | Gemini AI project analysis & quotation draft | Min 10 char brief required |
 | `POST` | `/api/enhance-brief`| Gemini AI brief expansion tool | Min 5 char prompt |
