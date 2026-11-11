@@ -1282,9 +1282,15 @@ function renderScopeAnalysis(data) {
 }
 
 // ─── CHECKOUT & PAYPAL INTEGRATION ───
+// A rebuilt checkout removes its previous PayPal button DOM. Track each render
+// so an earlier asynchronous SDK/config response cannot populate a newer host.
+let checkoutRenderVersion = 0;
+let paypalSdkLoading = null;
 function renderCheckoutStep() {
+  const version = ++checkoutRenderVersion;
+  state.paypalRendered = false;
   const container = $('checkout-container');
-  container.innerHTML = '';
+  container.replaceChildren();
 
   const amount = Number(state.approvedAmount || state.quote.amountUSD);
   const title = state.quote?.title || 'Freelance Agreement';
@@ -1355,13 +1361,14 @@ function renderCheckoutStep() {
   container.appendChild(paypalCard);
   $('btn-show-paypal-help')?.addEventListener('click', showPayPalTroubleshooting);
 
-  loadAndRenderPayPal();
+  loadAndRenderPayPal(version);
 }
 
-async function loadAndRenderPayPal() {
-  if (state.paypalRendered) return;
+async function loadAndRenderPayPal(version = checkoutRenderVersion) {
+  if (version !== checkoutRenderVersion || state.paypalRendered) return;
   try {
     const config = await apiGet('/api/config');
+    if (version !== checkoutRenderVersion) return;
     if (config.offlineDemo) {
       state.offlineDemo = true;
       renderOfflineDemoCheckout();
@@ -1369,13 +1376,15 @@ async function loadAndRenderPayPal() {
     }
     if (!config.clientId) throw new Error('PayPal Client ID not configured in .env');
     await loadPayPalSdk(config.clientId, config.buyerCountry);
+    if (version !== checkoutRenderVersion) return;
     // A failed SDK attempt leaves an alert + retry button in the container.
     // Once the SDK is healthy, remove these stale controls before rendering it.
     $('paypal-buttons')?.replaceChildren();
     const previousErrorHelp = $('paypal-troubleshooting');
     if (previousErrorHelp) previousErrorHelp.hidden = true;
-    await renderPayPalButtons();
+    await renderPayPalButtons(version);
   } catch (err) {
+    if (version !== checkoutRenderVersion) return;
     const target = $('paypal-buttons');
     if (target) {
       target.replaceChildren();
@@ -1389,7 +1398,7 @@ async function loadAndRenderPayPal() {
             text:'Retry loading PayPal checkout',attr:{type:'button'}});
           retry.addEventListener('click', () => {
             retry.disabled = true;
-            loadAndRenderPayPal(); // only load the SDK; never captures any existing order
+            loadAndRenderPayPal(version); // only load the SDK; never captures any existing order
           });
           return retry;
         })()
@@ -1433,7 +1442,10 @@ function renderOfflineDemoCheckout() {
 
 function loadPayPalSdk(clientId, buyerCountry = 'US') {
   if (window.paypal?.Buttons) return Promise.resolve();
-  return new Promise((resolve, reject) => {
+  if (paypalSdkLoading) return paypalSdkLoading;
+  // Multiple checkout renders share one SDK request; retries remain possible
+  // if that request failed. No orders or captures are created by SDK loading.
+  paypalSdkLoading = new Promise((resolve, reject) => {
     const script = document.createElement('script');
     const country = /^[A-Z]{2}$/.test(buyerCountry) ? buyerCountry : 'US';
     script.src = `https://www.paypal.com/sdk/js?client-id=${encodeURIComponent(clientId)}&currency=USD&intent=capture&commit=true&components=buttons&buyer-country=${country}`;
@@ -1456,7 +1468,8 @@ function loadPayPalSdk(clientId, buyerCountry = 'US') {
     };
     script.onerror = () => fail('Failed to load the PayPal SDK. Check your internet connection, then retry.');
     document.head.appendChild(script);
-  });
+  }).finally(() => { paypalSdkLoading = null; });
+  return paypalSdkLoading;
 }
 
 function showPayPalTroubleshooting() {
@@ -1547,8 +1560,8 @@ function showPayPalTroubleshooting() {
   area.append(button, result, directButton, directResult);
 }
 
-async function renderPayPalButtons() {
-  if (!window.paypal || !$('paypal-buttons') || state.paypalRendered) return;
+async function renderPayPalButtons(version = checkoutRenderVersion) {
+  if (version !== checkoutRenderVersion || !window.paypal || !$('paypal-buttons') || state.paypalRendered) return;
   state.paypalRendered = true;
 
   try {
@@ -1597,7 +1610,7 @@ async function renderPayPalButtons() {
     }
   }).render('#paypal-buttons');
   } catch (error) {
-    state.paypalRendered = false;
+    if (version === checkoutRenderVersion) state.paypalRendered = false;
     throw new Error('PayPal buttons could not render. ' + (error?.message || 'Reload the checkout'));
   }
 }
