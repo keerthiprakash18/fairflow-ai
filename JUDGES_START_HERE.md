@@ -12,7 +12,7 @@ cd fairflow-ai
 npm run demo:offline
 ```
 
-Open **http://127.0.0.1:3000** (or choose another local port with `PORT=3100 npm run demo:offline` on Unix; on Windows PowerShell, set `$env:PORT="3100"` before the command). Use **New Agreement → Generate → Approve → Scope Guard → Simulate buyer approval → Simulated Receipt → Audit Trail**.
+Open **http://127.0.0.1:3000** (or choose another local port with `PORT=3100 npm run demo:offline` on Unix; on Windows PowerShell, set `$env:PORT="3100"` before the command). Use **Launch FairFlow → New Agreement → E-Commerce Boutique · sample brief → Generate Scoping Agreement with Gemini → Approve & Lock Terms → + Multi-Vendor Payouts → Analyze Variance & Price Impact → Proceed to Checkout with Original Terms → Simulate buyer approval (no payment) → Audit Trail**.
 
 The offline mode does **not** load `.env` or use real Gemini/PayPal credentials. It forcibly uses fake keys and a temporary local ledger, removes records when stopped, and rejects unexpected external provider calls. Its receipt explicitly says **NOT A PAYMENT RECEIPT**.
 
@@ -37,11 +37,11 @@ On Windows PowerShell, copy the environment file using `Copy-Item .env.example .
 
 ## 4. Test the actual workflow (live Gemini key required)
 
-1. On the **Scope Lab** select **Multi-vendor marketplace** and click its **Open in Workbench** button.
-2. **Generate** the proposal using Gemini and review the deliverables, assumptions, risks and milestone percentages.
-3. Explicitly **Approve & Lock** the quote.
-4. On **Scope Guard**, analyze the prefilled new client requirement. Examine **Original Approved Scope**, requested additions, **AI-estimated additional USD cost**, **schedule impact** and the **copyable draft change order** (marked **NOT APPROVED**). The original approved payment remains unchanged.
-5. Optional PayPal Sandbox end-to-end verification: enter the checkout stage; use a *separate Personal Sandbox buyer* to approve the Seller's single full-quote test order. The server verifies the amount, currency, order and completed capture before displaying a receipt.
+1. On the landing-page **Interactive Scope Lab**, select **Multi-vendor marketplace**, then click **Try Multi-vendor marketplace with real Gemini**. Alternatively, go directly to **New Agreement** and choose **E-Commerce Boutique · sample brief**.
+2. Click **Generate Scoping Agreement with Gemini**. Review the deliverables, estimated USD amount (enter a manually reviewed amount if missing), assumptions, risks and milestone percentages.
+3. Explicitly click **Approve & Lock Terms**; the human-reviewed milestone percentages must total 100%.
+4. In **Agreement Variance & Creep Protection**, click **Analyze Variance & Price Impact** for the prefilled client requirement (or choose **+ Multi-Vendor Payouts**). Examine **Original Approved Scope**, requested additions, **AI-estimated additional USD cost**, **schedule impact** and the **copyable draft change order** (marked **NOT APPROVED**). The original approved payment remains unchanged.
+5. Optional PayPal Sandbox end-to-end verification: click **Proceed to Checkout with Original Terms**, then use a *separate Personal Sandbox buyer* to approve the Seller's single full-quote test order. The server verifies the amount, currency, order and completed capture before displaying a receipt.
 6. In **Audit Trail**, use **View saved receipt** to reopen an already completed local Sandbox transaction without charging again.
 
 The workflow does **not** digitally sign contracts, approve revised AI prices automatically, or release actual milestone installments.
@@ -59,7 +59,9 @@ npm run verify:payments
 
 `verify:payments` requires a private local ledger with a completed real Sandbox capture; a fresh GitHub clone has no private receipts. It uses read-only PayPal Orders API lookups, and does not create/capture orders or print transaction IDs. `npm test` runs fully offline, with **mocked** Gemini and PayPal responses. `verify:integrations` tests real Gemini generation + Sandbox OAuth only. `verify:scope` uses a temporary ledger for **real Gemini quote, human confirmation and Scope Guard**, and **does not initiate a PayPal charge**. `npm run verify:submission` combines them. The live commands need your own private credentials.
 
-Desktop/mobile visual browser QA also runs on each commit via **GitHub Actions** and uploads screenshots. It mocks upstream providers, not the real PayPal buyer approval.
+Desktop/mobile visual browser QA also runs on each commit via **GitHub Actions** and uploads screenshots. It actually spawns `npm run demo:offline` in a separate process and tests the judge's proposal → human approval → Scope Guard → mock payment → receipt → dashboard path using Chromium. This is still simulated upstream behavior, not a substitute for separately verifying real providers.
+
+**Clean-clone reproducibility gate:** Using Node.js >=22.16.0, a judge can run the above offline demo immediately, with no `npm install` required because runtime has no external npm dependencies. The server binds only to 127.0.0.1, so **do not** send `localhost` as a publicly hosted website URL. Public repo access and the demonstration video remain available independently of the author's laptop. It mocks upstream providers, not the real PayPal buyer approval.
 
 ## 6. Technical and security boundaries
 
