@@ -29,13 +29,17 @@ if (OFFLINE_DEMO_MODE && process.env.FAIRFLOW_MOCK_STRICT !== '1')
   throw new Error('Offline demo requires npm run demo:offline. Refusing to confuse live and mock providers.');
 const PAYPAL_BASE        = 'https://api-m.sandbox.paypal.com';
 const GEMINI_MODEL       = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
-const GEMINI_MODELS      = Array.from(new Set([
-  process.env.GEMINI_MODEL,
-  'gemini-3.1-flash-lite',
+// Deliberate 3-model maximum; avoid serially waiting on speculative model IDs.
+const GEMINI_MODELS = Array.from(new Set([
+  process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite',
   'gemini-flash-lite-latest',
-  'gemini-3.8-flash',
-  'gemini-3.5-flash-lite'
+  'gemini-3.1-flash-lite'
 ].filter(Boolean)));
+const GEMINI_TOTAL_BUDGET_MS = 42000;
+const GEMINI_ATTEMPT_TIMEOUT_MS = 16000;
+let geminiLastVerifiedAt = null;
+let geminiLastVerifiedModel = null;
+let paypalLastOAuthVerifiedAt = null;
 const GEMINI_API_BASE    = 'https://generativelanguage.googleapis.com';
 const PAYPAL_CLIENT_ID   = process.env.PAYPAL_CLIENT_ID   || '';
 const PAYPAL_CLIENT_SECRET = process.env.PAYPAL_CLIENT_SECRET || '';
@@ -287,8 +291,11 @@ function normalizeQuote(raw) {
 // ─── Gemini: resilient multi-model caller ──────────────────────────────────
 async function geminiJson(prompt) {
   requireEnv('GEMINI_API_KEY', GEMINI_API_KEY);
-  let lastErr = null;
+  const deadline = Date.now() + GEMINI_TOTAL_BUDGET_MS;
+  let lastStatus = null;
   for (const model of GEMINI_MODELS) {
+    const remaining = deadline - Date.now();
+    if (remaining < 1000) break;
     try {
       const url = `${GEMINI_API_BASE}/v1beta/models/${model}:generateContent`;
       const res = await fetch(url, {
@@ -302,26 +309,36 @@ async function geminiJson(prompt) {
             maxOutputTokens: 2500,
           },
         }),
-        signal: AbortSignal.timeout(25000),
+        signal: AbortSignal.timeout(Math.min(GEMINI_ATTEMPT_TIMEOUT_MS, remaining)),
       });
-      const data = await res.json();
       if (!res.ok) {
+        lastStatus = res.status;
         console.warn(`[FairFlow AI] Gemini model ${model} returned HTTP ${res.status}`);
-        lastErr = new Error('Provider returned HTTP ' + res.status);
+        // Auth, permissions or a malformed payload won't be fixed by a model switch.
+        // 404, 408, 429 and transient 5xx may be solved with an alternate model.
+        if (![404,408,429,500,502,503,504].includes(res.status)) {
+          throw Object.assign(new Error('Gemini request rejected (HTTP ' + res.status + '). Check API key and model settings.'), {httpStatus:502, retryable:false});
+        }
         continue;
       }
+      const data = await res.json();
       let rawText = data?.candidates?.[0]?.content?.parts?.map(p => p.text || '').join('');
-      if (!rawText) continue;
+      if (!rawText) { console.warn('[FairFlow AI] Empty Gemini output for', model); continue; }
       rawText = rawText.replace(/^\s*```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      try { JSON.parse(rawText); }
+      catch { console.warn('[FairFlow AI] Malformed Gemini JSON for', model); continue; }
+      geminiLastVerifiedAt = new Date().toISOString();
+      geminiLastVerifiedModel = model;
       return rawText;
     } catch (err) {
+      if (err?.retryable === false) throw err;
       console.warn(`[FairFlow AI] Gemini model ${model} request failed (${err?.name || 'network error'})`);
-      lastErr = new Error('Provider request failed');
     }
   }
-  throw Object.assign(new Error('AI generation temporarily unavailable. Please try again or check provider quota.'), { httpStatus: 502 });
+  throw Object.assign(new Error(lastStatus === 429
+    ? 'Gemini quota or rate limit reached. Retry later.'
+    : 'AI generation temporarily unavailable within the request time budget. Your inputs are unchanged; retry shortly.'), { httpStatus: 502 });
 }
-
 
 async function generateQuote(description) {
   requireEnv('GEMINI_API_KEY', GEMINI_API_KEY);
@@ -353,9 +370,11 @@ ${description}`;
 
 // ─── Gemini: scope-change analysis ───────────────────────────────────────────
 function normalizeScopeChange(raw, originalQuote) {
-  const candidate = Number(raw.additionalCostUSD);
-  const additionalCostUSD = Number.isFinite(candidate)
-    ? Math.min(50000, Math.max(0, Math.round(candidate * 100) / 100)) : 0;
+  // An unavailable estimate is NOT the same as a genuine $0 addition.
+  const candidate = raw.additionalCostUSD;
+  const additionalCostUSD = typeof candidate === 'number' && Number.isFinite(candidate)
+    && candidate >= 0 && candidate <= 50000
+    ? Math.round(candidate * 100) / 100 : null;
   const arr = (v,max) => Array.isArray(v) ? v.slice(0,max).map(x => String(x).slice(0,200)) : [];
   const milestones = Array.isArray(raw.updatedMilestones) ? raw.updatedMilestones.slice(0,6).map(m => ({
     name: String(m.name || 'Deliverable').slice(0,90),
@@ -368,7 +387,8 @@ function normalizeScopeChange(raw, originalQuote) {
     addedFeatures:arr(raw.addedFeatures,8),removedItems:arr(raw.removedItems,4),
     timelineImpact:String(raw.timelineImpact || '').slice(0,300),
     additionalCostUSD,
-    newTotalUSD:Math.round((originalQuote.amountUSD + additionalCostUSD) * 100) / 100,
+    newTotalUSD:additionalCostUSD === null ? null
+      : Math.round((originalQuote.amountUSD + additionalCostUSD) * 100) / 100,
     updatedMilestones:milestones.reduce((sum,m)=>sum+m.percent,0)===100 ? milestones : originalQuote.milestones,
     summary:String(raw.summary || '').slice(0,500),
     // Explain the estimate without inventing a precision or claiming model confidence.
@@ -439,6 +459,7 @@ async function paypalToken() {
   });
   if (!data.access_token) throw new Error('PayPal returned no access token');
   cachedToken = data.access_token;
+  paypalLastOAuthVerifiedAt = new Date().toISOString();
   tokenExpiry = Date.now() + (data.expires_in || 32400) * 1000;
   return cachedToken;
 }
@@ -559,6 +580,15 @@ async function handle(req, res) {
       aiConfigured: isConfigured(GEMINI_API_KEY),
       paypalConfigured: isConfigured(PAYPAL_CLIENT_ID) && isConfigured(PAYPAL_CLIENT_SECRET),
       model: GEMINI_MODEL,
+      aiProviderState: OFFLINE_DEMO_MODE ? 'simulation'
+        : !isConfigured(GEMINI_API_KEY) ? 'not-configured'
+        : geminiLastVerifiedAt ? 'verified-response' : 'configured-unverified',
+      aiLastVerifiedAt: OFFLINE_DEMO_MODE ? null : geminiLastVerifiedAt,
+      aiVerifiedModel: OFFLINE_DEMO_MODE ? null : geminiLastVerifiedModel,
+      paypalProviderState: OFFLINE_DEMO_MODE ? 'simulation'
+        : !isConfigured(PAYPAL_CLIENT_ID) || !isConfigured(PAYPAL_CLIENT_SECRET) ? 'not-configured'
+        : paypalLastOAuthVerifiedAt ? 'oauth-verified' : 'configured-unverified',
+      paypalLastOAuthVerifiedAt: OFFLINE_DEMO_MODE ? null : paypalLastOAuthVerifiedAt,
       version: '2.0.0',
     });
   }
