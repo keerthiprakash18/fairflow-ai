@@ -213,6 +213,17 @@ function showStep(stepName) {
     }
   });
 
+  const progress = $('flow-current-status');
+  if (progress) {
+    const guidance = {
+      brief: '01 / Write or select a project brief. Next: generate a real Gemini proposal.',
+      proposal: '02 / Review Gemini estimates and milestones. Next: approve the amount yourself.',
+      scope: '03 / Compare the new request with your approved baseline. Next: original-amount Sandbox checkout.',
+      checkout: '04 / PayPal Sandbox checkout uses only the approved amount. Next: verified receipt.',
+      receipt: '05 / Review the saved Sandbox receipt. Open Audit Trail anytime to inspect it again.'
+    };
+    progress.textContent = guidance[stepName] || '';
+  }
   const announcement = $('wizard-step-announcement');
   if (announcement) {
     const stepNameForSpeech = {brief:'Project brief',proposal:'AI proposal',scope:'Scope Guard',
@@ -623,6 +634,45 @@ function renderProposalSkeleton() {
   `;
 }
 
+function updateProviderModeLabels() {
+  const flow = $('flow-provider-label');
+  if (flow) flow.textContent = state.offlineDemo
+    ? 'SIMULATED WORKFLOW · NO LIVE PROVIDERS'
+    : 'LIVE WORKFLOW · GEMINI + PAYPAL SANDBOX';
+  const proposal = document.querySelector('[data-provider-label="proposal"]');
+  const scope = document.querySelector('[data-provider-label="scope"]');
+  if (state.offlineDemo) {
+    if (proposal) proposal.textContent = 'OFFLINE SIMULATION · This proposal is mock data, not a live Gemini response.';
+    if (scope) scope.textContent = 'OFFLINE SIMULATION · Scope analysis is mocked; no live Gemini or PayPal call is made.';
+  } else {
+    if (proposal) proposal.textContent = 'REAL GEMINI API · Proposals are AI-generated estimates and require human approval.';
+    if (scope) scope.textContent = 'REAL GEMINI SCOPE GUARD · Changes are advisory; the approved payment stays unchanged.';
+  }
+}
+
+// Communicate an in-flight provider request without inventing completion percentages.
+function showAiRequestProgress(container, kind) {
+  if (!container) return () => {};
+  const panel = el('div', {cls:'ai-request-progress', attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
+  const simulated = state.offlineDemo;
+  const heading = el('strong', {text:simulated ? 'Running an offline simulation…' :
+    (kind === 'scope' ? 'Checking the approved scope with Gemini…' : 'Generating your proposal with Gemini…')});
+  const detail = el('p', {text:simulated
+    ? 'Simulated provider response, no real Gemini request or payment.'
+    : 'Real Gemini request in progress. Please keep this tab open.'});
+  panel.append(heading, detail);
+  container.prepend(panel);
+  const reminders = [
+    setTimeout(() => {detail.textContent = simulated
+      ? 'Still running the offline simulation. No provider contacted.'
+      : 'Still waiting for Gemini. Your inputs are preserved; no payment is being made.';}, 10000),
+    setTimeout(() => {detail.textContent = simulated
+      ? 'Offline simulation is taking longer than expected. You can retry if it fails.'
+      : 'The provider is taking longer than usual. We will show the result or a retry option when it responds.';}, 30000)
+  ];
+  return () => { reminders.forEach(clearTimeout); panel.remove(); };
+}
+
 function renderScopeSkeleton() {
   const container = $('scope-result-container');
   container.innerHTML = `
@@ -662,6 +712,7 @@ $('btn-generate').addEventListener('click', async () => {
   // Render shimmer skeleton immediately so user sees layout without lag
   showStep('proposal');
   renderProposalSkeleton();
+  const stopProgress = showAiRequestProgress($('proposal-container'), 'proposal');
 
   try {
     const data = await api('/api/quote', { description });
@@ -675,6 +726,7 @@ $('btn-generate').addEventListener('click', async () => {
     setInlineError('brief-error', err.message + ' Your project brief is preserved; retry Generate when ready.');
     toast(err.message, 'error');
   } finally {
+    stopProgress();
     btn.disabled = false;
     btn.innerHTML = '<span class="btn-glow-text">✦ Generate AI Scope &amp; Milestones</span> <span class="btn-arrow">→</span>';
   }
@@ -1040,6 +1092,7 @@ function renderScopeStep() {
     btn.disabled = true;
     btn.innerHTML = '<span class="sparkle">✦</span> <span>Benchmarking against baseline...</span>';
     renderScopeSkeleton();
+    const stopProgress = showAiRequestProgress($('scope-result-container'), 'scope');
 
     try {
       const data = await api('/api/scope-change', { quoteId: state.quoteId, newRequest: request });
@@ -1058,6 +1111,7 @@ function renderScopeStep() {
       }));
       toast(err.message, 'error');
     } finally {
+      stopProgress();
       btn.disabled = false;
       btn.innerHTML = '<span class="btn-glow-text">🔍 Detect Scope Change &amp; Impact</span> <span class="btn-arrow">→</span>';
     }
@@ -1973,7 +2027,7 @@ function initScopeLab(){
     const example=LAB_EXAMPLES[button.dataset.labScenario];if(!example)return;
     buttons.forEach(b=>{const selected=b===button;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',String(selected));});
     [['lab-impact-label',example.impact],['lab-change-title',example.title],['lab-change-description',example.description],['lab-change-amount',example.amount],['lab-change-timeline',example.timeline]].forEach(([id,value])=>{const target=$(id);if(target)target.textContent=value;});
-    const label=$('lab-cta-label');if(label)label.textContent='Open '+example.title+' in the workbench';
+    const label=$('lab-cta-label');if(label)label.textContent='Try '+example.title+' with real Gemini →';
   }));
   $('btn-lab-open-scenario')?.addEventListener('click',()=>{
     const selected=buttons.find(b=>b.classList.contains('is-selected'))?.dataset.labScenario || 'marketplace';
@@ -1998,6 +2052,7 @@ async function refreshIntegrationStatus() {
     chip.classList.remove('status-checking');
     chip.classList.toggle('status-needs-setup', !s.paypalConfigured || !s.aiConfigured);
     state.offlineDemo = Boolean(s.offlineDemo);
+    updateProviderModeLabels();
     if (state.offlineDemo) {
       paypal.textContent = 'PAYPAL MOCK';
       gemini.textContent = 'AI MOCK';
@@ -2015,6 +2070,11 @@ async function refreshIntegrationStatus() {
       : 'Gemini API key not configured';
   } catch {
     chip.classList.add('status-needs-setup');
+    qsa('[data-provider-label]').forEach(label => {
+      label.textContent = 'PROVIDER MODE UNKNOWN · Check server connection before running live AI.';
+    });
+    const flow = $('flow-provider-label');
+    if (flow) flow.textContent = 'WORKFLOW · SERVER CONNECTION UNAVAILABLE';
     paypal.textContent = 'SERVER OFFLINE';
     gemini.textContent = 'CHECK CONNECTION';
     const modelStatus = $('ai-current-model');

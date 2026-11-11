@@ -234,6 +234,13 @@ This command makes a **real, small Gemini generation request** and gets a **real
 
 For real end-to-end PayPal verification, approve a test checkout using a **Sandbox Personal Buyer** account in the app and check that the capture ID and USD amount match the receipt. Offline CI tests are mocked and are not proof of live provider connectivity.
 
+
+### Presentation clarity: sample preview vs real AI workbench
+
+The landing **Interactive Demo / Scope Lab** uses clearly labelled, fixed illustrative values. It makes no Gemini or PayPal requests. The **Try … with real Gemini** button pre-fills a live New Agreement brief and retains the selected change request for the Scope Guard stage. After generating the actual proposal, review and explicitly approve the amount, then run real Scope Guard analysis and proceed only with the original approved amount to PayPal Sandbox checkout.
+
+The New Agreement view includes a persistent five-step workflow guide. Proposal and Scope Guard requests show truthful in-flight status and, if an upstream response takes longer than usual, a non-percentage waiting message; no fake completion progress is shown. Provider retries and failures preserve inputs. These UI improvements do not change payment endpoints, provider credentials, or quote approval rules.
+
 ## PayPal Sandbox Testing Credentials
 
 To test the payment checkout flow:

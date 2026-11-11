@@ -251,7 +251,7 @@
                     <!-- STAGE 3: AI SCOPE ANALYSIS (ACTIVE DEFAULT) -->
                     <div class="showcase-slide active" data-slide="3">
                       <div class="slide-badge-row">
-                        <span class="badge-gemini">✦ ILLUSTRATIVE AI ANALYSIS</span>
+                        <span class="badge-gemini">✦ PRESET SAMPLE · NO API CALL</span>
                         <span class="badge-severity">HIGH SEVERITY (+49%)</span>
                       </div>
                       <div class="diff-matrix-box">
@@ -305,7 +305,7 @@
                           <span class="sandbox-stamp">ILLUSTRATIVE · NO PAYMENT</span>
                         </div>
                       </div>
-                      <button class="btn-demo-test-workbench" data-view="dashboard">
+                      <button class="btn-demo-test-workbench" data-view="new-project">
                         <span>Launch Live In Workbench</span>
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
                       </button>
@@ -354,8 +354,8 @@
                   <button type="button" data-lab-scenario="assistant" class="lab-choice" aria-pressed="false"><span>02</span> AI support assistant <b aria-hidden="true">↗</b></button>
                   <button type="button" data-lab-scenario="rush" class="lab-choice" aria-pressed="false"><span>03</span> Rush delivery <b aria-hidden="true">↗</b></button>
                 </div>
-                <p class="lab-disclaimer">These are illustrative estimates. In the actual app Gemini suggests; a person approves. No payment is made from this demo.</p>
-                <button type="button" class="lab-cta" id="btn-lab-open-scenario"><span id="lab-cta-label">Open Multi-vendor marketplace in the workbench</span> <span aria-hidden="true">↗</span></button>
+                <p class="lab-disclaimer"><strong>INTERACTIVE EXAMPLE · NOT LIVE AI.</strong> These amounts are fixed sample values. To use real Gemini, continue into the workbench, generate a quote, and approve it before analyzing changes. No payment is made here.</p>
+                <button type="button" class="lab-cta" id="btn-lab-open-scenario"><span id="lab-cta-label">Try Multi-vendor marketplace with real Gemini →</span> <span aria-hidden="true">↗</span></button>
               </div>
               <div class="lab-stage">
                 <div class="lab-stage-top"><span class="lab-status-dot"></span> FAIRFLOW / SCOPE LENS <span class="lab-stage-tag">INTERACTIVE SAMPLE</span></div>
@@ -856,6 +856,14 @@
       <!-- ════════════════ VIEW 2: NEW AGREEMENT WIZARD ════════════════ -->
       <section id="view-new-project" class="app-view" aria-label="New Project Wizard">
         
+        <div class="workbench-flow-notice" aria-label="Live agreement workflow">
+          <div class="workbench-flow-notice-copy">
+            <strong id="flow-provider-label">WORKFLOW · CHECKING PROVIDER MODE</strong>
+            <span id="flow-current-status">Start with a brief → review the AI proposal → approve → analyze scope changes → checkout → receipt.</span>
+          </div>
+          <span class="flow-workspace-pill">Your agreement stays in this workbench</span>
+        </div>
+
         <!-- Editorial Guided Stepper Bar -->
         <div class="editorial-stepper-container">
           <div class="editorial-stepper">
@@ -983,6 +991,7 @@
             </div>
             <button class="btn-editorial-secondary" id="btn-new-proposal">← Edit Brief</button>
           </div>
+          <p class="real-ai-mode-note" data-provider-label="proposal">Provider mode: checking connection…</p>
           <div id="proposal-container" class="proposal-layout-grid">
             <!-- Dynamically populated by app.js -->
           </div>
@@ -1047,6 +1056,7 @@
             </div>
 
             <!-- Right: Dynamic Analysis Panel -->
+            <p class="real-ai-mode-note" data-provider-label="scope">Provider mode: checking connection…</p>
             <div id="scope-result-container">
               <div class="editorial-sheet placeholder-scope-sheet">
                 <div class="radar-box" aria-hidden="true">
