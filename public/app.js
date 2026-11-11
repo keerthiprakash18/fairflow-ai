@@ -1240,11 +1240,17 @@ function renderScopeAnalysis(data) {
   });
   layout.appendChild(diffGrid);
 
-  // A missing/invalid AI cost estimate is NOT a free change.
+  // An unavailable AI price estimate must not be shown as a free change.
   const hasCostEstimate = typeof analysis.additionalCostUSD === 'number'
     && Number.isFinite(analysis.additionalCostUSD) && analysis.additionalCostUSD >= 0;
   const costLabel = hasCostEstimate
-    ? '+
+    ? '+$' + analysis.additionalCostUSD.toFixed(2) + ' USD'
+    : 'Estimate unavailable — manual review required';
+  const totalLabel = hasCostEstimate && typeof analysis.newTotalUSD === 'number'
+    && Number.isFinite(analysis.newTotalUSD)
+    ? '$' + analysis.newTotalUSD.toFixed(2) + ' USD'
+    : 'Not calculated — manual review required';
+  const metricsRow = el('div', {
     cls: 'impact-metric-row',
     children: [
       el('div', {
