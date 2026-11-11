@@ -634,17 +634,37 @@ function renderProposalSkeleton() {
   `;
 }
 
+function updateProviderModeLabels() {
+  const proposal = document.querySelector('[data-provider-label="proposal"]');
+  const scope = document.querySelector('[data-provider-label="scope"]');
+  if (state.offlineDemo) {
+    if (proposal) proposal.textContent = 'OFFLINE SIMULATION · This proposal is mock data, not a live Gemini response.';
+    if (scope) scope.textContent = 'OFFLINE SIMULATION · Scope analysis is mocked; no live Gemini or PayPal call is made.';
+  } else {
+    if (proposal) proposal.textContent = 'REAL GEMINI API · Proposals are AI-generated estimates and require human approval.';
+    if (scope) scope.textContent = 'REAL GEMINI SCOPE GUARD · Changes are advisory; the approved payment stays unchanged.';
+  }
+}
+
 // Communicate an in-flight provider request without inventing completion percentages.
 function showAiRequestProgress(container, kind) {
   if (!container) return () => {};
   const panel = el('div', {cls:'ai-request-progress', attr:{role:'status','aria-live':'polite','aria-atomic':'true'}});
-  const heading = el('strong', {text:kind === 'scope' ? 'Checking the approved scope with Gemini…' : 'Generating your proposal with Gemini…'});
-  const detail = el('p', {text:'Real Gemini request in progress. Please keep this tab open.'});
+  const simulated = state.offlineDemo;
+  const heading = el('strong', {text:simulated ? 'Running an offline simulation…' :
+    (kind === 'scope' ? 'Checking the approved scope with Gemini…' : 'Generating your proposal with Gemini…')});
+  const detail = el('p', {text:simulated
+    ? 'Simulated provider response, no real Gemini request or payment.'
+    : 'Real Gemini request in progress. Please keep this tab open.'});
   panel.append(heading, detail);
   container.prepend(panel);
   const reminders = [
-    setTimeout(() => {detail.textContent = 'Still waiting for Gemini. Your inputs are preserved; no payment is being made.';}, 10000),
-    setTimeout(() => {detail.textContent = 'The provider is taking longer than usual. We will show the result or a retry option when it responds.';}, 30000)
+    setTimeout(() => {detail.textContent = simulated
+      ? 'Still running the offline simulation. No provider contacted.'
+      : 'Still waiting for Gemini. Your inputs are preserved; no payment is being made.';}, 10000),
+    setTimeout(() => {detail.textContent = simulated
+      ? 'Offline simulation is taking longer than expected. You can retry if it fails.'
+      : 'The provider is taking longer than usual. We will show the result or a retry option when it responds.';}, 30000)
   ];
   return () => { reminders.forEach(clearTimeout); panel.remove(); };
 }
@@ -2028,6 +2048,7 @@ async function refreshIntegrationStatus() {
     chip.classList.remove('status-checking');
     chip.classList.toggle('status-needs-setup', !s.paypalConfigured || !s.aiConfigured);
     state.offlineDemo = Boolean(s.offlineDemo);
+    updateProviderModeLabels();
     if (state.offlineDemo) {
       paypal.textContent = 'PAYPAL MOCK';
       gemini.textContent = 'AI MOCK';
@@ -2045,6 +2066,9 @@ async function refreshIntegrationStatus() {
       : 'Gemini API key not configured';
   } catch {
     chip.classList.add('status-needs-setup');
+    qsa('[data-provider-label]').forEach(label => {
+      label.textContent = 'PROVIDER MODE UNKNOWN · Check server connection before running live AI.';
+    });
     paypal.textContent = 'SERVER OFFLINE';
     gemini.textContent = 'CHECK CONNECTION';
     const modelStatus = $('ai-current-model');
