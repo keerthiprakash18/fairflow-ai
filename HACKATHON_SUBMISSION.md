@@ -61,7 +61,7 @@ Record the running application itself; do not substitute static mockups for the 
 
 - [x] **Owner-verified November 10, 2026:** full `npm run verify:submission` passed (32/32 offline automated tests, real Gemini generation via `gemini-flash-lite-latest` fallback after `gemini-3.1-flash-lite` returned HTTP 503, real Gemini proposal + Scope Guard, and PayPal Sandbox OAuth). No new PayPal charge occurred.
 - [x] **Owner-verified November 10, 2026:** FairFlow displayed a real PayPal Sandbox verified receipt with status `COMPLETED`, an order ID, a capture ID and a $3,500.00 USD **test** capture. No real funds transferred. This confirmation is from the owner's local screenshot; it has not been independently reproduced in GitHub CI.
-- [ ] Independently verify the saved real capture against the live PayPal Sandbox Orders API with `npm run verify:payments` on the owner's laptop (or confirm in the PayPal merchant Sandbox activity dashboard). Do not commit or publish private receipt IDs.
+- [x] **Owner-verified November 11:** `npm run verify:payments` matched **3/3 existing real Sandbox capture records** against live PayPal Orders API (read-only; no new charge). Repeat after final code pull for the last gate.
 - [ ] Record the actual running product, less than 3 minutes, and upload a public YouTube video.
 - [ ] Complete the Devpost text, tools-used fields, project access instructions, public GitHub repository URL, and video link.
 - [ ] Ensure the public repo MIT license is visible in the GitHub About panel, and check official eligibility/rules.
@@ -86,7 +86,7 @@ _This kit is documentation; it does not certify that external provider connectiv
 - [x] Automated security, integration and browser QA coverage added. **Mocked** provider responses are not new real transactions.
 - [x] On owner's laptop, November 10: `npm run verify:scope` passed — real Gemini quote/approval/scope API verification; no payment.
 - [x] On owner's laptop, November 10: `npm run verify:integrations` passed via Gemini fallback plus real PayPal Sandbox OAuth.
-- [ ] Run `npm run verify:payments` against saved local receipt or verify it in the PayPal merchant Sandbox activity dashboard; keep sensitive IDs private.
+- [x] Owner verified 3 existing captures on November 11. Recheck the saved private ledger after the final merge; keep transaction IDs and secrets private.
 - [ ] Record and publicly upload an actual **under-three-minute** running-product demo to YouTube. Recording cannot be replaced by animated mockups.
 - [ ] Enter the public GitHub link, functional run instructions, complete English description, tools-used details and real video URL into Devpost.
 - [ ] **Click Submit before November 13, 2026 at 01:30 IST** and confirm Devpost shows the submission as submitted, not merely saved as draft.
@@ -105,3 +105,12 @@ The short, security-conscious [JUDGES_START_HERE.md](JUDGES_START_HERE.md) expla
 ### Final performance, accessibility & reliability gate
 
 See [FINAL_QUALITY_GATE.md](FINAL_QUALITY_GATE.md): test-only axe-core WCAG scans, first-party resource budgets and observed startup timing, reduced-motion behavior, resilient Gemini 429/503 UX, PayPal SDK-only retry with **no payment**, and exact-SHA CI + Chromium QA release gates. Do not confuse these browser tests (mock upstream) with real API verification.
+
+
+## Final pre-video regression status (November 11)
+- Gemini fallback is bounded at 42 seconds overall / 16 seconds per candidate; 401 and similar non-retryable errors do not cycle through model guesses.
+- Unknown/invalid Gemini additional-cost estimate is explicitly **unavailable / manual review**, not a fake $0.00. A genuine numeric zero remains valid.
+- Dashboard and Audit Trail provide **Resume agreement** for draft/approved and **Review existing checkout** for pending PayPal Sandbox orders. These actions do not initiate payment and require checking any previously opened PayPal order before buyer approval.
+- Provider badges distinguish **KEY SET**, **AI RESPONSE OK**, **AI IN PROGRESS**, **PAYPAL OAUTH OK**, and **OFFLINE SIMULATION**. OAuth proves only merchant authentication, not a completed capture.
+- The owner previously reported **34/34** passing offline tests and **3 existing Sandbox captures** verified against the live PayPal Orders API (Nov 11). New code has separate mocked CI/browser tests; repeat `npm run verify:submission` and `npm run verify:payments` on the final local checkout to close the latest-build gate.
+- Do not claim the newly edited build has passed the owner's live provider test until the post-pull commands actually pass.
