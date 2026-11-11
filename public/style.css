@@ -4490,3 +4490,25 @@ body.on-landing .mobile-nav-bar {
 @media print {
   .workbench-flow-notice, .real-ai-mode-note, .ai-request-progress {display:none!important;}
 }
+
+
+/* Clear recovery actions and a non-zero/unknown scope estimate warning. */
+.resume-agreement-button {
+  min-height: 40px; padding: 8px 11px; border-radius: 8px;
+  border: 1px solid #b2c6e3; background: #f3f7ff; color: #184a91;
+  font-size: 12px; font-weight: 750; cursor: pointer;
+}
+.resume-agreement-button:focus-visible {outline: 3px solid #295ff3;outline-offset: 2px;}
+.resume-agreement-button:hover {background: #e6efff;}
+.manual-cost-review {
+  background: #fff5e7; border-left: 4px solid #a66b13;
+  color: #78480c !important; padding: 12px; border-radius: 6px;
+  font-weight: 700;
+}
+.checkout-resume-warning {
+  padding: 12px; background: #fff2dc; color: #754b14;
+  border-left: 4px solid #b77916; font-weight: 700;
+}
+@media (prefers-reduced-motion:reduce) {
+  .resume-agreement-button {transition:none!important;}
+}
