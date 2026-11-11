@@ -125,47 +125,30 @@ sequenceDiagram
 
 ## Live Demo Walkthrough for Judges
 
-Judges can test the entire lifecycle in under **2 minutes** at `http://localhost:3000`:
+**This is a real, locally runnable Node.js application with a real browser UI.** No hosted URL is required. Start with the **credential-free offline simulation** to examine every part of the flow; it is plainly labelled as MOCK, and does **not** demonstrate live Gemini/PayPal network access. To verify the actual providers, follow the separate developer-credential instructions below.
 
-```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        3-STEP JUDGE DEMO FLOW                          │
-│                                                                        │
-│   [ Step 1: Create & Scope ]   ───►  [ Step 2: Guard Against Creep ]   │
-│   • Click 1-Click Demo Chip          • Click "Add Multi-Vendor Payouts"│
-│   • Watch Gemini AI Scoping          • See AI calculate +$USD delta    │
-│   • Auto-Balance to 100%             • Review professional letter      │
-│   • Click "Approve & Lock Quote"                                       │
-│                                              │                         │
-│                                              ▼                         │
-│                                [ Step 3: PayPal Sandbox Checkout ]      │
-│                                • Launch PayPal Sandbox Smart Button    │
-│                                • Complete Sandbox payment              │
-│                                • View server-verified receipt & history│
-└────────────────────────────────────────────────────────────────────────┘
+### Fastest judge walkthrough — no credentials or npm installation required
+
+Requires **Node.js >=22.16.0** and Git. Open a terminal:
+
+```bash
+git clone https://github.com/keerthiprakash18/fairflow-ai.git
+cd fairflow-ai
+npm run demo:offline
 ```
 
-### Detailed Scenario Guide
+Open **http://127.0.0.1:3000**. The process stays open while the demo runs; stop it with `Ctrl+C`. On Windows, when port 3000 is occupied, run `$env:PORT="3100"; npm run demo:offline` and open `http://127.0.0.1:3100`.
 
-1. **Dashboard & Analytics:**
-   * Open `http://localhost:3000`.
-   * Observe high-level metrics (Total Volume, Active Agreements, Paid Projects, Sandbox Capture History) and the live transaction feed.
-2. **Generate AI Proposal:**
-   * Click **"+ New Proposal"**.
-   * Click any 1-Click Demo chip (e.g. **"🛍 E-Commerce Store"**) or enter your own idea and test the **"⚡ AI Enhance Brief"** button.
-   * Click **"✦ Generate AI Proposal"**. Google Gemini returns a structured deliverable matrix, percentage milestone breakdown, and project risk audit.
-3. **Interactive Human Approval:**
-   * Adjust milestone percentages; click the **"⚡ Auto-Balance to 100%"** button to see spring-based math reconciliation.
-   * Set your final price (e.g., `$2,750.00`) and click **"✓ Approve & Lock Quotation"**.
-4. **AI Scope Creep Detection:**
-   * In the **AI Scope Change Guard**, test a scope creep scenario by clicking **"➕ Add Multi-Vendor Payouts"**.
-   * Click **"✦ Analyze Scope Change"**. Gemini flags the severe architecture expansion, computes an additional cost delta (e.g., `+$6,500.00`), and produces an assertive client response letter.
-5. **PayPal Sandbox Checkout:**
-   * Click **"💳 Continue to Checkout"**.
-   * Review the approved quote and PayPal Sandbox badge.
-   * Click the golden **PayPal** button to launch the Sandbox popup.
-   * Log in with a Sandbox Personal Test Buyer account (or follow the guide in the **"🧪 Sandbox Helper"** modal).
-   * Confirm checkout. The server verifies the transaction against the PayPal Orders v2 API, records the verified sandbox capture, displays a printable receipt with Capture ID, and updates the local project ledger.
+1. Click **Launch FairFlow** to enter **Dashboard**, then **New Agreement**.
+2. Select **E-Commerce Boutique · sample brief** or enter a brief (at least 20 characters), then click **Generate Scoping Agreement with Gemini**. The offline result is clearly labelled **OFFLINE SIMULATION** and uses deterministic example data.
+3. Inspect the project deliverables, USD amount, milestone percentages and risks. Enter/review a valid price and use **Approve & Lock Terms** (milestones must total 100%). Human approval locks the original amount.
+4. In **Agreement Variance & Creep Protection**, select **+ Multi-Vendor Payouts** and click **Analyze Variance & Price Impact**. View the proposed changes, additional cost, timeline and **Draft Change Order — NOT APPROVED**. The original approved amount remains unchanged.
+5. Click **Proceed to Checkout with Original Terms** (or **Skip Directly to Checkout**). In offline mode, press **Simulate buyer approval (no payment)** and inspect the explicitly labelled **OFFLINE MOCK / NOT A PAYMENT RECEIPT**.
+6. Open **Audit Trail** to view existing local demo records. All simulated records use a temporary ledger and disappear when the process exits.
+
+**Want to verify real Google Gemini and PayPal Sandbox instead?** Configure private developer keys only in your own local `.env`, start the app with `npm start`, and use the identical workbench flow. The real PayPal buyer approval uses a **separate Sandbox Personal account**, not real money. Run `npm run verify:integrations` for real Gemini and PayPal OAuth, and `npm run verify:scope` for real Gemini quote and scope-change processing; these checks **do not charge**. Never publish keys or buyer passwords. A fresh clone does not include the project author's private historical PayPal receipts.
+
+For the independent judge checklist, precise credentials guidance and security limitations, see **[JUDGES_START_HERE.md](JUDGES_START_HERE.md)**. The **public [demo video](https://youtu.be/5gkWMoQ1E2A)** shows the author's actual Gemini/PayPal Sandbox experience; it does not turn the separate offline simulation into live provider calls.
 
 ---
 
