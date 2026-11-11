@@ -230,6 +230,11 @@ async function auditAccessibility(page, context, scenario) {
     await page.locator('#scope-result-container .ai-request-progress').waitFor({timeout:5000});
     await page.locator('.scope-change-order-card').waitFor({timeout:12000});
     assert.equal(await page.locator('#scope-result-container .ai-request-progress').count(),0);
+    const visibleScope=await page.locator('#scope-result-container').innerText();
+    assert.match(visibleScope,/FAQ search|support assistant/i,
+      'AI support scenario should produce a matching offline fixture');
+    assert.doesNotMatch(visibleScope,/Add marketplace sellers|Multi-seller flow/,
+      'AI support scenario must not show the unrelated marketplace fixture');
     await auditAccessibility(page,'#step-scope','scope guard analysis');
     const draft = await page.locator('.change-order-textarea').inputValue();
     assert.match(draft,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
@@ -537,6 +542,34 @@ async function auditAccessibility(page, context, scenario) {
       await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});
     } finally { await errorPage.close(); }
 
+    // Regression: missing AI price MUST require an explicit manual amount,
+    // and default milestone templates MUST identify themselves as system fallback.
+    const manualPage=await browser.newPage({viewport:{width:1280,height:900}});
+    manualPage.on('pageerror',error=>exceptions.push(error.message));
+    try {
+      await manualPage.route('**/api/quote',async route=>{
+        const response=await route.fetch(),payload=await response.json();
+        payload.quote.amountUSD=null;
+        payload.quote.priceNeedsReview=true;
+        payload.quote.milestonesAreFallback=true;
+        await route.fulfill({response,json:payload});
+      });
+      await manualPage.goto(url+'/#new-project',{waitUntil:'domcontentloaded'});
+      await manualPage.locator('#description').fill(
+        'Build a responsive boutique store with product inventory, cart, checkout and order-management dashboard.');
+      await manualPage.locator('#btn-generate').click();
+      await manualPage.locator('.manual-price-review').waitFor({timeout:12000});
+      assert.match(await manualPage.locator('.manual-price-review').innerText(),/manual pricing review required/i);
+      assert.match(await manualPage.locator('.manual-milestone-review').innerText(),/system-default/i);
+      assert.equal(await manualPage.locator('#approved-amount-input').inputValue(),'');
+      assert.equal(await manualPage.locator('#btn-approve-quote').isDisabled(),true);
+      await manualPage.locator('#approved-amount-input').fill('1250.00');
+      assert.equal(await manualPage.locator('#btn-approve-quote').isEnabled(),true);
+      await manualPage.locator('#btn-approve-quote').click();
+      await manualPage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:12000});
+      await manualPage.screenshot({path:path.join(out,'manual-pricing-reviewed.png'),fullPage:true});
+    } finally {await manualPage.close();}
+
     // Browser refresh/restart recovery: draft and approved quotes can be
     // reopened from local Audit Trail without creating a payment.
     const resumePage=await browser.newPage({viewport:{width:1280,height:900}});
@@ -574,6 +607,28 @@ async function auditAccessibility(page, context, scenario) {
       assert.match(await resumePage.locator('#flow-current-status').innerText(),/Compare the new request/);
       assert.equal(await resumePage.evaluate(()=>document.querySelector('#step-checkout')?.classList.contains('hidden-step')),true);
       await resumePage.screenshot({path:path.join(out,'approved-agreement-resumed.png'),fullPage:true});
+
+      const original=await resumePage.evaluate(async quoteId=>{
+        const response=await fetch('/api/paypal/create-order',{method:'POST',
+          headers:{'Content-Type':'application/json'},body:JSON.stringify({quoteId})});
+        return {status:response.status,...(await response.json())};
+      },created.quoteId);
+      assert.equal(original.status,200);
+      let accidentalOrders=0;
+      await resumePage.route('**/api/paypal/create-order',route=>{accidentalOrders++;return route.continue();});
+      await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
+      await resumePage.reload({waitUntil:'domcontentloaded'});
+      await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000});
+      await resumePage.locator('#history-list .resume-agreement-button').first().click();
+      await resumePage.locator('#step-checkout:not(.hidden-step)').waitFor({timeout:10000});
+      assert.match(await resumePage.locator('.checkout-resume-warning').innerText(),/Check its current status/);
+      assert.equal(await resumePage.locator('#paypal-buttons .resume-agreement-button').count(),1);
+      assert.equal(accidentalOrders,0,'Pending resume MUST NOT create another order');
+      await resumePage.locator('#paypal-buttons .resume-agreement-button').first().click();
+      await resumePage.locator('.checkout-resume-status .resume-agreement-button').waitFor({timeout:10000});
+      assert.match(await resumePage.locator('.checkout-resume-status').innerText(),/Existing order awaits buyer approval/);
+      assert.equal(accidentalOrders,0,'Read-only PayPal status MUST NOT create or capture');
+      await resumePage.screenshot({path:path.join(out,'pending-checkout-safely-resumed.png'),fullPage:true});
     }finally{await resumePage.close();}
 
     const unresolvedA11y = accessibilityReports.flatMap(r => r.violations
