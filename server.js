@@ -50,6 +50,9 @@ const GEMINI_API_KEY     = process.env.GEMINI_API_KEY || '';
 // ─── In-memory stores (TTL-evicted) ──────────────────────────────────────────
 const quotes  = new Map();
 const orders  = new Map();
+// Serialize order creation per agreement within this local process, in addition
+// to PayPal-Request-Id idempotency on PayPal's side.
+const orderCreationPromises = new Map();
 const TTL     = 2 * 60 * 60 * 1000; // 2 hours
 
 // ─── Persistence (append-log to data/projects.json) ─────────────────────────
@@ -765,33 +768,44 @@ Return ONLY valid JSON with a single key, "technical_brief", containing the comp
     if (!quote || !quote.locked || quote.paid)
       return send(res, 400, { error: 'Confirm a valid quote before starting checkout.' });
     if (quote.orderId) return send(res, 200, { id: quote.orderId });
-    const token  = await paypalToken();
-    const amount = quote.amountUSD.toFixed(2);
-    const idempotencyKey = `create-${quoteId}`;
-    const data = await paypalApi('POST', '/v2/checkout/orders', {
-      intent: 'CAPTURE',
-      purchase_units: [{
-        reference_id: quoteId,
-        description:  quote.title.slice(0, 127),
-        amount:       { currency_code: 'USD', value: amount },
-        custom_id:    quoteId,
-      }],
-      // PayPal's current Orders v2 schema places the wallet experience here.
-      payment_source: { paypal: { experience_context: {
-        brand_name: 'FairFlow AI (Sandbox)',
-        user_action: 'PAY_NOW',
-        shipping_preference: 'NO_SHIPPING',
-        landing_page: 'LOGIN',
-        return_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=approved',
-        cancel_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=cancelled',
-      } } },
-    }, token, idempotencyKey);
-    if (!data.id) throw new Error('PayPal order could not be created');
-    const approvalUrl = safePayPalApprovalUrl(data.links);
-    orders.set(data.id, { quoteId, createdAt: Date.now(), captured: false, capturing: false });
-    quote.orderId = data.id;
-    await saveProject({ quoteId, title: quote.title, amountUSD: quote.amountUSD, status: 'checkout-started', orderId: data.id, paypalApprovalUrl: approvalUrl, createdAt: new Date().toISOString() });
-    return send(res, 200, { id: data.id });
+    let creation = orderCreationPromises.get(quoteId);
+    if (!creation) {
+      creation = (async () => {
+        const token = await paypalToken();
+        const data = await paypalApi('POST', '/v2/checkout/orders', {
+          intent: 'CAPTURE',
+          purchase_units: [{
+            reference_id: quoteId,
+            description: quote.title.slice(0, 127),
+            amount: { currency_code: 'USD', value: quote.amountUSD.toFixed(2) },
+            custom_id: quoteId,
+          }],
+          payment_source: { paypal: { experience_context: {
+            brand_name: 'FairFlow AI (Sandbox)',
+            user_action: 'PAY_NOW',
+            shipping_preference: 'NO_SHIPPING',
+            landing_page: 'LOGIN',
+            return_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=approved',
+            cancel_url: 'http://127.0.0.1:' + PORT + '/?paypal_return=cancelled',
+          } } },
+        }, token, 'create-' + quoteId);
+        if (!data.id) throw new Error('PayPal order could not be created');
+        const approvalUrl = safePayPalApprovalUrl(data.links);
+        orders.set(data.id, { quoteId, createdAt:Date.now(), captured:false, capturing:false });
+        quote.orderId = data.id;
+        await saveProject({ quoteId, title:quote.title, amountUSD:quote.amountUSD,
+          status:'checkout-started', orderId:data.id, paypalApprovalUrl:approvalUrl,
+          createdAt:new Date().toISOString() });
+        return data.id;
+      })();
+      orderCreationPromises.set(quoteId, creation);
+    }
+    try {
+      return send(res, 200, { id: await creation });
+    } finally {
+      if (orderCreationPromises.get(quoteId) === creation)
+        orderCreationPromises.delete(quoteId);
+    }
   }
 
   // ── Read-only Sandbox order diagnostics; never initiates a payment. ───────
