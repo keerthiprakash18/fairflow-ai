@@ -28,41 +28,36 @@ Node.js 22+ native HTTP and fetch, HTML/CSS/vanilla JavaScript, Google Gemini Ge
 ### What makes it distinct
 The workflow connects **AI-assisted scope definition, human approval, an explicit scope-creep comparison, and a checked PayPal Sandbox capture**. Users can explore a sample change on the landing page, then carry that scenario into an actual AI proposal workflow. An estimate is never silently applied to a previously approved quote.
 
-## Working demo instructions for judges
+## Working demo instructions for judges — final, November 11
 
-This repository is public and MIT-licensed. No production server or shared API keys are required to review the source, but **real API operations require the judge's or owner's private sandbox credentials**.
+**Direct quick-start instructions:** [JUDGES_START_HERE.md](JUDGES_START_HERE.md). No production server or shared API keys are needed to explore the working browser UI.
 
-1. Install Node.js 22.16 or later, clone the repository, and copy `.env.example` to `.env`.
-2. Create a Google AI Studio API key and PayPal **Sandbox** app. Put `GEMINI_API_KEY`, `GEMINI_MODEL`, `PAYPAL_CLIENT_ID`, and `PAYPAL_CLIENT_SECRET` in the **local** `.env`. Never commit or display secrets.
-3. Run `npm run check`, `npm test`, then `npm run verify:integrations`. The last command tests live Gemini JSON generation and PayPal Sandbox OAuth without creating an order or payment.
-4. Run `npm start` and visit `http://127.0.0.1:3000`. Open the interactive Scope Lab, select a sample, and click **Open ... in the workbench**.
-5. Generate an AI quote, review the amounts/milestones, click **Approve & Lock Terms**, and run a scope-change analysis.
-6. Proceed to checkout, sign in with a **PayPal Sandbox Personal buyer** test account, approve the **test** payment, and inspect the verified receipt and project history. Confirm the capture in the Sandbox activity dashboard.
+**A. Credential-free, clearly marked simulation (recommended first):**
 
-The offline unit/integration tests and optional Browser QA workflow are **developer regression tests only**. Mocked browser receipt screenshots must never be represented as evidence of a real PayPal payment. If a hosted demonstration is set up, add authentication and secure persistence before exposing private client data or payment workflows.
+```bash
+git clone https://github.com/keerthiprakash18/fairflow-ai.git
+cd fairflow-ai
+npm run demo:offline
+```
 
-**Ready-to-record narration and final Devpost project copy:** [DEMO_VIDEO_SCRIPT.md](DEMO_VIDEO_SCRIPT.md). A saved paid receipt can now be reopened from **Audit Trail → View saved receipt**, without creating another transaction.
+Requires Node.js 22.16+, but **no npm install**. Open **http://127.0.0.1:3000**. Walk through **Launch FairFlow → New Agreement → E-Commerce Boutique · sample brief → Generate Scoping Agreement with Gemini → Approve & Lock Terms → + Multi-Vendor Payouts → Analyze Variance & Price Impact → Proceed to Checkout with Original Terms → Simulate buyer approval (no payment) → Audit Trail**. The app explicitly marks every upstream AI/checkout result as **OFFLINE SIMULATION** and the mock receipt **NOT A PAYMENT RECEIPT**; no external Gemini or PayPal calls occur.
 
-## Video shot list — target 2:35 (maximum less than 3 minutes)
+**B. Real integrations (own private free developer credentials required):** Configure a Gemini API key and PayPal **Sandbox** app in a local `.env` copied from `.env.example`. Use `npm start` to run the same workbench. Use `npm run verify:integrations` (real Gemini + Sandbox OAuth only), and `npm run verify:scope` (real Gemini quote and Scope Guard, **no payment**). An optional real test checkout requires a **separate Sandbox Personal buyer**; no real money is charged. **Never publish real API keys or Sandbox buyer passwords.** Real provider calls may be subject to rate limits or external outages; an offline screenshot is not evidence of those services.
 
-| Timing | Visual | Narration point |
-| --- | --- | --- |
-| 00:00–00:20 | FairFlow homepage + freelance change request | Freelancers lose time and money when extra requirements are accepted without repricing. |
-| 00:20–00:38 | Interactive Scope Lab | Show how one added feature can expand the original agreement; values are labelled illustrative. |
-| 00:38–01:10 | Actual workbench: input → Gemini proposal | Gemini converts a messy brief into deliverables, estimates, milestones, assumptions and risks. |
-| 01:10–01:32 | Human approval | Adjust the approved USD quote; milestones must sum to 100%. |
-| 01:32–02:03 | Scope Guard after new request | Compare the new request to the original scope and show the suggested change impact without silently updating the price. |
-| 02:03–02:27 | **Real** PayPal Sandbox buyer checkout and receipt | Show the actual Sandbox approval and server-verified capture; if live test fails, fix it before recording or explicitly label simulations. |
-| 02:27–02:35 | Project history + logo | The promise: *Every Change Deserves Fair Pay*. |
+**C. Independent evidence:** The publicly shared [2:15 FairFlow AI walkthrough](https://youtu.be/5gkWMoQ1E2A) was filmed on the owner's actual laptop. It demonstrates a real Gemini proposal, approved agreement, Scope Guard, PayPal Sandbox checkout and **reopening an existing server-verified test-funds receipt**. The receipt is not a new charge in the recording. The owner has separately checked historical Sandbox captures against PayPal's read-only Orders API; this does not publish the private ledger to GitHub. Public YouTube visibility must be checked in a signed-out browser.
 
-Record the running application itself; do not substitute static mockups for the functioning demo. Use original narration/graphics, no unlicensed music, and avoid displaying API keys, sandbox passwords, or real client details. Upload the video publicly to YouTube and use its URL in Devpost. The rules say judges are not required to watch beyond three minutes.
+## Final video — submitted link, not a future recording shot list
+
+**Video:** https://youtu.be/5gkWMoQ1E2A  
+**Local MP4 technical check:** H.264 1920×1080, 30 fps, AAC English narration, duration 135.13 seconds (< 3 minutes).  
+**Presentation:** Explain problem → product-first overview → Gemini proposals → human approval → AI Scope Guard/draft change order → PayPal Sandbox checkout → already verified receipt. Website sample figures are illustrative, and all payments are Sandbox test funds. English on-video captions are present. No public website hosting is claimed.
 
 ## Required owner-only submission steps
 
-- [x] **Owner-verified November 10–11:** the owner's earlier `npm run verify:submission` passed **34/34** offline tests plus real Gemini (via `gemini-flash-lite-latest` fallback), real Scope Guard and PayPal Sandbox OAuth. The newly updated branch passed **38/38 mocked CI tests**; re-run the complete live command on the final Windows checkout before recording. These verification commands do not capture payment.
+- [x] **Automated release candidate:** 42/42 offline integration/unit tests and real Chromium browser QA on the November 11 code; these use mocked upstream providers and include credential-free `npm run demo:offline` end-to-end UI. The owner's earlier real Gemini and OAuth checks were separate historical verification; re-run `npm run verify:submission` locally against the final checkout before final submission if possible. These checks do not capture payment.
 - [x] **Owner-verified November 10, 2026:** FairFlow displayed a real PayPal Sandbox verified receipt with status `COMPLETED`, an order ID, a capture ID and a $3,500.00 USD **test** capture. No real funds transferred. This confirmation is from the owner's local screenshot; it has not been independently reproduced in GitHub CI.
 - [x] **Owner-verified November 11:** `npm run verify:payments` matched **3/3 existing real Sandbox capture records** against live PayPal Orders API (read-only; no new charge). Repeat after final code pull for the last gate.
-- [ ] Record the actual running product, less than 3 minutes, and upload a public YouTube video.
+- [x] Actual product footage is edited into a 2:15 captioned H.264 video and a YouTube URL was supplied. [ ] Confirm YouTube **Public**, not Private/Unlisted, by opening https://youtu.be/5gkWMoQ1E2A in a signed-out/incognito window.
 - [ ] Complete the Devpost text, tools-used fields, project access instructions, public GitHub repository URL, and video link.
 - [ ] Ensure the public repo MIT license is visible in the GitHub About panel, and check official eligibility/rules.
 - [ ] Submit before **November 13, 2026, 1:30 AM IST**. A draft is **not** the final submission.
