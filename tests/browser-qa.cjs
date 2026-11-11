@@ -493,6 +493,22 @@ async function auditAccessibility(page, context, scenario) {
       await errorPage.locator('#btn-analyze-scope').click();
       await errorPage.locator('.scope-change-order-card').waitFor({timeout:12000});
 
+      // An unavailable Gemini estimate must never render as a fake $0 change.
+      await errorPage.route('**/api/scope-change', async route => {
+        const response=await route.fetch();
+        const payload=await response.json();
+        payload.analysis.additionalCostUSD=null;
+        payload.analysis.newTotalUSD=null;
+        await route.fulfill({response,json:payload});
+      });
+      await errorPage.locator('#btn-analyze-scope').click();
+      await errorPage.locator('.manual-cost-review').waitFor({timeout:12000});
+      assert.match(await errorPage.locator('.manual-cost-review').innerText(),/manual review required/);
+      assert.match(await errorPage.locator('.impact-metric-row').innerText(),/Estimate unavailable/);
+      assert.match(await errorPage.locator('.change-order-textarea').inputValue(),/manual review required/);
+      assert.doesNotMatch(await errorPage.locator('.impact-metric-row').innerText(),/\+\$0\.00/);
+      await errorPage.unroute('**/api/scope-change');
+
       // Simulate one PayPal SDK network failure, then a successful SDK-only retry.
       // The retry must not call the create or capture endpoints.
       let sdkLoads=0,orderCalls=0;
@@ -520,6 +536,34 @@ async function auditAccessibility(page, context, scenario) {
       assert.equal(sdkLoads,2);
       await errorPage.screenshot({path:path.join(out,'paypal-sdk-recovered.png'),fullPage:true});
     } finally { await errorPage.close(); }
+
+    // Browser refresh/restart recovery: draft and approved quotes can be
+    // reopened from local Audit Trail without creating a payment.
+    const resumePage=await browser.newPage({viewport:{width:1280,height:900}});
+    try {
+      await resumePage.goto(url+'/#new-project',{waitUntil:'domcontentloaded'});
+      const created=await resumePage.evaluate(async()=>{
+        const response=await fetch('/api/quote',{method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({description:'Build an accessible boutique webshop with checkout, inventory reports and product catalog.'})});
+        return response.json();
+      });
+      assert.ok(created.quoteId);
+      await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
+      await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000});
+      await resumePage.locator('#history-list .resume-agreement-button').first().click();
+      await resumePage.locator('#step-proposal:not(.hidden-step)').waitFor({timeout:10000});
+      assert.match(await resumePage.locator('#proposal-container').innerText(),/Boutique Store/);
+      await resumePage.locator('#btn-approve-quote').click();
+      await resumePage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:10000});
+      await resumePage.goto(url+'/#history',{waitUntil:'domcontentloaded'});
+      await resumePage.locator('#history-list .resume-agreement-button').first().waitFor({timeout:10000});
+      await resumePage.locator('#history-list .resume-agreement-button').first().click();
+      await resumePage.locator('#step-scope:not(.hidden-step)').waitFor({timeout:10000});
+      assert.match(await resumePage.locator('#flow-current-status').innerText(),/Compare the new request/);
+      assert.equal(await resumePage.evaluate(()=>document.querySelector('#step-checkout')?.classList.contains('hidden-step')),true);
+      await resumePage.screenshot({path:path.join(out,'approved-agreement-resumed.png'),fullPage:true});
+    }finally{await resumePage.close();}
 
     const unresolvedA11y = accessibilityReports.flatMap(r => r.violations
       .filter(v=>['serious','critical'].includes(v.impact))
