@@ -335,7 +335,7 @@ npm test
 
 ## Devpost Submission Kit
 
-For the verified feature description, complete demo steps, under-3-minute video outline, and deadline checklist, read [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md). **Real Gemini proposal and Scope Guard checks passed on the owner's laptop on November 10, 2026.** A completed $3,500 test-funds receipt was shown in the owner-provided screenshot; live PayPal order/capture verification should be run against the private ledger using `npm run verify:payments`.
+For the verified feature description, complete demo steps, under-3-minute video outline, and deadline checklist, read [HACKATHON_SUBMISSION.md](HACKATHON_SUBMISSION.md). **Real Gemini proposal and Scope Guard checks passed on the owner's laptop on November 10, 2026.** The owner verified **3 existing real PayPal Sandbox capture records against the live Orders API** (read-only, November 11). Run `npm run verify:payments` again on the final local checkout; it never initiates a new order or capture.
 
 ---
 
