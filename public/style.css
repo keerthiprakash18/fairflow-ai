@@ -4474,6 +4474,7 @@ body.on-landing .mobile-nav-bar {
   background:#eaf5ee;border:1px solid #bcdac8;
   color:#185e3d;border-radius:8px;font-size:12px;line-height:1.6;font-weight:700;
 }
+.proposal-layout-grid > .ai-request-progress {grid-column:1 / -1;}
 .ai-request-progress {
   padding:16px 20px;margin-bottom:16px;
   border:1px solid #c7d5f6;border-left:4px solid #426ff5;
