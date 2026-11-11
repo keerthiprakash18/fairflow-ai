@@ -50,3 +50,12 @@ Credential-free reviewer flow: `npm run demo:offline` uses **clearly marked mock
 This is a **loopback-only single-user hackathon application**; no public internet hosting or multiple users without genuine authentication, per-user authorization, hardened database persistence, HTTPS and production-grade monitoring. Successful functional tests do not prove complete application security.
 
 After both CI suites pass, freeze feature development and only reopen for reproducible blocking defects. Demo video and Devpost submission are explicitly separate user-owned tasks.
+
+
+## Added November 11 — release-grade reliability gates
+- **Gemini resilience:** at most 3 distinct model candidates, 42s total budget, 16s each; non-retryable 4xx errors fail fast; automated test checks fallback and no fabricated proposal.
+- **Financial accuracy:** missing/invalid extra-cost estimates are `null` and are explicitly shown as **manual review required**, while valid numeric zero remains zero. Payment amount still comes only from the approved quote.
+- **Recovery:** Dashboard and Audit Trail resume draft/approved/pending checkout records after browser refresh and server restart via read-only local endpoint. A pending PayPal order requires inspecting existing status before approving/capturing again.
+- **Trustworthy statuses:** distinguish key configured, live Gemini JSON response verified, active generation and PayPal OAuth verified. OAuth alone is not a verified capture.
+- **GitHub mocked tests:** 38/38 passed at the pre-release PR stage; exact-final-head CI/Browser QA and local live-provider commands still gate submission. A passing browser test does not verify a real payment.
+- **Video readiness:** OBS recording should emphasize actual Gemini output, human approval, Scope Guard and the previously verified real Sandbox receipt, with sample/simulation clearly labelled. Keep under 3 minutes.
