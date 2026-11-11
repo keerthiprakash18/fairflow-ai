@@ -367,6 +367,9 @@ async function auditAccessibility(page, context, scenario) {
       await waitForHealth(demoUrl,demoServer);
       demoPage=await browser.newPage({viewport:{width:1440,height:900}});
       await demoPage.goto(demoUrl+'/#new-project',{waitUntil:'domcontentloaded'});
+      await demoPage.waitForFunction(() => document.querySelector('[data-provider-label="proposal"]')?.textContent.includes('OFFLINE SIMULATION'));
+      assert.match(await demoPage.locator('[data-provider-label="proposal"]').innerText(),/OFFLINE SIMULATION/);
+      assert.match(await demoPage.locator('[data-provider-label="scope"]').innerText(),/OFFLINE SIMULATION/);
       await demoPage.locator('#view-new-project.active').waitFor();
       await demoPage.locator('#description').fill('Build a 10-page responsive boutique e-commerce website with catalog, cart, checkout and admin inventory management.');
       await demoPage.locator('#btn-generate').click();
