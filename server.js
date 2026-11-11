@@ -617,6 +617,37 @@ async function handle(req, res) {
     return send(res, 200, { projects: safe });
   }
 
+  // ── Resume an existing locally saved agreement after browser/server restart.
+  // Read-only, no PayPal order/capture is initiated. Same loopback-only security
+  // boundary as the rest of this intentionally single-user hackathon prototype.
+  const resumeMatch = /^\/api\/agreements\/([0-9a-f-]{36})\/resume$/.exec(route);
+  if (req.method === 'GET' && resumeMatch) {
+    const saved = (await loadProjects()).find(p => p.quoteId === resumeMatch[1]);
+    if (!saved) return send(res,404,{error:'Saved agreement not found.'});
+    if (saved.status === 'paid')
+      return send(res,409,{error:'This agreement is already paid. Use Audit Trail to view its saved receipt.'});
+    if (!['draft','approved','checkout-started'].includes(saved.status))
+      return send(res,409,{error:'This saved agreement cannot be safely resumed.'});
+    if (!saved.title || !Number.isFinite(Number(saved.amountUSD)))
+      return send(res,409,{error:'Saved agreement data is incomplete; no payment has been initiated.'});
+    return send(res,200,{
+      quoteId:saved.quoteId, status:saved.status, offlineDemo:saved.paymentEnvironment === 'offline-mock',
+      quote:{
+        title:saved.title,summary:saved.summary || '',
+        deliverables:Array.isArray(saved.deliverables)?saved.deliverables:[],
+        milestones:Array.isArray(saved.milestones)?saved.milestones:[],
+        amountUSD:Number(saved.amountUSD), timeline:saved.timeline || '',
+        assumptions:Array.isArray(saved.assumptions)?saved.assumptions:[],
+        risks:Array.isArray(saved.risks)?saved.risks:[],
+        questions:Array.isArray(saved.questions)?saved.questions:[]
+      },
+      description:saved.description || '',
+      scopeChangeRequest:saved.scopeChangeRequest || '',
+      scopeAnalysis:saved.scopeAnalysis || null,
+      hasExistingOrder:Boolean(saved.orderId)
+    });
+  }
+
   // ── Enhance Brief with AI ────────────────────────────────────────────────
   if (req.method === 'POST' && route === '/api/enhance-brief') {
     const { brief } = await readBody(req);
