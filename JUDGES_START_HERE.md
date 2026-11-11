@@ -70,3 +70,9 @@ There is intentionally **no login** because this is a local-only demonstration; 
 [Source](https://github.com/keerthiprakash18/fairflow-ai) · [Detailed README](README.md) · [Security scope](SECURITY_AUDIT.md) · [Submission content](HACKATHON_SUBMISSION.md)
 
 **Important for reviewers:** Owner confirmed a real $3,500 USD **test-funds** capture on the owner's local machine. A fresh clone will not contain private local transaction history; this does not mean the published application has secretly embedded payment data. Automated mock tests are distinct from the separately owner-verified real Sandbox transaction.
+
+
+## Resuming an interrupted agreement
+Saved **draft**, **approved**, or **checkout-started** work may be reopened via **Dashboard / Audit Trail → Resume agreement** (or **Review existing checkout**). The recovery endpoint is read-only and does not create or capture money. A resumed pending order must be checked against existing PayPal Sandbox order status before further buyer approval. Paid records are accessed by **View saved receipt**. The local JSON ledger must remain on the same computer; deleting `data/projects.json` destroys this demo history.
+
+The UI differentiates key configuration from a verified Gemini response in the current server session and from PayPal OAuth; successful OAuth is *not* a buyer payment. Unavailable scope-change cost is flagged for manual review instead of presented as zero.
