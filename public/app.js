@@ -397,7 +397,7 @@ function renderDashboardRecent(projects) {
           children: [
             el('span', {
               cls:'item-amount',
-              text: Number.isFinite(Number(p.amountUSD))
+              text: p.amountUSD !== null && Number.isFinite(Number(p.amountUSD))
                 ? Number(p.amountUSD).toLocaleString('en-US', {
                   style:'currency',currency:'USD',minimumFractionDigits:2,maximumFractionDigits:2
                 }) + ' USD'
@@ -499,7 +499,8 @@ function renderHistory(projects) {
           children: [
             el('span', {
               cls: 'item-amount',
-              text: p.amountUSD ? `${Number(p.amountUSD).toFixed(2)} USD` : '—'
+              text: p.amountUSD !== null && Number.isFinite(Number(p.amountUSD))
+                ? `${Number(p.amountUSD).toFixed(2)} USD` : 'Estimate pending'
             }),
             isPaid && p.captureId && p.orderId ? (() => {
               const button = el('button', {
@@ -997,6 +998,14 @@ function renderProposal(quoteId, quote) {
     cls: 'glass-card pricing-approval-card',
     children: [
       el('span', { cls: 'pricing-title', text: 'HUMAN APPROVAL REQUIRED' }),
+      quote.priceNeedsReview ? el('p', {
+        cls:'manual-price-review', attr:{role:'status'},
+        text:'AI price estimate unavailable — manual pricing review required. Enter an agreed USD amount before approval.'
+      }) : null,
+      quote.milestonesAreFallback ? el('p', {
+        cls:'manual-milestone-review', attr:{role:'status'},
+        text:'Milestones are a clearly labeled system-default plan because Gemini did not return a valid 100% breakdown. Review and edit before approving.'
+      }) : null,
       el('div', {
         cls: 'pricing-editor',
         children: [
@@ -1013,7 +1022,7 @@ function renderProposal(quoteId, quote) {
                   min: '1',
                   max: '10000',
                   step: '0.01',
-                  value: Number(quote.amountUSD).toFixed(2),
+                  value: quote.amountUSD === null ? '' : Number(quote.amountUSD).toFixed(2),
                   'aria-label': 'Approved project quotation amount in USD'
                 }
               })
@@ -1065,7 +1074,10 @@ function renderProposal(quoteId, quote) {
 
   // Live display updater
   function updateMilestoneDisplays() {
-    const totalAmount = Number($('approved-amount-input')?.value || quote.amountUSD) || 0;
+    const rawAmount = String($('approved-amount-input')?.value || '').trim();
+    const totalAmount = Number(rawAmount);
+    const amountValid = /^\d+(\.\d{1,2})?$/.test(rawAmount) &&
+      Number.isFinite(totalAmount) && totalAmount >= 1 && totalAmount <= 10000;
     const sum = currentMilestones.reduce((s, m) => s + (Number(m.percent) || 0), 0);
     const badge = $('milestone-sum-badge');
     const balanceBtn = $('btn-balance-milestones');
@@ -1080,8 +1092,9 @@ function renderProposal(quoteId, quote) {
       balanceBtn.style.display = isValid ? 'none' : 'inline-flex';
     }
     if (approveBtn) {
-      approveBtn.disabled = !isValid;
+      approveBtn.disabled = !isValid || !amountValid;
       if (!isValid) approveBtn.title = 'Milestones must total 100% before approving';
+      else if (!amountValid) approveBtn.title = 'Enter and review a valid USD amount (1 to 10,000, max 2 decimals)';
       else approveBtn.removeAttribute('title');
     }
 
@@ -1089,8 +1102,8 @@ function renderProposal(quoteId, quote) {
       const p = Number(m.percent) || 0;
       const usdEl = $(`milestone-usd-${idx}`);
       const fillEl = $(`milestone-fill-${idx}`);
-      const val = (totalAmount * (p / 100)).toFixed(2);
-      if (usdEl) usdEl.textContent = `$${val} USD`;
+      const val = amountValid ? (totalAmount * (p / 100)).toFixed(2) : null;
+      if (usdEl) usdEl.textContent = val === null ? 'Enter quote to preview USD' : `${val} USD`;
       if (fillEl) fillEl.style.width = `${Math.min(100, Math.max(0, p))}%`;
     });
   }
@@ -1107,7 +1120,7 @@ function renderProposal(quoteId, quote) {
   $('btn-approve-quote').addEventListener('click', async () => {
     const inputVal = $('approved-amount-input').value;
     const num = Number(inputVal);
-    if (!num || num < 1 || num > 10000) {
+    if (!/^\d+(\.\d{1,2})?$/.test(inputVal.trim()) || !Number.isFinite(num) || num < 1 || num > 10000) {
       toast('Please enter a valid amount between $1.00 and $10,000.00', 'error');
       return;
     }
@@ -1130,6 +1143,8 @@ function renderProposal(quoteId, quote) {
         milestones: currentMilestones
       });
       state.approvedAmount = res.amountUSD;
+      state.quote.amountUSD = res.amountUSD;
+      state.quote.priceNeedsReview = false;
       if (res.milestones) state.quote.milestones = res.milestones;
       haptic('success');
       toast(`Quotation locked at $${Number(res.amountUSD).toFixed(2)} USD!`, 'success');
