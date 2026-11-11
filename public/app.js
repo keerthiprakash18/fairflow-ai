@@ -17,6 +17,9 @@ const state = {
   projects: [],
   dashboardFilter: 'all',
   offlineDemo: false,
+  aiProviderState: 'unknown',
+  paypalProviderState: 'unknown',
+  aiRequestInProgress: false,
 };
 
 // ─── DOM SELECTORS & UTILITIES ───
@@ -638,7 +641,7 @@ function updateProviderModeLabels() {
   const flow = $('flow-provider-label');
   if (flow) flow.textContent = state.offlineDemo
     ? 'SIMULATED WORKFLOW · NO LIVE PROVIDERS'
-    : 'LIVE WORKFLOW · GEMINI + PAYPAL SANDBOX';
+    : 'REAL-PROVIDER WORKFLOW · GEMINI + PAYPAL SANDBOX';
   const proposal = document.querySelector('[data-provider-label="proposal"]');
   const scope = document.querySelector('[data-provider-label="scope"]');
   if (state.offlineDemo) {
@@ -662,6 +665,11 @@ function showAiRequestProgress(container, kind) {
     : 'Real Gemini request in progress. Please keep this tab open.'});
   panel.append(heading, detail);
   container.prepend(panel);
+  if (!simulated) {
+    state.aiRequestInProgress = true;
+    const label = $('status-ai');
+    if (label) label.textContent = 'AI IN PROGRESS';
+  }
   const reminders = [
     setTimeout(() => {detail.textContent = simulated
       ? 'Still running the offline simulation. No provider contacted.'
@@ -670,7 +678,14 @@ function showAiRequestProgress(container, kind) {
       ? 'Offline simulation is taking longer than expected. You can retry if it fails.'
       : 'The provider is taking longer than usual. We will show the result or a retry option when it responds.';}, 30000)
   ];
-  return () => { reminders.forEach(clearTimeout); panel.remove(); };
+  return () => {
+    reminders.forEach(clearTimeout);
+    panel.remove();
+    if (!simulated) {
+      state.aiRequestInProgress = false;
+      refreshIntegrationStatus(); // server distinguishes configured from verified JSON response
+    }
+  };
 }
 
 function renderScopeSkeleton() {
@@ -2084,13 +2099,24 @@ async function refreshIntegrationStatus() {
       if (modelStatus) modelStatus.textContent = 'Offline model mock — NOT real Gemini';
       return;
     }
-    paypal.textContent = s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
-    gemini.textContent = s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
-    chip.title = 'Configuration status only. Real provider connectivity has not been checked here.';
+    state.aiProviderState = s.aiProviderState || 'configured-unverified';
+    state.paypalProviderState = s.paypalProviderState || 'configured-unverified';
+    paypal.textContent = s.paypalProviderState === 'oauth-verified'
+      ? 'PAYPAL OAUTH OK' : s.paypalConfigured ? 'PAYPAL KEY SET' : 'PAYPAL KEY MISSING';
+    gemini.textContent = state.aiRequestInProgress ? 'AI IN PROGRESS'
+      : s.aiProviderState === 'verified-response' ? 'AI RESPONSE OK'
+      : s.aiConfigured ? 'AI KEY SET' : 'AI KEY MISSING';
+    chip.title = 'Gemini: ' + (s.aiProviderState || 'unknown') +
+      (s.aiLastVerifiedAt ? ' · last valid JSON '+s.aiLastVerifiedAt : '') +
+      '. PayPal: ' + (s.paypalProviderState || 'unknown') +
+      (s.paypalLastOAuthVerifiedAt ? ' · last OAuth '+s.paypalLastOAuthVerifiedAt : '') +
+      '. OAuth verification does NOT prove a payment capture.';
     const modelStatus = $('ai-current-model');
-    if (modelStatus) modelStatus.textContent = s.aiConfigured
-      ? 'Configured model: ' + (s.model || 'Gemini API')
-      : 'Gemini API key not configured';
+    if (modelStatus) modelStatus.textContent = !s.aiConfigured
+      ? 'Gemini API key not configured'
+      : s.aiProviderState === 'verified-response'
+        ? 'Gemini JSON response verified this server session (' + (s.aiVerifiedModel || 'model not reported') + ')'
+        : 'Configured model: ' + (s.model || 'Gemini API') + ' · not yet verified this session';
   } catch {
     chip.classList.add('status-needs-setup');
     qsa('[data-provider-label]').forEach(label => {
