@@ -563,15 +563,11 @@ async function resumeSavedAgreement(quoteId) {
         originalQuote:{title:saved.quote.title,amountUSD:saved.quote.amountUSD,deliverables:saved.quote.deliverables}
       });
     } else {
-      renderCheckoutStep();
+      // A pending PayPal order is blocked until a read-only status check.
+      // Never mount buyer-approval buttons before inspecting this order.
+      renderCheckoutStep({requireOrderReview:true});
       showView('new-project');
       showStep('checkout');
-      // An existing Sandbox order may have been approved/captured remotely.
-      // Show diagnostics rather than silently creating or capturing a new order.
-      showPayPalTroubleshooting();
-      const area = $('paypal-troubleshooting');
-      if (area) area.prepend(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
-        text:'Existing Sandbox order detected. Check PayPal order status BEFORE approving or capturing anything again.'}));
     }
     toast('Saved agreement restored from the local ledger. No new payment was made.', 'success');
   } catch(err) {
@@ -1390,7 +1386,7 @@ function renderScopeAnalysis(data) {
 // so an earlier asynchronous SDK/config response cannot populate a newer host.
 let checkoutRenderVersion = 0;
 let paypalSdkLoading = null;
-function renderCheckoutStep() {
+function renderCheckoutStep(options = {}) {
   const version = ++checkoutRenderVersion;
   state.paypalRendered = false;
   const container = $('checkout-container');
@@ -1465,7 +1461,44 @@ function renderCheckoutStep() {
   container.appendChild(paypalCard);
   $('btn-show-paypal-help')?.addEventListener('click', showPayPalTroubleshooting);
 
-  loadAndRenderPayPal(version);
+  if (options.requireOrderReview) {
+    const host = $('paypal-buttons');
+    host.appendChild(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
+      text:'Existing PayPal Sandbox order found. Check its current status before choosing any buyer action. No new payment is created by this check.'}));
+    const inspect=el('button',{cls:'resume-agreement-button',attr:{type:'button'},
+      text:'Check existing PayPal order (read-only)'});
+    const status=el('p',{cls:'checkout-resume-status',attr:{role:'status','aria-live':'polite'}});
+    inspect.addEventListener('click',async()=>{
+      inspect.disabled=true;status.textContent='Checking existing Sandbox order…';
+      try {
+        const d=await api('/api/paypal/order-status',{quoteId:state.quoteId});
+        if (version !== checkoutRenderVersion) return;
+        refreshIntegrationStatus();
+        if (d.status==='CREATED' || d.status==='PAYER_ACTION_REQUIRED') {
+          status.textContent='Existing order awaits buyer approval; continuing reuses this order ID.';
+          const proceed=el('button',{cls:'resume-agreement-button',attr:{type:'button'},
+            text:'Continue approval for this existing Sandbox order'});
+          proceed.addEventListener('click',()=>{
+            proceed.disabled=true;
+            host.replaceChildren();
+            loadAndRenderPayPal(version);
+          });
+          status.appendChild(proceed);
+        } else if (d.status==='APPROVED') {
+          status.textContent='Order already APPROVED. Check the amount and use explicit existing-order capture, not a new checkout.';
+          showPayPalTroubleshooting();
+        } else if (d.status==='COMPLETED' || d.capturedAtPayPal) {
+          status.textContent='PayPal reports a completed capture. Use read-only diagnostics and reconcile the existing receipt. Do not pay again.';
+          showPayPalTroubleshooting();
+        } else {
+          status.textContent='Order status '+String(d.status || 'UNKNOWN')+
+            ' cannot be resumed safely. Inspect PayPal before any buyer action.';
+        }
+      } catch(err) {status.textContent='Status not verified: '+err.message+'. No buyer action enabled.';}
+      finally {inspect.disabled=false;}
+    });
+    host.append(inspect,status);
+  } else loadAndRenderPayPal(version);
 }
 
 async function loadAndRenderPayPal(version = checkoutRenderVersion) {
@@ -1603,6 +1636,7 @@ function showPayPalTroubleshooting() {
             recovery.disabled=true;
             try {
               const receipt=await api('/api/paypal/reconcile-order',{quoteId:state.quoteId});
+              refreshIntegrationStatus();
               renderReceipt(receipt);
               showStep('receipt');
               toast('Existing Sandbox capture restored. No additional charge.', 'success');
@@ -1624,6 +1658,7 @@ function showPayPalTroubleshooting() {
             captureButton.disabled = true;
             try {
               const confirmed = await api('/api/paypal/capture-order', { orderId:d.orderId });
+              refreshIntegrationStatus();
               renderReceipt(confirmed);
               showStep('receipt');
               toast('Approved Sandbox transaction captured and verified.', 'success');
@@ -1674,6 +1709,7 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
 
     createOrder: async () => {
       const data = await api('/api/paypal/create-order', { quoteId: state.quoteId });
+      refreshIntegrationStatus();
       return data.id;
     },
 
@@ -1681,6 +1717,7 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
       try {
         toast('PayPal authorized! Server capturing payment...', 'info');
         const confirmed = await api('/api/paypal/capture-order', { orderId: ppData.orderID });
+        refreshIntegrationStatus();
 
         // Celebration stays first-party and GPU-friendly; no third-party animation
         // download is allowed on initial load or after a verified payment.
