@@ -179,13 +179,32 @@ async function auditAccessibility(page, context, scenario) {
     await page.keyboard.press('Home');
     assert.equal(await page.locator('.scrubber-tab[data-stage="1"]').getAttribute('aria-selected'), 'true');
 
+    // Preset sample must be visibly distinct from real-provider mode.
+    assert.match(await page.locator('.lab-disclaimer').innerText(),/NOT LIVE AI/);
+    assert.match(await page.locator('#btn-lab-open-scenario').innerText(),/real Gemini/);
+    // Delay mocked backend *responses* briefly so the observable waiting state is testable.
+    // This is not a live Gemini provider request.
+    await page.route('**/api/quote', async route => {
+      await new Promise(resolve => setTimeout(resolve,600));
+      await route.continue();
+    });
+    await page.route('**/api/scope-change', async route => {
+      await new Promise(resolve => setTimeout(resolve,600));
+      await route.continue();
+    });
     // Product scenario: sample -> actual workbench -> mocked Gemini quote -> scoped change.
     await page.locator('[data-lab-scenario="assistant"]').click();
     await page.locator('#btn-lab-open-scenario').click();
     await page.locator('#view-new-project.active').waitFor();
     assert.match(await page.locator('#description').inputValue(), /e-commerce website/);
+    assert.match(await page.locator('#flow-current-status').innerText(),/01 \/ Write or select/);
     await page.locator('#btn-generate').click();
+    await page.locator('#proposal-container .ai-request-progress').waitFor({timeout:5000});
+    assert.match(await page.locator('#proposal-container .ai-request-progress').innerText(),/Real Gemini request in progress/);
     await page.locator('#btn-approve-quote').waitFor({ timeout: 15000 });
+    assert.match(await page.locator('#flow-current-status').innerText(),/02 \/ Review Gemini estimates/);
+    assert.match(await page.locator('#step-proposal .real-ai-mode-note').innerText(),/REAL GEMINI API/);
+    assert.equal(await page.locator('#proposal-container .ai-request-progress').count(),0);
     await auditAccessibility(page,'#step-proposal','generated proposal');
     await page.screenshot({ path: path.join(out, 'proposal-desktop.png'), fullPage: true });
     const confirmation = page.waitForResponse(response => response.url().endsWith('/api/confirm-quote'), { timeout: 10000 });
@@ -205,8 +224,12 @@ async function auditAccessibility(page, context, scenario) {
       throw error;
     }
     assert.match(await page.locator('#scope-request').inputValue(), /AI support assistant/);
+    assert.match(await page.locator('#flow-current-status').innerText(),/03 \/ Compare the new request/);
+    assert.match(await page.locator('#step-scope .real-ai-mode-note').innerText(),/REAL GEMINI SCOPE GUARD/);
     await page.locator('#btn-analyze-scope').click();
+    await page.locator('#scope-result-container .ai-request-progress').waitFor({timeout:5000});
     await page.locator('.scope-change-order-card').waitFor({timeout:12000});
+    assert.equal(await page.locator('#scope-result-container .ai-request-progress').count(),0);
     await auditAccessibility(page,'#step-scope','scope guard analysis');
     const draft = await page.locator('.change-order-textarea').inputValue();
     assert.match(draft,/DRAFT CHANGE ORDER \(NOT APPROVED\)/);
