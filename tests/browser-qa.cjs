@@ -239,11 +239,42 @@ async function auditAccessibility(page, context, scenario) {
     assert.match(await page.locator('.scope-payment-boundary').innerText(),/original approved quote/);
     await page.locator('#toast').waitFor({state:'hidden',timeout:8000});
     await page.screenshot({ path: path.join(out, 'scope-guard-desktop.png'), fullPage: true });
+    // Regression: rebuilding checkout previously removed the PayPal button
+    // while leaving state.paypalRendered=true. Rebuild again after first render
+    // and during an outstanding config lookup; no purchase should be created.
+    let createdOrders=0, capturedOrders=0;
+    page.on('request', request => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname === '/api/paypal/create-order') createdOrders++;
+      if (pathname === '/api/paypal/capture-order') capturedOrders++;
+    });
+    await page.route('**/api/config', async route => {
+      await new Promise(resolve => setTimeout(resolve, 250));
+      await route.continue();
+    });
     await page.locator('#btn-skip-scope').click();
     await page.locator('#step-checkout:not(.hidden-step)').waitFor({ timeout: 10000 });
     await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
+    assert.equal(await page.locator('#paypal-buttons #mock-paypal-approve').count(),1);
+    // Programmatically revisit the same active step, without creating a quote
+    // or touching any real provider. This mirrors a repeated render call.
+    await page.evaluate(() => document.getElementById('btn-skip-scope').click());
+    await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
+    assert.equal(await page.locator('#paypal-buttons #mock-paypal-approve').count(),1,
+      'Re-entering checkout must restore exactly one PayPal button');
+    await page.evaluate(() => {
+      const button=document.getElementById('btn-skip-scope');
+      button.click(); button.click(); // stale config responses must be ignored
+    });
+    await page.locator('#mock-paypal-approve').waitFor({ timeout: 12000 });
+    assert.equal(await page.locator('#paypal-buttons #mock-paypal-approve').count(),1,
+      'Rapid checkout re-renders must not lose or duplicate the PayPal button');
+    assert.equal(createdOrders,0,'Rendering checkout must not create an order');
+    assert.equal(capturedOrders,0,'Rendering checkout must not capture payment');
     await page.locator('#mock-paypal-approve').click();
     await page.locator('#step-receipt:not(.hidden-step)').waitFor({ timeout: 15000 });
+    assert.equal(createdOrders,1,'Buyer approval must create exactly one mocked order');
+    assert.equal(capturedOrders,1,'Buyer approval must capture exactly once');
     await auditAccessibility(page,'#step-receipt','receipt');
     assert.match(await page.locator('#step-receipt').innerText(), /Payment complete/);
     assert.equal(await page.locator('.receipt-amount-value').innerText(), '$900.00');
@@ -383,6 +414,10 @@ async function auditAccessibility(page, context, scenario) {
       await demoPage.locator('#step-checkout:not(.hidden-step)').waitFor({timeout:10000});
       const offlineButton=demoPage.getByRole('button',{name:'Simulate buyer approval (no payment)'});
       await offlineButton.waitFor({timeout:10000});
+      // Also cover repeated checkout rendering in credential-free offline mode.
+      await demoPage.evaluate(() => document.getElementById('btn-skip-scope').click());
+      await offlineButton.waitFor({timeout:10000});
+      assert.equal(await offlineButton.count(),1,'Offline re-render must restore exactly one simulation button');
       assert.match(await demoPage.locator('#paypal-buttons').innerText(),/SIMULATED BUYER APPROVAL/);
       assert.equal(await demoPage.evaluate(()=>Boolean(window.paypal)),false,'Offline demo must not load live PayPal SDK');
       await offlineButton.click();
