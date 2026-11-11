@@ -4512,3 +4512,26 @@ body.on-landing .mobile-nav-bar {
 @media (prefers-reduced-motion:reduce) {
   .resume-agreement-button {transition:none!important;}
 }
+
+
+/* One-pass audit: financial honesty and readable recovery actions. */
+.manual-price-review, .manual-milestone-review {
+  margin:12px 0; padding:12px 14px; border-radius:8px; line-height:1.6;
+  font-size:13px; font-weight:650; border-left:4px solid #b77916;
+  color:#754b14; background:#fff5e8;
+}
+.manual-milestone-review {border-left-color:#406ab0;background:#eff5ff;color:#244675;}
+.checkout-resume-status {
+  margin:12px 0 0;line-height:1.6;font-size:13px;color:#254d66;
+}
+.checkout-resume-status .resume-agreement-button {
+  display:block;margin-top:12px;text-align:left;
+}
+@media (max-width: 780px) {
+  .item-meta, .impact-metric-label, .change-order-kicker,
+  .receipt-meta-row, .lab-disclaimer, .workbench-flow-notice-copy span {
+    font-size:12px;line-height:1.6;
+  }
+  .resume-agreement-button {min-height:44px;max-width:100%;white-space:normal;}
+  .item-right {flex-wrap:wrap;gap:8px;}
+}
