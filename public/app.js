@@ -635,6 +635,10 @@ function renderProposalSkeleton() {
 }
 
 function updateProviderModeLabels() {
+  const flow = $('flow-provider-label');
+  if (flow) flow.textContent = state.offlineDemo
+    ? 'SIMULATED WORKFLOW · NO LIVE PROVIDERS'
+    : 'LIVE WORKFLOW · GEMINI + PAYPAL SANDBOX';
   const proposal = document.querySelector('[data-provider-label="proposal"]');
   const scope = document.querySelector('[data-provider-label="scope"]');
   if (state.offlineDemo) {
@@ -2069,6 +2073,8 @@ async function refreshIntegrationStatus() {
     qsa('[data-provider-label]').forEach(label => {
       label.textContent = 'PROVIDER MODE UNKNOWN · Check server connection before running live AI.';
     });
+    const flow = $('flow-provider-label');
+    if (flow) flow.textContent = 'WORKFLOW · SERVER CONNECTION UNAVAILABLE';
     paypal.textContent = 'SERVER OFFLINE';
     gemini.textContent = 'CHECK CONNECTION';
     const modelStatus = $('ai-current-model');
