@@ -83,11 +83,11 @@ test('offline mocked Gemini proposal → approval → scope change → PayPal ca
     assert.equal(scope.status,200);
     assert.equal(scope.data.analysis.additionalCostUSD,450);
     assert.deepEqual(scope.data.analysis.estimateBasis,[
-      'New seller accounts require account management and permission checks',
-      'Multi-seller order flow adds integration work'
+      'Seller account management',
+      'Marketplace permissions and split-payment requirements'
     ]);
     assert.equal(scope.data.analysis.estimatedEffortHours,25);
-    assert.deepEqual(scope.data.analysis.unknowns,['How many seller roles need different permissions?']);
+    assert.deepEqual(scope.data.analysis.unknowns,['How many seller roles?']);
     assert.equal(scope.data.analysis.warning.includes('approved quote remains unchanged'),true);
     assert.equal(scope.data.originalQuote.amountUSD,900);
     const uncertain=await post(base,'/api/scope-change',{quoteId,newRequest:'UNCERTAIN_EFFORT_TEST: Can we add something? The requirements are not yet specified.'});
