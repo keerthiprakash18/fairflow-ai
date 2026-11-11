@@ -1590,6 +1590,7 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
         toast('Sandbox transaction captured and verified!', 'success');
         setTimeout(loadDashboard, 1000);
       } catch (err) {
+        if (version !== checkoutRenderVersion) return;
         toast(`Capture not confirmed: ${err.message}. Check PayPal order status first.`, 'error');
         state.paypalRendered = false;
         showPayPalTroubleshooting();
@@ -1597,12 +1598,14 @@ async function renderPayPalButtons(version = checkoutRenderVersion) {
     },
 
     onCancel: () => {
+      if (version !== checkoutRenderVersion) return;
       toast('PayPal checkout closed. Check order status before trying again.', 'info');
       state.paypalRendered = false;
       showPayPalTroubleshooting();
     },
 
     onError: err => {
+      if (version !== checkoutRenderVersion) return;
       console.error('PayPal checkout error:', err);
       toast('PayPal checkout failed. Check Sandbox order status and use a separate Personal buyer.', 'error');
       state.paypalRendered = false;
