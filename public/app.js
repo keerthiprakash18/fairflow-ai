@@ -403,7 +403,8 @@ function renderDashboardRecent(projects) {
                 }) + ' USD'
                 : '—'
             }),
-            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label })
+            el('span', { cls:'dashboard-project-status ' + (paid && !mocked ? 'is-paid' : 'is-pending'), text:label }),
+            !paid ? createResumeButton(p) : null
           ]
         })
       ]
@@ -508,13 +509,73 @@ function renderHistory(projects) {
               });
               button.onclick = () => openStoredReceipt(p);
               return button;
-            })() : null
+            })() : null,
+            !isPaid ? createResumeButton(p) : null
           ].filter(Boolean)
         })
       ]
     });
     container.appendChild(row);
   });
+}
+
+function createResumeButton(project) {
+  const button = el('button', {
+    cls:'resume-agreement-button',
+    text: project.status === 'checkout-started' ? 'Review existing checkout ↗' : 'Resume agreement ↗',
+    attr:{type:'button','aria-label':'Resume saved agreement '+(project.title || 'project')}
+  });
+  button.addEventListener('click',()=>resumeSavedAgreement(project.quoteId));
+  return button;
+}
+
+async function resumeSavedAgreement(quoteId) {
+  if (!quoteId || !/^[0-9a-f-]{36}$/.test(quoteId)) {
+    toast('Saved agreement ID is invalid. No changes made.', 'error');
+    return;
+  }
+  try {
+    // Only load data; never create an order or automatically capture payment.
+    const saved = await apiGet('/api/agreements/' + encodeURIComponent(quoteId) + '/resume');
+    if (!['draft','approved','checkout-started'].includes(saved.status))
+      throw new Error('This record cannot be resumed.');
+    if (saved.offlineDemo !== state.offlineDemo)
+      throw new Error('Saved provider mode differs from this server. Use the same local mode.');
+    state.quoteId = saved.quoteId;
+    state.quote = saved.quote;
+    state.approvedAmount = saved.status === 'draft' ? null : saved.quote.amountUSD;
+    state.pendingScopeScenario = null;
+    state.paypalRendered = false;
+    descEl.value = saved.description || '';
+    $('char-count').textContent = descEl.value.length;
+    $('scope-request').value = saved.scopeChangeRequest || '';
+    if (saved.status === 'draft') {
+      renderProposal(saved.quoteId, saved.quote);
+      showView('new-project');
+      showStep('proposal');
+    } else if (saved.status === 'approved') {
+      showView('new-project');
+      showStep('scope');
+      renderScopeStep();
+      if (saved.scopeAnalysis) renderScopeAnalysis({
+        analysis:saved.scopeAnalysis,
+        originalQuote:{title:saved.quote.title,amountUSD:saved.quote.amountUSD,deliverables:saved.quote.deliverables}
+      });
+    } else {
+      renderCheckoutStep();
+      showView('new-project');
+      showStep('checkout');
+      // An existing Sandbox order may have been approved/captured remotely.
+      // Show diagnostics rather than silently creating or capturing a new order.
+      showPayPalTroubleshooting();
+      const area = $('paypal-troubleshooting');
+      if (area) area.prepend(el('p',{cls:'checkout-resume-warning',attr:{role:'status'},
+        text:'Existing Sandbox order detected. Check PayPal order status BEFORE approving or capturing anything again.'}));
+    }
+    toast('Saved agreement restored from the local ledger. No new payment was made.', 'success');
+  } catch(err) {
+    toast('Could not resume agreement: '+err.message, 'error');
+  }
 }
 
 function openStoredReceipt(project) {
