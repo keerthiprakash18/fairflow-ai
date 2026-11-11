@@ -631,7 +631,7 @@ async function handle(req, res) {
     if (!saved.title || !Number.isFinite(Number(saved.amountUSD)))
       return send(res,409,{error:'Saved agreement data is incomplete; no payment has been initiated.'});
     return send(res,200,{
-      quoteId:saved.quoteId, status:saved.status, offlineDemo:saved.paymentEnvironment === 'offline-mock',
+      quoteId:saved.quoteId, status:saved.status, offlineDemo:OFFLINE_DEMO_MODE,
       quote:{
         title:saved.title,summary:saved.summary || '',
         deliverables:Array.isArray(saved.deliverables)?saved.deliverables:[],
