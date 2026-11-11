@@ -28,7 +28,11 @@ async function startApp(port,dir,opts={}){
     FAIRFLOW_MOCK_BAD_OWNER:opts.badOwner?'1':'0',
     FAIRFLOW_MOCK_GEMINI_FAIL_FIRST:opts.failFirstGemini?'1':'0',
     FAIRFLOW_MOCK_GEMINI_ALL_UNAVAILABLE:opts.allGeminiUnavailable?'1':'0',
-    FAIRFLOW_MOCK_GEMINI_CLIENT_ERROR:opts.geminiClientError?'1':'0'
+    FAIRFLOW_MOCK_GEMINI_CLIENT_ERROR:opts.geminiClientError?'1':'0',
+    FAIRFLOW_MOCK_INVALID_QUOTE_PRICE:opts.invalidQuotePrice?'1':'0',
+    FAIRFLOW_MOCK_INVALID_QUOTE_SCHEMA:opts.invalidQuoteSchema?'1':'0',
+    FAIRFLOW_MOCK_INVALID_MILESTONES:opts.invalidMilestones?'1':'0',
+    FAIRFLOW_MOCK_CREATE_ONCE:opts.strictCreateOnce?'1':'0'
   },stdio:'ignore'});
   for(let i=0;i<100;i++){
     if(proc.exitCode!==null)throw Error('App exited while starting');
@@ -348,5 +352,91 @@ test('read-only resume survives restart at draft, approved and pending-checkout;
     const after=await(await fetch(base+'/api/projects')).json();
     assert.equal(after.projects[0].status,'paid');
     assert.equal(after.projects.length,1);
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('invalid Gemini quote price is null, discloses manual review, and cannot reach checkout without human amount',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-manual-price-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir,{invalidQuotePrice:true,invalidMilestones:true});
+    const q=await post(base,'/api/quote',{description:'Create a boutique webshop with catalog, orders, checkout and admin controls.'});
+    assert.equal(q.status,200,JSON.stringify(q.data));
+    assert.equal(q.data.quote.amountUSD,null);
+    assert.equal(q.data.quote.priceNeedsReview,true);
+    assert.equal(q.data.quote.milestonesAreFallback,true);
+    assert.match(q.data.quote.caution,/manual pricing review required/i);
+    assert.equal(q.data.quote.milestones.reduce((sum,m)=>sum+m.percent,0),100);
+    const saved=await(await fetch(base+'/api/agreements/'+q.data.quoteId+'/resume')).json();
+    assert.equal(saved.quote.amountUSD,null);
+    assert.equal(saved.quote.priceNeedsReview,true);
+    assert.equal(saved.quote.milestonesAreFallback,true);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:null})).status,400);
+    assert.equal((await post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId})).status,400);
+    const human=await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'1250.00'});
+    assert.equal(human.status,200);
+    assert.equal(human.data.amountUSD,1250);
+    const persisted=await(await fetch(base+'/api/agreements/'+q.data.quoteId+'/resume')).json();
+    assert.equal(persisted.quote.amountUSD,1250);
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('Gemini incomplete proposal schema is rejected instead of creating fictional legal terms',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-quote-schema-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir,{invalidQuoteSchema:true});
+    const q=await post(base,'/api/quote',{description:'Build boutique inventory, product search and cart checkout system.'});
+    assert.equal(q.status,502);
+    const projects=await(await fetch(base+'/api/projects')).json();
+    assert.equal(projects.projects.length,0);
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('offline scope fixtures match marketplace, support assistant and rush client requests',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-scope-fixtures-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir);
+    const q=await post(base,'/api/quote',{description:'Build a boutique e-commerce website with catalog, cart, order and admin dashboard.'});
+    assert.equal(q.status,200);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    for(const [request,term,expected] of [
+      ['Add independent seller accounts to convert the existing shop into a marketplace.','Seller accounts',450],
+      ['Add AI support assistant with FAQ lookup and a live support chat widget.','FAQ search',650],
+      ['Rush delivery: expedite the launch deadline to 10 days.','Accelerated delivery',950]
+    ]){
+      const result=await post(base,'/api/scope-change',{quoteId:q.data.quoteId,newRequest:request});
+      assert.equal(result.status,200,JSON.stringify(result.data));
+      assert.equal(result.data.analysis.additionalCostUSD,expected);
+      assert.ok(result.data.analysis.addedFeatures.some(x=>x.includes(term)),JSON.stringify(result.data.analysis));
+      assert.equal(result.data.originalQuote.amountUSD,900);
+    }
+  }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
+});
+
+test('two concurrent create-order calls return exactly one PayPal Sandbox mock order',async()=>{
+  const dir=await mkdtemp(path.join(os.tmpdir(),'ff-order-race-'));
+  const port=await freePort(),base='http://127.0.0.1:'+port;
+  let proc;
+  try{
+    proc=await startApp(port,dir,{strictCreateOnce:true});
+    const q=await post(base,'/api/quote',{description:'Build responsive boutique webshop with cart, payment checkout and inventory dashboard.'});
+    assert.equal(q.status,200);
+    assert.equal((await post(base,'/api/confirm-quote',{quoteId:q.data.quoteId,amountUSD:'900.00'})).status,200);
+    const [a,b]=await Promise.all([
+      post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId}),
+      post(base,'/api/paypal/create-order',{quoteId:q.data.quoteId})
+    ]);
+    assert.equal(a.status,200,JSON.stringify(a.data));
+    assert.equal(b.status,200,JSON.stringify(b.data));
+    assert.equal(a.data.id,b.data.id);
+    const rows=await(await fetch(base+'/api/projects')).json();
+    assert.equal(rows.projects.length,1);
+    assert.equal(rows.projects[0].status,'checkout-started');
+    assert.equal(rows.projects[0].orderId,a.data.id);
   }finally{await stopApp(proc);await rm(dir,{recursive:true,force:true});}
 });
