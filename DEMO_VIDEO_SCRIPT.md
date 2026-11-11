@@ -1,4 +1,6 @@
-# FairFlow AI — Devpost Submission Copy + 2:40 Demo Video Script
+# FairFlow AI — Devpost Copy + Historical Recording Outline
+
+> **FINAL VIDEO WAS ALREADY RECORDED:** [FairFlow AI Judge Demo](https://youtu.be/5gkWMoQ1E2A) (135.13 s / ~2:15, English narration and burned-in captions). The **2:40 timeline below is a historical planning script**, not a timestamp map of the published video. For the final judge walkthrough and real vs mocked-provider distinction, use [JUDGES_START_HERE.md](JUDGES_START_HERE.md). Do **not** imply the replayed historical verified Sandbox receipt is a newly executed payment.
 
 **Project:** FairFlow AI — Every Change Deserves Fair Pay  
 **Category:** AI + PayPal Sandbox · Freelance Agreements & Scope Protection  
